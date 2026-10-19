@@ -3,7 +3,7 @@
 ## 环境
 
 - macOS；应用最低运行版本为 macOS 15.0。
-- Xcode 27.1 及命令行工具（当前验证环境）。
+- Xcode 27 系列及命令行工具；当前本地验证环境为 Xcode 27.1，CI 使用 GitHub 的 Xcode 27 镜像。
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)，可通过 Homebrew 安装：`brew install xcodegen`。
 
 应用使用 Apple 系统 SDK，没有需要下载的第三方运行时包。工程由 `Project/project.yml` 生成，生成的 `.xcodeproj` 不提交到仓库。
