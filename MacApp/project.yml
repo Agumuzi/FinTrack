@@ -1,0 +1,55 @@
+name: FinTrackMac
+options:
+  bundleIdPrefix: dev.agumuzi.fintrack
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGNING_ALLOWED: "YES"
+    CODE_SIGNING_REQUIRED: "NO"
+    ENABLE_HARDENED_RUNTIME: "NO"
+targets:
+  FinTrackMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+      - path: Resources
+      - path: ../FinTrack/Models
+      - path: ../FinTrack/Modules/Category/Models/Category.swift
+      - path: ../FinTrack/Modules/Number/Helpers/FinancialPrecision.swift
+      - path: ../FinTrack/Manager/DepositSettlementRule.swift
+      - path: ../FinTrack/Manager/FinancialProfileSnapshotRule.swift
+      - path: ../FinTrack/UI/Record/RecordAnalytics.swift
+      - path: ../FinTrack/Modules/Export/Helpers/CSVExporter.swift
+      - path: ../FinTrack/Modules/Import/Services/CSVImportReader.swift
+      - path: ../FinTrack/Modules/Import/Models/FullDataImportModels.swift
+      - path: ../FinTrack/Manager/PersistenceLogger.swift
+      - path: ../FinTrack/UI/Insights/YearComparisonAnalyticsService.swift
+      - path: ../FinTrack/UI/Insights/CompareAvailabilityRule.swift
+      - path: ../FinTrack/UI/Insights/ComparePeriodFormatter.swift
+      - path: ../FinTrack/UI/Insights/ComparisonPatternRule.swift
+      - path: ../FinTrack/Modules/Date/Helpers/DateHelper.swift
+      - path: ../FinTrack/Modules/Localization/Managers/UIStringKey.swift
+      - path: ../FinTrack/Modules/Category/Helpers/CategoryUsageHelper.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.agumuzi.fintrack.macos
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: FinTrack
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        GENERATE_INFOPLIST_FILE: "YES"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+schemes:
+  FinTrackMac:
+    build:
+      targets:
+        FinTrackMac: all

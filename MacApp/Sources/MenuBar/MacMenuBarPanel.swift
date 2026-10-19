@@ -1,0 +1,111 @@
+import SwiftUI
+import AppKit
+
+struct MacMenuBarPanel: View {
+    @ObservedObject var runtime: MacApplicationRuntime
+    @ObservedObject var session: MacMenuBarSession
+    @ObservedObject var entries: MacAppEntryController
+    @State private var adding = false
+    @State private var quickSettings = false
+    @ObservedObject private var service = MacFXApplication.shared.monitor
+    @ObservedObject private var ledger = MacLedgerAccess.shared
+    @AppStorage("color_theme_mode", store: MacPreferences.defaults) private var theme = "system"
+    @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var tier = "standard"
+    @AppStorage("v2_accent", store: MacPreferences.defaults) private var accent = "terracotta"
+    private var height: CGFloat {
+        min(CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720), max(280, (runtime.panelWindow?.screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 800) - 32))
+    }
+    var body: some View {
+        let _ = accent
+        VStack(spacing: 0) {
+            HStack {
+                Image(nsImage: FinTrackMacApp.menuIcon)
+                Text("FinTrack").appFont(.section, weight: .semibold)
+                Spacer()
+                HStack(spacing:4) {
+                    if session.page != .quickEntry {
+                        tool("plus",title:session.page == .rates ? "添加货币对" : "添加换算币种",identifier:session.page == .rates ? "fxAddPair" : "fxAddCurrency") { adding = true }
+                            .popover(isPresented:$adding) {
+                                Group {
+                                    if session.page == .rates { MacFXPairPicker { _ in adding = false } }
+                                    else { MacFXCurrencyPicker(service:service) { adding = false } }
+                                }
+                            }
+                        tool("arrow.clockwise",title:"更新汇率",identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
+                            .disabled(service.busy).help(service.busy ? "正在更新…" : service.status)
+                    }
+                    tool("gearshape",title:"设置",identifier:"menuSettings") { quickSettings.toggle() }
+                }
+            }.padding(.horizontal, 18).padding(.top, 8)
+            HStack(spacing: 4) {
+                ForEach(MacMenuBarPage.allCases) { page in
+                    Button { session.page = page } label: {
+                        Label(page.title, systemImage: page.symbol).appFont(.label, weight: .medium)
+                            .frame(maxWidth: .infinity).frame(height: 40)
+                            .background(session.page == page ? MacUI.accent.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityIdentifier("menuPage-" + page.rawValue).accessibilityValue(session.page == page ? "已选中" : "未选中")
+                }
+            }.padding(.horizontal, 14).padding(.bottom, 12)
+            Divider()
+            Group {
+                if quickSettings {
+                    MacMenuQuickSettings(service:service,runtime:runtime,canManageCategories:ledger.container != nil) { quickSettings = false }
+                } else { switch session.page {
+                case .rates: MacFXRatesView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query, showsTools: false)
+                case .converter: MacFXConverterView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query, showsTools: false)
+                case .quickEntry: quickEntry
+                } }
+            }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(session.page == .quickEntry ? MacOverviewStyle.card : .clear)
+
+        }.frame(width: 408, height: height).background(MacOverviewStyle.canvas).tint(MacUI.accent)
+            .accessibilityElement(children: .contain).accessibilityIdentifier("menuPanelContent")
+            .background(MacMenuBarWindowProbe { runtime.panelWindow = $0 })
+            .background(MacMenuPanelKeyboard { if quickSettings { quickSettings = false } else { runtime.closePanel() } })
+            .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
+            .defaultAppStorage(MacPreferences.defaults)
+            .onAppear { if session.page == .quickEntry { ledger.load() } }
+            .onChange(of: session.page) { _, page in adding = false; quickSettings = false; if page == .quickEntry { ledger.load() } }
+    }
+    private func tool(_ symbol:String,title:String,identifier:String,action:@escaping () -> Void) -> some View {
+        Button(action:action) { Image(systemName:symbol).appIconFont(22).frame(width:40,height:40).contentShape(Rectangle()) }
+            .buttonStyle(.plain).accessibilityLabel(title).accessibilityIdentifier(identifier)
+    }
+    @ViewBuilder private var quickEntry: some View {
+        if let container = ledger.container {
+            MacQuickEntryView(draft: session.quickEntry, runtime: runtime).modelContainer(container)
+        } else {
+            VStack(spacing: 18) {
+                Image(systemName: "square.and.pencil").appIconFont(40).foregroundStyle(MacUI.accent)
+                Text("快速记账").appFont(.section, weight:.semibold)
+                Text("尚未打开账本，请先在主窗口设置记账。").appFont(.body, weight:.regular).foregroundStyle(.secondary)
+                Button("打开主窗口") { runtime.showMain() }.buttonStyle(MacSettingsButtonStyle(height:40))
+            }.frame(maxWidth:.infinity,maxHeight:.infinity)
+        }
+    }
+}
+
+struct MacStandaloneFXWorkspace: View {
+    @ObservedObject var runtime: MacApplicationRuntime
+    @State private var page = "rates"
+    @AppStorage("color_theme_mode", store: MacPreferences.defaults) private var theme = "system"
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Picker("页面", selection: $page) { Text("汇率列表").tag("rates"); Text("汇率换算").tag("converter"); Text("货币与汇率").tag("settings") }
+                    .pickerStyle(.segmented).frame(maxWidth: 520).accessibilityIdentifier("standaloneFXPage")
+                Spacer()
+            }
+            switch page {
+            case "converter": MacFXConverterView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query)
+            case "settings": ScrollView { VStack(spacing: 16) { MacAppEntrySettingsCard(); MacFXPreferencesView() } }
+            default: MacFXRatesView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query)
+            }
+        }.frame(minWidth: 640, minHeight: 460)
+            .tint(MacUI.accent)
+            .background(MacOverviewStyle.canvas)
+            .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
+            .onAppear { if runtime.showsSettings { page = "settings" } }
+            .onChange(of: runtime.settingsRequest) { _, _ in page = "settings" }
+    }
+}

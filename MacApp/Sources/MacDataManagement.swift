@@ -1,0 +1,102 @@
+import Foundation
+import SwiftData
+
+@MainActor
+enum MacDataManagement {
+    enum Failure: LocalizedError {
+        case generatedReceipts, protectedCategory
+        var errorDescription: String? {
+            switch self {
+            case .generatedReceipts: "Generated finance receipts cannot be deleted from Records."
+            case .protectedCategory: "Loan and Deposit categories cannot be renamed."
+            }
+        }
+    }
+    /// Use the original catalog while preventing Loan/Deposit from being
+    /// inserted twice when a new ledger has no categories yet.
+    static func seedCategories(in context: ModelContext) throws {
+        let existing = try context.fetch(FetchDescriptor<Category>())
+        var pairs = Set(existing.map { $0.type + "::" + $0.name })
+        var requested: [(String, String)] = []
+        if !existing.contains(where: { $0.type == "Expense" }) {
+            requested += CategoryUsageHelper.defaultExpenseNames.map { ("Expense", $0) }
+        }
+        if !existing.contains(where: { $0.type == "Income" }) {
+            requested += CategoryUsageHelper.defaultIncomeNames.map { ("Income", $0) }
+        }
+        requested += [("Expense", "Loan"), ("Income", "Deposit")]
+        do {
+            for (type, name) in requested where pairs.insert(type + "::" + name).inserted {
+                context.insert(Category(name: name, type: type))
+            }
+            if context.hasChanges { try context.save() }
+        } catch { context.rollback(); throw error }
+    }
+    static func clearLedger(in context: ModelContext) throws {
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再清空账本") }
+        do {
+            for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<LoanRule>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<DepositRecord>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<Transaction>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<Category>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<Goal>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<FinancialProfile>()) { context.delete(row) }
+            for row in try context.fetch(FetchDescriptor<Account>()) { context.delete(row) }
+            try context.save()
+        } catch { context.rollback(); throw error }
+    }
+
+    static func deleteTransactions(_ rows: [Transaction], in context: ModelContext) throws {
+        guard !rows.contains(where: MacTransactionCRUD.isProtectedGeneratedPosting) else {
+            throw Failure.generatedReceipts
+        }
+        do {
+            for row in rows { context.delete(row) }
+            try context.save()
+        } catch { context.rollback(); throw error }
+    }
+
+    /// Original category rename/merge updates transaction, recurring and loan names.
+    static func rename(_ category: Category, to name: String, in context: ModelContext) throws {
+        guard !CategoryUsageHelper.isProtectedCategory(category) else {
+            throw Failure.protectedCategory
+        }
+        let name = try MacTransactionCRUD.validatedCategory(CategoryUsageHelper.canonicalCategoryName(name, type: category.type))
+        let old = category.name
+        let target = try context.fetch(FetchDescriptor<Category>()).first {
+            $0.id != category.id && $0.type == category.type && $0.deletedAt == nil && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame
+        }
+        let finalName = target?.name ?? name
+        var budgets: [MacBudget] = MacSettingsStore.load("v2_budgets", fallback: [])
+        if category.type == "Expense", let target {
+            let sourceBudgets = budgets.filter { $0.categoryID == category.id || ($0.categoryID == nil && $0.categoryName == old) }
+            let targetBudgets = budgets.filter { $0.categoryID == target.id || ($0.categoryID == nil && $0.categoryName == target.name) }
+            guard !sourceBudgets.contains(where: { source in targetBudgets.contains { $0.month == source.month && $0.currency == source.currency } })
+            else { throw MacSettingsFailure.invalid("两个分类在同月均有预算，请先调整预算再合并，避免重复统计") }
+        }
+        if category.type == "Expense" {
+            for index in budgets.indices where budgets[index].categoryID == category.id || (budgets[index].categoryID == nil && budgets[index].categoryName == old) {
+                budgets[index].categoryID = target?.id ?? category.id; budgets[index].categoryName = finalName
+            }
+        }
+        let budgetBytes = try JSONEncoder().encode(budgets)
+        do {
+            for row in try context.fetch(FetchDescriptor<Transaction>()) where row.type == category.type && row.category == old {
+                row.category = finalName; row.updatedAt = Date()
+            }
+            for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) where row.typedType.storageValue == category.type && row.category == old {
+                row.category = finalName; row.updatedAt = Date()
+            }
+            if category.type == "Expense" {
+                for row in try context.fetch(FetchDescriptor<LoanRule>()) where row.category == old {
+                    row.category = finalName; row.updatedAt = Date()
+                }
+            }
+            if target != nil { context.delete(category) }
+            else { category.name = finalName; category.updatedAt = Date() }
+            try context.save()
+            MacPreferences.defaults.set(budgetBytes, forKey: "v2_budgets")
+        } catch { context.rollback(); throw error }
+    }
+}
