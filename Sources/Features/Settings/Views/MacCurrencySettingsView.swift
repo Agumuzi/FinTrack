@@ -27,7 +27,7 @@ struct MacCurrencySettingsView: View {
     @State private var busy = false
     @State private var error: String?
     @State private var message: String?
-    private var codes: [String] { (try? JSONDecoder().decode([String].self, from: currencyBytes)) ?? ["USD", "RUB", "CNY", "EUR", "GBP", "JPY", "CHF", "HKD"] }
+    private var codes: [String] { (try? JSONDecoder().decode([String].self, from: currencyBytes)) ?? [] }
     private var disabled: [String] { (try? JSONDecoder().decode([String].self, from: disabledBytes)) ?? [] }
     private var sources: [MacFXSource] { (try? JSONDecoder().decode([MacFXSource].self, from: sourceBytes)) ?? [] }
     private var quotes: [MacFXQuote] { (try? JSONDecoder().decode([MacFXQuote].self, from: quoteBytes)) ?? [] }

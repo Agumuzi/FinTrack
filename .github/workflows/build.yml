@@ -24,9 +24,11 @@ jobs:
       - name: Verify app identity
         run: |
           app=.build/app/Build/Products/Release/FinTrack.app
+          fintrack_version="$(awk '/MARKETING_VERSION:/ {gsub(/"/,"",$2); print $2; exit}' Project/project.yml)"
+          fintrack_build="$(awk '/CURRENT_PROJECT_VERSION:/ {gsub(/"/,"",$2); print $2; exit}' Project/project.yml)"
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = dev.agumuzi.fintrack.macos
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = 1.0
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")" = 1
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$fintrack_version"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")" = "$fintrack_build"
           codesign --verify --deep --strict "$app"
           fintrack_archs="$(lipo -archs "$app/Contents/MacOS/FinTrack")"
           [[ " $fintrack_archs " == *" arm64 "* ]]

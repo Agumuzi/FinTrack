@@ -169,6 +169,7 @@ enum MacCSV {
                 let related = rules.filter { ($0.projectIdentifier ?? "").hasPrefix(prefix) }
                 if !related.isEmpty { loan.generatedRules = related }
             }
+            try MacDataManagement.registerReferencedCategories(in: context)
             try context.save()
             return result
         } catch {

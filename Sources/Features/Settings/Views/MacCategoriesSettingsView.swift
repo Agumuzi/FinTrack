@@ -136,7 +136,10 @@ struct MacCategoriesSettingsView: View {
                 HStack { Text("自定义 emoji"); TextField("输入一个 emoji", text: $emoji).accessibilityIdentifier("categoryCustomEmoji"); Button("完成") { moreIcons = false }.disabled(!MacCategoryEmoji.isValid(emoji)) }
             }.appPadding(26)
         }
-        .onAppear { if rows.isEmpty { do { try MacDataManagement.seedCategories(in: context) } catch { self.error = MacLocalization.error(error) } }; select(rows.first) }
+        .onAppear {
+            do { try MacDataManagement.reconcileCategories(in: context); select(rows.first) }
+            catch { self.error = MacLocalization.error(error) }
+        }
         .onChange(of: type) { select(rows.first) }
         .alert("更新分类及全部引用？", isPresented: $rename) {
             Button("取消", role: .cancel) {}

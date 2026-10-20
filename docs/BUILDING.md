@@ -8,6 +8,8 @@
 
 应用使用 Apple 系统 SDK，没有需要下载的第三方运行时包。工程由 `Project/project.yml` 生成，生成的 `.xcodeproj` 不提交到仓库。
 
+Xcode 和本项目的 Ad-hoc 构建不要求付费 Apple Developer 会员。编译由脚本调用 Xcode 命令行工具完成，无需打开 Xcode 窗口；发布包通过 GitHub Releases 提供 ZIP，由用户手动下载替换旧应用。
+
 ## Release 编译
 
 ```sh
@@ -18,7 +20,7 @@ cd FinTrack
 
 输出：`.build/app/Build/Products/Release/FinTrack.app`。默认同时构建 arm64 和 x86_64，使用 Ad-hoc 签名；本地编译不等于完成 Developer ID 签名或 Apple 公证。脚本只编译，不启动应用。
 
-如需指定构建目录，可设置 `FINTRACK_DERIVED_DATA_PATH`。当前源码版本配置为 `1.0` / Build `1`；下载的正式安装包以 Release 页面对应的 Tag 为准。
+如需指定构建目录，可设置 `FINTRACK_DERIVED_DATA_PATH`。源码版本配置见 `Project/project.yml` 的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION`；已发布安装包以 Release 页面对应的 Tag 为准。
 
 ## 在 Xcode 中查看
 

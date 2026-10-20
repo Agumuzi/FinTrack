@@ -260,7 +260,7 @@ struct MacSettingsView: View {
     private func beginClear() { clearStage = multipleClear ? 0 : 1; clearText = ""; showClear = true }
     private func refreshQuickRate() async {
         refreshing = true; defer { refreshing = false }
-        let codes: [String] = MacSettingsStore.load("v2_currencies", fallback: ["USD", "RUB", "CNY", "EUR", "GBP", "JPY", "CHF", "HKD"])
+        let codes: [String] = MacSettingsStore.load("v2_currencies", fallback: [])
         let result = await MacFXService.refreshAll(from:baseCurrency,codes:codes)
         message = result.message; error = result.failureMessage
     }

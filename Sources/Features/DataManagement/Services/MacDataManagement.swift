@@ -12,25 +12,43 @@ enum MacDataManagement {
             }
         }
     }
-    /// Use the original catalog while preventing Loan/Deposit from being
-    /// inserted twice when a new ledger has no categories yet.
-    static func seedCategories(in context: ModelContext) throws {
-        let existing = try context.fetch(FetchDescriptor<Category>())
-        var pairs = Set(existing.map { $0.type + "::" + $0.name })
-        var requested: [(String, String)] = []
-        if !existing.contains(where: { $0.type == "Expense" }) {
-            requested += CategoryUsageHelper.defaultExpenseNames.map { ("Expense", $0) }
-        }
-        if !existing.contains(where: { $0.type == "Income" }) {
-            requested += CategoryUsageHelper.defaultIncomeNames.map { ("Income", $0) }
-        }
-        requested += [("Expense", "Loan"), ("Income", "Deposit")]
+    /// Repair catalogs created by older imports without changing any financial row.
+    /// A new ledger stays empty; categories only come from the user's own records.
+    static func reconcileCategories(in context: ModelContext) throws {
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再更新分类目录") }
         do {
-            for (type, name) in requested where pairs.insert(type + "::" + name).inserted {
-                context.insert(Category(name: name, type: type))
-            }
+            try registerReferencedCategories(in: context)
             if context.hasChanges { try context.save() }
         } catch { context.rollback(); throw error }
+    }
+
+    /// Caller owns the save so CSV records and their catalog entries commit atomically.
+    static func registerReferencedCategories(in context: ModelContext) throws {
+        let existing = try context.fetch(FetchDescriptor<Category>())
+        var names = Dictionary(grouping: existing.filter { $0.deletedAt == nil }, by: \.type)
+            .mapValues { Set($0.map(\.name)) }
+        var referenced: [String: Set<String>] = [:]
+        for row in try context.fetch(FetchDescriptor<Transaction>()) where row.deletedAt == nil {
+            referenced[row.type, default: []].insert(row.category)
+        }
+        for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) where row.deletedAt == nil {
+            referenced[row.typedType.storageValue, default: []].insert(row.category)
+        }
+        for row in try context.fetch(FetchDescriptor<LoanRule>()) where row.deletedAt == nil {
+            referenced["Expense", default: []].insert(row.category)
+        }
+        for type in ["Expense", "Income"] {
+            for name in (referenced[type] ?? []).sorted()
+                where !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && names[type, default: []].insert(name).inserted {
+                // Match the stored name exactly: localization/case aliases must not
+                // silently merge distinct categories or orphan exact-name references.
+                if let row = existing.first(where: { $0.type == type && $0.name == name }) {
+                    row.deletedAt = nil; row.updatedAt = Date()
+                } else {
+                    context.insert(Category(name: name, type: type))
+                }
+            }
+        }
     }
     static func clearLedger(in context: ModelContext) throws {
         guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再清空账本") }
