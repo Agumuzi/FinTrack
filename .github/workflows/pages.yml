@@ -1,0 +1,42 @@
+name: GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', 'scripts/check-site.py', '.github/workflows/pages.yml']
+  pull_request:
+    paths: ['website/**', 'scripts/check-site.py', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate static website
+        run: |
+          node --check website/script.js
+          python3 scripts/check-site.py
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: website
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

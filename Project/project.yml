@@ -1,0 +1,44 @@
+name: FinTrack
+options:
+  bundleIdPrefix: dev.agumuzi.fintrack
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGNING_ALLOWED: "YES"
+    CODE_SIGNING_REQUIRED: "NO"
+    ENABLE_HARDENED_RUNTIME: "NO"
+targets:
+  FinTrack:
+    type: application
+    platform: macOS
+    sources:
+      - path: ../Sources
+      - path: ../Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.agumuzi.fintrack.macos
+        PRODUCT_MODULE_NAME: FinTrackMac
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: FinTrack
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        GENERATE_INFOPLIST_FILE: "YES"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+schemes:
+  FinTrack:
+    run:
+      config: Debug
+      environmentVariables:
+        FINTRACK_V12_UI_TEST: "1"
+        FINTRACK_FX_MOCK: "1"
+    build:
+      targets:
+        FinTrack: all

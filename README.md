@@ -1,43 +1,60 @@
-# FinTrack
+<p align="center">
+  <img src="website/assets/app-icon.png" width="96" alt="FinTrack 应用图标">
+</p>
 
-FinTrack 是使用 SwiftUI 和 SwiftData 构建的原生 macOS 个人财务管理应用，当前正式版本为 **v1.0**。
+<h1 align="center">FinTrack</h1>
+<p align="center">为 Mac 打造的个人财务工作台。记录收支，整理资产，把计划看清楚。</p>
+<p align="center"><strong>v1.0 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
+<p align="center">
+  <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.0">下载 macOS 版</a> ·
+  <a href="docs/INSTALLATION.md">安装指南</a> ·
+  <a href="CHANGELOG.md">更新记录</a>
+</p>
 
-支持收支记账、账户与资产、预算和财务目标、定期存款、贷款与周期记账、财务统计、多币种与汇率查询、菜单栏快速操作，以及 CSV 导入导出和本地完整备份恢复。
+![FinTrack 概览](website/assets/screenshots/overview.png)
+
+*真实软件界面，使用示例数据展示。应用不预装示例账本。*
+
+## 在一个工作台里，整理个人财务
+
+- **日常记账**：管理收入与支出，按日期、类别和币种查找，查看趋势与分类统计。
+- **资产与计划**：整理账户与资产，管理存款、贷款、周期记账、预算及财务目标。银行图片支持自行上传，与银行名称关联保存；再次输入相同名称会自动匹配，无需重复添加。
+- **多币种**：保留原币、记账汇率和本位币金额，查询与换算汇率，分别选择记账及菜单栏的数据来源。
+- **Mac 原生体验**：SwiftUI 界面、菜单栏快速操作、键盘交互与浅色 / 深色外观。
+- **本地数据管理**：原生完整备份与恢复，四类 CSV 模板及导入导出。
+
+更多真实界面见[产品官网](https://agumuzi.github.io/FinTrack/#showcase)。
 
 ## 下载与安装
 
-从 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases/tag/v1.0) 下载 `FinTrack-v1.0-macOS.zip`，按同页 SHA256 校验，解压后将 `FinTrack.app` 拖入“应用程序”。
+[**下载 FinTrack v1.0 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.0/FinTrack-v1.0-macOS.zip) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.0/SHA256.txt)
 
-- 系统要求：macOS 15.0 或更高版本。
-- 安装包包含 Apple Silicon 和 Intel 架构；实际运行验证在 Apple Silicon 上完成，Intel 实机兼容性尚未验证。
-- 当前使用 Ad-hoc 签名，未提供 Apple Developer ID 签名及 Apple 公证。从网络下载后，macOS 可能要求在“隐私与安全性”中允许打开；不要关闭系统整体安全保护。
-- 覆盖升级前退出旧版并备份账本。大量录入前，先以少量数据检查保存、退出重开、备份和恢复。
+1. 下载并校验 ZIP，解压后将 `FinTrack.app` 拖入“应用程序”。
+2. 首次打开可能受到 macOS 安全检查限制。当前安装包采用 **Ad-hoc 签名，未经 Apple 公证**，详见[安装指南](docs/INSTALLATION.md)。
+3. 先录入少量数据，确认保存、退出重开和备份恢复符合需要，再逐步投入日常使用。
 
-## 从源码构建
+需要 **macOS 15.0 或更高版本**。安装包包含 arm64 与 x86_64；已在 Apple Silicon 实机运行，Intel 实机兼容性尚未验证。
 
-需要 macOS、Xcode 及 XcodeGen。此版本使用 Xcode 27.1 构建。
+## 数据与隐私
 
-```sh
-xcodegen generate --spec MacApp/project.yml --project MacApp
-xcodebuild build \
-  -project MacApp/FinTrackMac.xcodeproj \
-  -scheme FinTrackMac -configuration Release \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath .build \
-  ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO \
-  CODE_SIGNING_ALLOWED=YES
-```
+账本保存在本机，与应用和源代码目录分开。用户自行录入数据、选择图片，并通过完整备份保存账本。API 密钥使用本机钥匙串，不随账本备份迁移。
 
-应用生成在 `.build/Build/Products/Release/FinTrackMac.app`，可复制并命名为 `FinTrack.app`。生成的 Xcode 工程不纳入源码。
+汇率查询会连接所选的外部数据来源；备份和 CSV 包含财务信息，应妥善保管。账本不是加密保险库。更多细节见[数据与隐私](docs/PRIVACY.md)。
 
-`MacApp/Sources` 为 macOS 应用，`MacApp/Resources` 为资源；`FinTrack` 中的模型及共享业务文件由工程直接引用。应用 Bundle Identifier 为 `dev.agumuzi.fintrack.macos`。
+## 项目与文档
 
-## 数据与限制
+| 文档 | 内容 |
+| --- | --- |
+| [构建指南](docs/BUILDING.md) | 环境要求、源码编译与工程生成 |
+| [源码结构](docs/ARCHITECTURE.md) | 应用入口、业务模块、共享模型和资源 |
+| [安装指南](docs/INSTALLATION.md) | 安装、校验与安全更新 |
+| [更新记录](CHANGELOG.md) | 正式应用版本 |
+| [参与项目](CONTRIBUTING.md) | 反馈问题和提交改动 |
+| [素材与组件](docs/THIRD_PARTY_NOTICES.md) | 平台组件及资源来源 |
 
-账本独立保存在用户的 `~/Library/Application Support/FinTrackMac/FinTrack.sqlite`，不位于源码目录。请通过应用提供的完整备份功能保存账本；备份包含私人财务信息，应妥善保管。API 密钥存储在本机钥匙串，不随备份迁移。
+当前通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新；应用内在线更新需要另外配置可信的签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
 
-汇率依赖外部来源，其报价日期、币种覆盖和可用性受来源限制。应用内在线升级需要另行配置可信的签名更新源；当前通过 Releases 手动安装更新。
+## 许可证状态
 
-Intel 实机、完整 VoiceOver 和长期真实财务使用尚未验证。请先以少量数据检查保存、备份和恢复，再逐步投入日常使用。
-
-本仓库公开提供源代码，暂未授予开源许可证；公开可见不代表已授权自由再分发。第三方图标及素材的来源记录随相应资源保留。
+源码公开，**尚未选择开源许可证**，仓库没有 `LICENSE` 文件。公开可见不代表已经授予复制、修改或自由再分发许可。第三方资源按其各自条款使用，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。

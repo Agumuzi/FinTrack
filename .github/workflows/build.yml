@@ -1,0 +1,35 @@
+name: macOS Build
+on:
+  push:
+    branches: [main]
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', '.github/workflows/build.yml']
+  pull_request:
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', '.github/workflows/build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build public macOS source
+    runs-on: xcode-27
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build Universal Release
+        run: ./scripts/build-macos.sh Release
+      - name: Verify app identity
+        run: |
+          app=.build/app/Build/Products/Release/FinTrack.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = dev.agumuzi.fintrack.macos
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app/Contents/Info.plist")" = 1.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app/Contents/Info.plist")" = 1
+          codesign --verify --deep --strict "$app"
+          fintrack_archs="$(lipo -archs "$app/Contents/MacOS/FinTrack")"
+          [[ " $fintrack_archs " == *" arm64 "* ]]
+          [[ " $fintrack_archs " == *" x86_64 "* ]]
+          test -f "$app/Contents/Resources/Assets.car"
+          test -f "$app/Contents/Resources/zh-Hans.lproj/Localizable.strings"
