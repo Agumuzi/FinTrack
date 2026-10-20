@@ -14,7 +14,7 @@ enum MacSettingsStore {
     static func save<T: Encodable>(_ value: T, key: String) throws {
         defaults.set(try JSONEncoder().encode(value), forKey: key)
     }
-    static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete",
+    static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey,
         "fintrack_auto_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size",
         "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
         "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
@@ -40,7 +40,7 @@ enum MacSettingsStore {
         // match their storage type. Conditional casts alone silently skip bad data.
         let binaryKeys: Set<String> = ["v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
             "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_goal_presentation", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
-        let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", "fintrack_auto_posting", "v2_navigation_collapsed",
+        let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v2_navigation_collapsed",
             "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
             "v2_remind_recurring", "v2_remind_goals", "v2_remind_budgets", "v2_update_auto", "v2_update_download"]
         let integerChoices: [String: Set<Int>] = ["v2_decimals": Set(0...4), "v2_week_start": [1, 2],
@@ -113,6 +113,7 @@ enum MacSettingsStore {
         let machineLocalKeys: Set<String> = ["v2_backup_folder"]
         for key in keys where !machineLocalKeys.contains(key) { defaults.removeObject(forKey: key) }
         for (key, value) in values where !machineLocalKeys.contains(key) { defaults.set(value, forKey: key) }
+        MacPreferences.prepareInitialState(in: defaults)
         migrateFontPreference()
         // A restored ledger never starts posting money without an explicit opt-in.
         defaults.set(false, forKey: "fintrack_auto_posting")

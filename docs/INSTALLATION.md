@@ -2,7 +2,7 @@
 
 ## 下载和校验
 
-从 [v1.0 Release](https://github.com/Agumuzi/FinTrack/releases/tag/v1.0) 下载 `FinTrack-v1.0-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+从 [v1.1 Release](https://github.com/Agumuzi/FinTrack/releases/tag/v1.1) 下载 `FinTrack-v1.1-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
 
 在下载目录检查：
 
@@ -26,7 +26,11 @@ shasum -a 256 -c SHA256.txt
 
 ## 安全更新
 
-先退出应用并创建完整备份，再替换“应用程序”中的应用文件。账本独立保存在本机，删除或替换 `.app` 不应当作为清空账本的方式。不要手动删除账本目录或移动运行中的 SQLite 文件。
+1. 在旧版中创建完整备份，妥善保存，再完全退出 FinTrack。
+2. 从 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 下载目标版本的 ZIP 和同版 `SHA256.txt`，核验后解压。
+3. 将新的 `FinTrack.app` 拖入“应用程序”，选择替换旧应用，再打开并核对版本和已有账目。
+
+账本独立保存在本机，替换 `.app` 会沿用已有账本和配置。不要手动删除账本目录或移动运行中的 SQLite 文件。钥匙串 API Key 不随原生账本备份导出。
 
 当前通过 Releases 手动更新。在线更新需要另行配置可信的签名源；没有配置时，不应把在线更新视为可用的分发途径。
 

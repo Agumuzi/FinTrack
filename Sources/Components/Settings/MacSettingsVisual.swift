@@ -521,7 +521,7 @@ struct MacBookCurrencyChoice: View {
     @AppStorage("v2_currencies") private var currencyBytes = Data()
     @State private var custom = false
     private var codes: [String] {
-        let saved = (try? JSONDecoder().decode([String].self, from: currencyBytes)) ?? ["USD", "RUB", "CNY", "EUR", "GBP", "JPY", "CHF", "HKD"]
+        let saved = (try? JSONDecoder().decode([String].self, from: currencyBytes)) ?? []
         return Array(Set(saved)).sorted()
     }
     var body: some View {

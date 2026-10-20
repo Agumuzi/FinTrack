@@ -233,7 +233,7 @@ struct MacRecordSection: View {
             }.appPadding(24).appDialog(width: 460)
         }
         .task {
-            do { try MacDataManagement.seedCategories(in: modelContext) }
+            do { try MacDataManagement.reconcileCategories(in: modelContext) }
             catch { saveError = MacLocalization.error(error) }
         }
     }

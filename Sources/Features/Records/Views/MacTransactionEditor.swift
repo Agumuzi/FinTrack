@@ -55,7 +55,7 @@ struct MacTransactionEditor: View {
 
     private var foreignCurrency: Bool { originalCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != bookCurrency }
     private var currencyChoices: [String] {
-        let configured: [String] = MacSettingsStore.load("v2_currencies", fallback: ["USD", "EUR", "RUB", "CNY", "GBP", "JPY", "CHF", "HKD"])
+        let configured: [String] = MacSettingsStore.load("v2_currencies", fallback: [])
         return Array(Set(configured + [bookCurrency, originalCurrency.uppercased()])).filter { (try? MacCurrency.code($0)) != nil }.sorted()
     }
     private var candidateSnapshot: MacCurrencySnapshot? {

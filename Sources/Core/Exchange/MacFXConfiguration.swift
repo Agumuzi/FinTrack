@@ -12,8 +12,8 @@ nonisolated struct MacFXConfiguration: Codable, Equatable {
     var sourcePolicy = "free"
     var accountingSourcePolicy = "free"
     var referenceCurrency = "USD"
-    var watchedPairs: [MacFXPair] = [try! .init(base: "USD", quote: "CNY"), try! .init(base: "EUR", quote: "CNY"), try! .init(base: "RUB", quote: "CNY"), try! .init(base: "JPY", quote: "CNY")]
-    var converterCurrencies = ["USD", "CNY", "EUR", "RUB", "JPY", "GBP", "CHF", "HKD"]
+    var watchedPairs: [MacFXPair] = []
+    var converterCurrencies: [String] = []
     init() {}
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

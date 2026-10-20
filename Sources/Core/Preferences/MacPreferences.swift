@@ -1,6 +1,7 @@
 import Foundation
 
 enum MacPreferences {
+    static let blankInitialStateKey = "v11_blank_initial_state"
     static let isTesting: Bool = {
         let e = ProcessInfo.processInfo.environment
         #if FINTRACK_MENU_PROTOTYPE
@@ -11,7 +12,10 @@ enum MacPreferences {
     }()
 
     static let defaults: UserDefaults = {
-        guard isTesting else { return .standard }
+        guard isTesting else {
+            prepareInitialState(in: .standard)
+            return .standard
+        }
         let e = ProcessInfo.processInfo.environment
         #if FINTRACK_MENU_PROTOTYPE
         let defaultPrototypeToken: String? = "menu-prototype"
@@ -26,8 +30,41 @@ enum MacPreferences {
             store.set(e["FINTRACK_TEST_LANGUAGE"] ?? "en", forKey: "app_language")
         }
         if store.object(forKey: "base_currency") == nil { store.set("USD", forKey: "base_currency") }
+        prepareInitialState(in: store)
         return store
     }()
+
+    /// Preserve the implicit v1.0 currency directory for existing installations.
+    /// Record the decision before onboarding so a new user remains empty afterward.
+    static func prepareInitialState(in defaults: UserDefaults) {
+        let marker = blankInitialStateKey
+        guard !defaults.bool(forKey: marker) else { return }
+        let existingInstallation = defaults.bool(forKey: "fintrack_initial_setup_complete") ||
+            defaults.data(forKey: MacFXConfiguration.storageKey) != nil
+        if existingInstallation {
+            let legacy = ["USD", "RUB", "CNY", "EUR", "GBP", "JPY", "CHF", "HKD"]
+            if defaults.data(forKey: "v2_currencies") == nil,
+               let data = try? JSONEncoder().encode(legacy) {
+                defaults.set(data, forKey: "v2_currencies")
+            }
+            // v1.0 showed these lists without persisting them until the user
+            // edited FX settings. Materialize that visible state once on upgrade.
+            if defaults.data(forKey: MacFXConfiguration.storageKey) == nil {
+                let codes = defaults.data(forKey: "v2_currencies")
+                    .flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+                var config = MacFXConfiguration()
+                config.referenceCurrency = codes.contains("USD") ? "USD" : codes.first ?? "USD"
+                config.converterCurrencies = codes
+                let reference = codes.contains("CNY") ? "CNY" : config.referenceCurrency
+                config.watchedPairs = codes.filter { $0 != reference }.prefix(6)
+                    .compactMap { try? MacFXPair(base: $0, quote: reference) }
+                if let data = try? JSONEncoder().encode(config) {
+                    defaults.set(data, forKey: MacFXConfiguration.storageKey)
+                }
+            }
+        }
+        defaults.set(true, forKey: marker)
+    }
 }
 
 enum MacLocalization {

@@ -5,7 +5,7 @@ import AppKit
 /// FinTrack's single directory; query configuration never needs a ledger.
 enum MacFXCatalog {
     static var codes: [String] {
-        let raw: [String] = MacSettingsStore.load("v2_currencies", fallback: ["USD","RUB","CNY","EUR","GBP","JPY","CHF","HKD"])
+        let raw: [String] = MacSettingsStore.load("v2_currencies", fallback: [])
         var seen: Set<String> = []
         return raw.compactMap { try? MacFXPair(base: $0, quote: $0).base }.filter { seen.insert($0).inserted }
     }
@@ -65,10 +65,7 @@ final class MacFXApplication: ObservableObject {
         var initial = MacSettingsStore.load(MacFXConfiguration.storageKey, fallback: MacFXConfiguration())
         let codes = MacFXCatalog.codes
         if MacPreferences.defaults.data(forKey: MacFXConfiguration.storageKey) == nil {
-            initial.converterCurrencies = codes
             initial.referenceCurrency = codes.contains("USD") ? "USD" : codes.first ?? "USD"
-            let reference = codes.contains("CNY") ? "CNY" : initial.referenceCurrency
-            initial.watchedPairs = codes.filter { $0 != reference }.prefix(6).compactMap { try? MacFXPair(base: $0, quote: reference) }
             if let legacy = MacPreferences.defaults.string(forKey: "v2_fx_preferred_source"), UUID(uuidString: legacy) != nil { initial.sourcePolicy = legacy }
         }
         let rawCache: MacFXQuoteCache = MacSettingsStore.load(Self.cacheKey, fallback: .init())
