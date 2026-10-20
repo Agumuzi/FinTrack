@@ -2,6 +2,7 @@ import Foundation
 
 enum MacPreferences {
     static let blankInitialStateKey = "v11_blank_initial_state"
+    static let officialUpdateSourceKey = "v11_official_update_source"
     static let isTesting: Bool = {
         let e = ProcessInfo.processInfo.environment
         #if FINTRACK_MENU_PROTOTYPE
@@ -37,6 +38,15 @@ enum MacPreferences {
     /// Preserve the implicit v1.0 currency directory for existing installations.
     /// Record the decision before onboarding so a new user remains empty afterward.
     static func prepareInitialState(in defaults: UserDefaults) {
+        if !defaults.bool(forKey: officialUpdateSourceKey) {
+            let url = defaults.string(forKey: "v2_update_url") ?? ""
+            let key = defaults.string(forKey: "v2_update_public_key") ?? ""
+            if url.isEmpty && key.isEmpty {
+                defaults.set(MacUpdateService.officialManifestURL, forKey: "v2_update_url")
+                defaults.set(MacUpdateService.officialPublicKey, forKey: "v2_update_public_key")
+            }
+            defaults.set(true, forKey: officialUpdateSourceKey)
+        }
         let marker = blankInitialStateKey
         guard !defaults.bool(forKey: marker) else { return }
         let existingInstallation = defaults.bool(forKey: "fintrack_initial_setup_complete") ||

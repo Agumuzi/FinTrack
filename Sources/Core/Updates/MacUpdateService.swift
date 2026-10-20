@@ -14,6 +14,8 @@ struct MacUpdateRelease: Codable, Sendable {
 @MainActor
 final class MacUpdateService: ObservableObject {
     static let shared = MacUpdateService()
+    nonisolated static let officialManifestURL = "https://agumuzi.github.io/FinTrack/updates/latest.json"
+    nonisolated static let officialPublicKey = "GV97/PaIi/JO1WKGFTsEuJ+jpHfkyBUkuyd6OIxjMtA="
     @Published private(set) var status = "尚未检查更新"
     @Published private(set) var busy = false
     @Published private(set) var release: MacUpdateRelease?
@@ -28,7 +30,7 @@ final class MacUpdateService: ObservableObject {
         let d = MacPreferences.defaults
         return validatedURL(d.string(forKey: "v2_update_url") ?? "") != nil && Data(base64Encoded: d.string(forKey: "v2_update_public_key") ?? "")?.count == 32
     }
-    static func validatedURL(_ text: String) -> URL? {
+    nonisolated static func validatedURL(_ text: String) -> URL? {
         guard let url = URL(string: text), url.scheme == "https", url.host != nil, url.user == nil, url.password == nil, url.fragment == nil else { return nil }
         return url
     }
@@ -53,7 +55,7 @@ final class MacUpdateService: ObservableObject {
         let identity = Self.configurationIdentity
         busy = true; defer { busy = false }; release = nil; archive = nil; trustedConfiguration = nil; status = "正在检查签名更新…"
         do {
-            let data = try await download(url, limit: 1024 * 1024)
+            let data = try await download(url, limit: 1024 * 1024, allowHTTPSRedirects: false)
             guard identity == Self.configurationIdentity else { throw MacSettingsFailure.invalid("更新源已更改，请重新检查") }
             let item = try Self.verify(data, publicKey: key)
             checkedAt = Date(); MacPreferences.defaults.set(Date(), forKey: "v2_update_last_check")
@@ -72,7 +74,7 @@ final class MacUpdateService: ObservableObject {
         guard !busy, let item = release, let url = Self.validatedURL(item.packageURL) else { return }
         busy = true; defer { busy = false }; status = "正在下载并校验更新…"
         do {
-            let data = try await download(url, limit: 300 * 1024 * 1024)
+            let data = try await download(url, limit: 300 * 1024 * 1024, allowHTTPSRedirects: true)
             guard trustedConfiguration == Self.configurationIdentity, release?.sha256 == item.sha256, release?.build == item.build else { throw MacSettingsFailure.invalid("更新源或版本已更改，请重新检查") }
             guard MacNativeBackup.digest(data) == item.sha256 else { throw MacSettingsFailure.invalid("安装包校验不一致，已拒绝安装") }
             let folder = FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates/" + UUID().uuidString)
@@ -149,8 +151,11 @@ final class MacUpdateService: ObservableObject {
             try? await Task.sleep(for: .seconds(3600))
         }
     }
-    private func download(_ url: URL, limit: Int) async throws -> Data {
-        let session = URLSession(configuration: .ephemeral, delegate: MacNoRedirect(), delegateQueue: nil)
+    private func download(_ url: URL, limit: Int, allowHTTPSRedirects: Bool) async throws -> Data {
+        // GitHub Release assets redirect to its asset CDN. The signed manifest
+        // pins the final ZIP digest; redirects may only remain on HTTPS.
+        let delegate: URLSessionTaskDelegate = allowHTTPSRedirects ? MacUpdateHTTPSRedirect() : MacNoRedirect()
+        let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var request = URLRequest(url: url); request.timeoutInterval = 45
         let (bytes, response) = try await session.bytes(for: request)
@@ -167,4 +172,15 @@ final class MacUpdateService: ObservableObject {
         return String(data: data, encoding: .utf8) ?? ""
     }
     private func safe(_ error: Error) -> String { (error as? MacSettingsFailure)?.errorDescription ?? "网络或签名验证未通过" }
+}
+
+final class MacUpdateHTTPSRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        guard let url = request.url, MacUpdateService.validatedURL(url.absoluteString) != nil else {
+            completionHandler(nil); return
+        }
+        completionHandler(request)
+    }
 }
