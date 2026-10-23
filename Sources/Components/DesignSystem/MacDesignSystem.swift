@@ -108,6 +108,7 @@ enum MacShapeTokens {
     static let overviewCard: CGFloat = 15
 }
 private struct MacFontModifier: ViewModifier {
+    @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var selectedFontName = ""
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var selectedTier = MacFontSizeTier.standard.rawValue
     var size: CGFloat
     var role: MacUI.TextRole?
@@ -116,7 +117,9 @@ private struct MacFontModifier: ViewModifier {
     func body(content: Content) -> some View {
         let tier = MacFontSizeTier(rawValue: selectedTier) ?? .standard
         let renderedSize = role.map { MacUI.fontSize($0, tier: tier) } ?? size
-        content.font(.system(size: renderedSize, weight: weight, design: design))
+        if role != nil, !selectedFontName.isEmpty, NSFont(name: selectedFontName, size: renderedSize) != nil {
+            content.font(.custom(selectedFontName, fixedSize: renderedSize).weight(weight))
+        } else { content.font(.system(size: renderedSize, weight: weight, design: design)) }
     }
 }
 private struct MacPaddingModifier: ViewModifier {
@@ -323,7 +326,7 @@ struct MacFormShell<Header: View, Fields: View, Footer: View>: View {
             ScrollView {
                 fields.frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                     .padding(2).shellMeasure("fields")
-            }.frame(height: bodyHeight)
+            }.frame(height: bodyHeight).accessibilityIdentifier("formFieldsScroll")
             footer.fixedSize(horizontal: false, vertical: true).shellMeasure("footer")
         }.padding(padding).frame(width: MacUI.dialogWidth(width, available: available.width))
             .background(MacOverviewStyle.card).appFont(.body).tint(MacUI.accent).controlSize(.regular).buttonStyle(MacStandardButtonStyle())

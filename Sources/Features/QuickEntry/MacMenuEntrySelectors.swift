@@ -25,7 +25,8 @@ private struct MacEntryNativePopup: NSViewRepresentable {
     var identifier: String
     var label: String
     @Environment(\.isEnabled) private var enabled
-    @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
+    @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
+        @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
     final class Coordinator: NSObject {
         var choose: ((Int) -> Void)?
         var optionSignature: [String] = []
@@ -61,7 +62,7 @@ private struct MacEntryNativePopup: NSViewRepresentable {
         }
         if let index = options.firstIndex(where: { $0.1 == selection }) { popup.selectItem(at: index) }
         let size = MacUI.fontSize(.body,tier:MacFontSizeTier(rawValue:tier) ?? .standard)
-        let font = NSFont.systemFont(ofSize:size,weight:.medium), menuFont = NSFont.systemFont(ofSize:size,weight:.regular)
+        let font = MacInterfaceFonts.font(size:size,weight:.medium), menuFont = MacInterfaceFonts.font(size:size,weight:.regular)
         if popup.font != font { popup.font = font }
         if popup.menu?.font != menuFont { popup.menu?.font = menuFont }
         popup.isEnabled = enabled

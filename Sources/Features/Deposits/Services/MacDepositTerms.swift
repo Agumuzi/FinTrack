@@ -1,6 +1,30 @@
 import Foundation
 
 enum MacDepositTerms {
+    struct Period { let date: Date; let interest: Double }
+    /// A manual total is authoritative. Allocate monthly totals cumulatively so
+    /// rounding individual periods cannot create or lose a cent.
+    static func schedule(_ deposit: DepositRecord) -> [Period] {
+        guard deposit.startDate < deposit.maturityDate else { return [] }
+        if deposit.typedInterestSettlementMode != .monthly {
+            return [Period(date: deposit.maturityDate, interest: deposit.isInterestManuallyEdited ? deposit.expectedInterest : DepositSettlementRule.maturitySettlementInterest(principal: deposit.principal, annualInterestRate: deposit.annualInterestRate, startDate: deposit.startDate, maturityDate: deposit.maturityDate, settlementMode: deposit.typedInterestSettlementMode))]
+        }
+        var result: [Period] = [], cursor = deposit.startDate, allocated = 0.0
+        let calendar = Calendar.current
+        let totalDays = max(1, calendar.dateComponents([.day], from: calendar.startOfDay(for: deposit.startDate), to: calendar.startOfDay(for: deposit.maturityDate)).day ?? 1)
+        for _ in 0..<1200 {
+            guard cursor < deposit.maturityDate, let next = calendar.date(byAdding: .month, value: 1, to: cursor), next > cursor else { break }
+            let due = min(next, deposit.maturityDate)
+            let amount: Double
+            if deposit.isInterestManuallyEdited {
+                let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: deposit.startDate), to: calendar.startOfDay(for: due)).day ?? 0
+                let cumulative = due == deposit.maturityDate ? deposit.expectedInterest : FinancialPrecision.roundAmountForStorage(deposit.expectedInterest * Double(days) / Double(totalDays))
+                amount = FinancialPrecision.roundAmountForStorage(max(0, cumulative - allocated)); allocated = cumulative
+            } else { amount = DepositSettlementRule.periodicPayoutInterest(principal: deposit.principal, annualInterestRate: deposit.annualInterestRate, from: cursor, to: due) }
+            result.append(Period(date: due, interest: amount)); cursor = due
+        }
+        return result
+    }
     struct Terms { let annualRate: Double; let expectedInterest: Double; let manuallyEdited: Bool }
     static func calculate(principal: Double, annualRate: Double, start: Date, maturity: Date,
                           mode: DepositInterestSettlementMode, expectedOverride: Double?) throws -> Terms {

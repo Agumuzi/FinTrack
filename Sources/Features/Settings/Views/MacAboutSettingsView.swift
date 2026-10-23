@@ -10,8 +10,13 @@ struct MacAboutSettingsView: View {
     @AppStorage("v2_update_url") private var feedURL = ""
     @AppStorage("v2_update_public_key") private var publicKey = ""
     @State private var confirmInstall = false
+    @State private var showsLicense = false
     @State private var message: String?
     @State private var error: String?
+    private var licenseText: String {
+        guard let url = Bundle.main.url(forResource: "LICENSE", withExtension: "txt"), let text = try? String(contentsOf: url, encoding: .utf8), !text.isEmpty else { return "许可证文件暂时不可用，请在 GitHub 项目主页查看 MIT 许可证。" }
+        return text
+    }
     private var canConfigure: Bool { MacUpdateService.configured || MacSettingsVisual.preview }
     var body: some View {
         MacSettingsColumns(wide: wide) {
@@ -80,9 +85,20 @@ struct MacAboutSettingsView: View {
                     }
                 }
                 MacSettingsCard(title: "法律与版权", icon: "info.circle", subtitle: "项目许可与作者信息。", headerColor: .purple) {
-                    VStack(spacing: MacUI.space(0)) { info("许可信息", "尚未指定"); info("作者", "Agumuzi") }
+                    VStack(spacing: MacUI.space(0)) { info("许可信息", "MIT"); info("作者", "Agumuzi") }
+                    Button("阅读开源许可证", systemImage: "doc.text") { showsLicense = true }.accessibilityIdentifier("settingsReadLicense")
                 }
             }
+        }
+        .sheet(isPresented: $showsLicense) {
+            MacFormShell(width: 620) { Text("MIT 开源许可证").appFont(.dialogTitle, weight: .semibold) } fields: {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(licenseText)
+                        if let url = Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt"), let notices = try? String(contentsOf: url, encoding: .utf8) { Text(notices) }
+                    }.appFont(.caption).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(height: 340)
+            } footer: { HStack { Spacer(); Button("关闭") { showsLicense = false }.keyboardShortcut(.cancelAction) } }
         }
         .onChange(of: feedURL) { updater.reset() }.onChange(of: publicKey) { updater.reset() }
         .alert("安装更新并重新启动？", isPresented: $confirmInstall) {

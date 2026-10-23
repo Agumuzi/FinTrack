@@ -40,7 +40,7 @@ struct MacQuickEntryView: View {
                         MacEntryField(title:"金额") {
                             HStack(spacing:MacUI.space(3)) {
                                 Text(draft.income ? "+" : "−").foregroundStyle(.secondary)
-                                TextField("0.00",text:$draft.amount).textFieldStyle(.plain).focused($amountFocused)
+                                MacNumericInput(text: $draft.amount, identifier: "menuAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), submit: save, large: true).frame(minHeight: 36)
                                     .appFont(.amount,weight:.medium).appMinHeight(36)
                                     .accessibilityLabel("金额").accessibilityIdentifier("menuAmount").onSubmit(save)
                             }.appFont(.amount,weight:.medium).appPadding(.horizontal,14).appMinHeight(44)
@@ -51,17 +51,10 @@ struct MacQuickEntryView: View {
                             MacEditableCurrencyMenu(currency:$draft.currency,custom:$draft.customCurrencyEntry,codes:currencyChoices,identifier:"menuCurrency",textIdentifier:"menuCurrencyText")
                         }.frame(width:MacCurrencyMenuStyle.width)
                     }
-                    MacEntryField(title:"分类") {
-                        MacEntrySelectionField(selection:Binding(get:{draft.categoryID?.uuidString ?? ""},set:{draft.categoryID = UUID(uuidString:$0)}), options:[("请选择分类","")] + validCategories.map { (MacCategoryCatalog.emoji(name:$0.name,type:draft.type.rawValue) + "  " + CategoryUsageHelper.localizedDisplayName(for:$0.name),$0.id.uuidString) }, identifier:"menuCategory", label:"选择分类",height:44) {
-                            HStack(spacing:10) {
-                                if let selected { MacCategoryBadge(name:selected.name,type:draft.type.rawValue,size:32) }
-                                else { Image(systemName:"tag").foregroundStyle(.orange).frame(width:30) }
-                                Text(selected.map { CategoryUsageHelper.localizedDisplayName(for:$0.name) } ?? "请选择分类")
-                                    .appFont(.body,weight:.semibold).foregroundStyle(selected == nil ? Color.secondary : Color.primary).lineLimit(1)
-                                Spacer(minLength:0)
-                                Image(systemName:"chevron.down").appFont(.caption,weight:.semibold).foregroundStyle(MacUI.accent)
-                            }
-                        }.disabled(validCategories.isEmpty)
+                    MacEntryField(title: "分类") {
+                        MacIconMenu(selection: Binding(get: { draft.categoryID?.uuidString ?? "" }, set: { draft.categoryID = UUID(uuidString: $0) }), options: [MacIconMenuOption(title: "请选择分类", value: "", symbol: "tag")] + validCategories.map { row in
+                            MacIconMenuOption(title: MacOverviewStyle.category(row.name), value: row.id.uuidString, image: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: row.name, type: draft.type.rawValue), name: row.name))
+                        }, identifier: "menuCategory", accessibilityTitle: "选择分类", width: 340).disabled(validCategories.isEmpty)
                     }
                     MacEntryField(title:"交易日期") {
                         Button { datePicker = true } label: {

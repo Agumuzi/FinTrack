@@ -1,8 +1,8 @@
 import SwiftUI
 
 enum MacFXSourceSelection {
-    static func options(current:String) -> [(String,String)] {
-        var values = [("系统数据源","free")] + MacFXService.sources.filter(\.enabled).map { ("自定义 · " + $0.name,$0.id.uuidString) }
+    static func options(current:String, includeAutomatic: Bool = false) -> [(String,String)] {
+        var values = (includeAutomatic ? [("自动", "auto")] : []) + [("系统数据源","free")] + MacFXService.sources.filter(\.enabled).map { ("自定义 · " + $0.name,$0.id.uuidString) }
         if !values.contains(where:{$0.1 == current}) { values.append(("原自定义来源不可用",current)) }
         return values
     }
@@ -15,7 +15,7 @@ struct MacFXScenarioSourcePicker: View {
     private var key: WritableKeyPath<MacFXConfiguration,String> { scenario == .accounting ? \.accountingSourcePolicy : \.sourcePolicy }
     var body: some View {
         MacSettingsRow(label:scenario == .accounting ? "记账汇率来源" : "菜单栏汇率来源") {
-            MacSettingsMenu(selection:Binding(get:{service.configuration[keyPath:key]},set:{ value in MacFXApplication.shared.update { $0[keyPath:key] = value } }),options:MacFXSourceSelection.options(current:service.configuration[keyPath:key]))
+            MacSettingsMenu(selection:Binding(get:{service.configuration[keyPath:key]},set:{ value in MacFXApplication.shared.update { $0[keyPath:key] = value } }),options:MacFXSourceSelection.options(current:service.configuration[keyPath:key], includeAutomatic: scenario == .menuBar))
                 .frame(width:280).accessibilityIdentifier(scenario == .accounting ? "fxAccountingSource" : "fxMenuSource")
         }
     }

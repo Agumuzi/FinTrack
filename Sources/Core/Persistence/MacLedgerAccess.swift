@@ -114,7 +114,7 @@ struct MacLedgerWorkspaceGate: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            if MacPreferences.isTesting {
+            if MacPreferences.isTesting && ProcessInfo.processInfo.environment["FINTRACK_PRODUCT_SCREENSHOTS"] != "1" {
                 Text("containers=\(access.containerOpenCount);requests=\(MacFXApplication.shared.transport.networkRequestCount);revision=\(monitor.revision)")
                     .font(.system(size: 8)).accessibilityIdentifier("fxIsolationMetrics")
             }

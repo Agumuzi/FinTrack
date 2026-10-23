@@ -97,6 +97,10 @@ struct MacBudgetSettingsView: View {
     }
 
     private func categoryBudgetRows(spending: MacBudgetSpendingSnapshot, selectedID: UUID?) -> some View {
+        Group {
+        if rows.isEmpty {
+            VStack(spacing: 8) { Label("尚未设置预算", systemImage: "chart.bar").appFont(.body, weight: .semibold); Text("本月支出已记录；添加预算后显示使用进度。").appFont(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 28)
+        } else {
         ViewThatFits(in: .horizontal) {
             VStack(spacing: MacUI.space(0)) {
                 HStack {
@@ -112,8 +116,7 @@ struct MacBudgetSettingsView: View {
                 ForEach(rows) { row in budgetRow(row, compact: true, spending: spending, selectedID: selectedID) }
             }
         }
-        .overlay {
-            if rows.isEmpty { ContentUnavailableView("尚未设置预算", systemImage: "chart.bar", description: Text("为所选月份添加预算。")) }
+        }
         }
     }
 
@@ -189,7 +192,7 @@ struct MacBudgetInlineEditor: View {
     @State private var message: String?
     var body: some View {
         MacSettingsCard(title: category.map(MacOverviewStyle.category) ?? "总预算", icon: budget.displayIcon, headerColor: MacAccent.color(budget.displayColor), action: AnyView(Toggle("启用预算", isOn: $budget.enabled).labelsHidden().toggleStyle(.switch).tint(.blue))) {
-            MacSettingsRow(label: "预算金额", labelWidth: 98) { HStack { TextField("金额", text: $amount).accessibilityIdentifier("budgetInlineAmount"); Text(MacSettingsVisual.symbol(budget.currency)).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary) } }
+            MacSettingsRow(label: "预算金额", labelWidth: 98) { HStack { MacNumericInput(text: $amount, identifier: "budgetInlineAmount").frame(minHeight: 24).appFormControl(); Text(MacSettingsVisual.symbol(budget.currency)).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary) } }
             MacSettingsRow(label: "周期", labelWidth: 98) { HStack { Text("每月"); Spacer(); Image(systemName: "calendar").foregroundStyle(.secondary) }.appFont(.body, weight: .regular, design: .default).appPadding(10).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.gray.opacity(0.2))) }
             MacSettingsRow(label: "生效月份", labelWidth: 98) { MacSettingsDateButton(date: $start, monthOnly: true) }
             MacSymbolColorPicker(icon: Binding(get: { budget.displayIcon }, set: { budget.icon = $0 }), color: Binding(get: { budget.displayColor }, set: { budget.color = $0 }), title: "预算", identifierPrefix: "budgetInlineIcon")
@@ -211,11 +214,11 @@ struct MacBudgetEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(18)) {
             Text("预算设置 · \(budget.month)").appFont(.dialogTitle, weight: .semibold)
-            Picker("范围", selection: $budget.categoryID) {
-                Text("总预算").tag(UUID?.none)
-                ForEach(categories, id: \.id) { Text(MacOverviewStyle.category($0.name)).tag(Optional($0.id)) }
-            }.accessibilityIdentifier("budgetEditorCategory")
-            HStack { TextField("预算金额", text: $amount).accessibilityIdentifier("budgetEditorAmount"); Text(budget.currency).foregroundStyle(.secondary) }
+            HStack {
+                Text("范围").foregroundStyle(.secondary); Spacer()
+                MacSettingsMenu(selection: $budget.categoryID, options: [("总预算", UUID?.none)] + categories.map { (MacOverviewStyle.category($0.name), Optional($0.id)) }).frame(width: 220).accessibilityIdentifier("budgetEditorCategory")
+            }
+            HStack { MacNumericInput(text: $amount, identifier: "budgetEditorAmount").frame(minHeight: 24).appFormControl(); Text(budget.currency).foregroundStyle(.secondary) }
             Toggle("启用此预算", isOn: $budget.enabled)
             MacSymbolColorPicker(icon: Binding(get: { budget.displayIcon }, set: { budget.icon = $0 }), color: Binding(get: { budget.displayColor }, set: { budget.color = $0 }), title: "预算", identifierPrefix: "budgetEditorIcon")
             MacSettingsNoteField(placeholder: "备注（可选）", text: $budget.note).accessibilityIdentifier("budgetEditorNote")

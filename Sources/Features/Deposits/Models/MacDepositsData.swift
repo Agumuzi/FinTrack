@@ -61,7 +61,9 @@ enum MacDepositsData {
     struct ReceiptAudit {
         let receipts: [Transaction]
         let unverifiedCount: Int
-        var total: Double { FinancialPrecision.roundAmountForStorage(receipts.reduce(0) { $0 + $1.originalAmount }) }
+        var pendingCount: Int { receipts.filter { ($0.note ?? "").contains("[FTEstimated]") }.count }
+        var postedTotal: Double { FinancialPrecision.roundAmountForStorage(receipts.reduce(0) { $0 + $1.originalAmount }) }
+        var total: Double { FinancialPrecision.roundAmountForStorage(receipts.filter { !($0.note ?? "").contains("[FTEstimated]") }.reduce(0) { $0 + $1.originalAmount }) }
     }
     /// Require stable identity, schedule/date/amount and the stored FX snapshot.
     /// Ambiguous or damaged receipts stay visible as an anomaly, outside totals.
@@ -75,13 +77,13 @@ enum MacDepositsData {
             guard entry.typedType == .income, entry.originalCurrency == deposit.originalCurrency,
                   entry.baseCurrencyCode == deposit.baseCurrencyCode,
                   entry.currency == entry.baseCurrencyCode,
-                  entry.originalAmount.isFinite, entry.originalAmount > 0,
+                  entry.originalAmount.isFinite, entry.originalAmount >= 0,
                   entry.exchangeRateToBase.isFinite, entry.exchangeRateToBase > 0,
                   entry.baseAmount == FinancialPrecision.roundAmountForStorage(entry.originalAmount * entry.exchangeRateToBase),
                   entry.amount == entry.baseAmount,
                   let period = schedule.first(where: {
                       let marker = MacDepositSettlement.receiptMarker(depositID: deposit.id, date: $0.date, monthly: monthly)
-                      return (entry.note ?? "").contains(marker) && entry.date == $0.date && abs(entry.originalAmount - $0.interest) < 0.005
+                      return (entry.note ?? "").contains(marker) && entry.date == $0.date && (abs(entry.originalAmount - $0.interest) < 0.005 || (entry.note ?? "").contains("[FTVerified]"))
                   }),
                   candidates.filter({ ($0.note ?? "").contains(MacDepositSettlement.receiptMarker(depositID: deposit.id, date: period.date, monthly: monthly)) }).count == 1
             else { continue }

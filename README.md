@@ -57,6 +57,6 @@ v1.1 及之后版本内置官方签名更新源，可在“设置 → 关于 Fin
 
 可通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新，或使用 v1.1 起内置的官方签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
 
-## 许可证状态
+## 许可证
 
-源码公开，**尚未选择开源许可证**，仓库没有 `LICENSE` 文件。公开可见不代表已经授予复制、修改或自由再分发许可。第三方资源按其各自条款使用，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。
+FinTrack 采用 [MIT 许可证](LICENSE)。第三方素材和平台组件遵循各自条款，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。

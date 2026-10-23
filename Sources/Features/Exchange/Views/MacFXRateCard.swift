@@ -25,7 +25,7 @@ struct MacFXRateCard: View {
                 VStack(alignment: .leading, spacing: 2) { title; MacFXValueDisplay(value:quote == nil ? nil : valueText,placeholder:"暂无报价",identifier:"fxRate-" + pair.key) }
             }
             HStack(alignment: .top, spacing: 6) {
-                Text(MacSettingsVisual.currencyName(pair.base) + " / " + MacSettingsVisual.currencyName(pair.quote) + " · \(units) \(pair.base) → \(pair.quote)")
+                Text(MacSettingsVisual.currencyName(pair.base) + " / " + MacSettingsVisual.currencyName(pair.quote) + " · \(units)\(MacSettingsVisual.symbol(pair.base)) → \(MacSettingsVisual.symbol(pair.quote))")
                     .appFont(.caption, weight: .regular).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 changeChip
@@ -37,7 +37,7 @@ struct MacFXRateCard: View {
                     HStack(spacing: 3) {
                         ForEach(MacFXHistoryRange.allCases) { item in
                             Button { query.cardRanges[pair.key] = item } label: {
-                                Text(LocalizedStringKey(item.title)).appFont(.caption, weight: .medium).frame(maxWidth: .infinity, minHeight: 40)
+                                Text(LocalizedStringKey(item.title)).appFont(.caption, weight: .medium).frame(maxWidth: .infinity, minHeight: 40).contentShape(Rectangle())
                                     .background(range == item ? MacUI.accent.opacity(0.15) : .clear, in: Capsule())
                             }.buttonStyle(.plain).accessibilityIdentifier("fxRange-\(item.rawValue)-" + pair.key).accessibilityValue(range == item ? "已选中" : "未选中")
                         }
@@ -50,10 +50,6 @@ struct MacFXRateCard: View {
                 }
             }
             footer
-            if expanded {
-                DisclosureGroup("报价说明", isExpanded: $showingEvidence) { evidence.padding(.top, 6) }
-                    .appFont(.caption, weight: .regular).accessibilityIdentifier("fxRateDetails-" + pair.key)
-            }
         }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 15))
             .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(expanded ? MacUI.accent.opacity(0.4) : Color.secondary.opacity(0.12)))
@@ -64,7 +60,7 @@ struct MacFXRateCard: View {
     private var title: some View {
         Button { toggle() } label: {
             HStack(spacing: 4) {
-                Text(pair.key).appFont(.section, weight: .semibold).fixedSize()
+                HStack(spacing: 4) { MacCurrencyFlag(code: pair.base, width: 18); Text(pair.base); Text("/").foregroundStyle(.secondary); MacCurrencyFlag(code: pair.quote, width: 18); Text(pair.quote) }.appFont(.section, weight: .semibold).fixedSize()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down").appFont(.caption, weight: .semibold).frame(width: 26, height: 40)
             }.contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityLabel(pair.key + (expanded ? "收起详情" : "展开详情"))
@@ -72,7 +68,7 @@ struct MacFXRateCard: View {
     }
     @ViewBuilder private var value: some View {
         if quote != nil {
-            Text(valueText).appFont(.amount,weight:.semibold).monospacedDigit().lineLimit(1)
+            Text(valueText).appFont(.section,weight:.semibold).monospacedDigit().lineLimit(1)
                 .accessibilityIdentifier("fxRate-" + pair.key).accessibilityValue(valueText + " " + pair.quote)
         } else {
             Text("暂无报价").appFont(.body,weight:.regular).foregroundStyle(.secondary)
@@ -103,7 +99,7 @@ struct MacFXRateCard: View {
             query.cardModes[pair.key] = item
             if item == .converter { DispatchQueue.main.async { focusedCode = input.activeCode } }
         } label: {
-            Label(title, systemImage: symbol).appFont(.label, weight: .medium).frame(maxWidth: .infinity, minHeight: 34)
+            Label(title, systemImage: symbol).appFont(.label, weight: .medium).frame(maxWidth: .infinity, minHeight: 34).contentShape(Rectangle())
                 .background(mode == item ? MacOverviewStyle.card : .clear, in: RoundedRectangle(cornerRadius: 8))
         }.buttonStyle(.plain).accessibilityIdentifier("fxCardMode-" + item.rawValue + "-" + pair.key).accessibilityValue(mode == item ? "已选中" : "未选中")
     }
@@ -140,8 +136,8 @@ struct MacFXRateCard: View {
     private func toggle() { query.expandedPair = expanded ? nil : pair.key }
     private var footer: some View {
         HStack(alignment: .center, spacing: 4) {
-            Text(quote.map { MacFXDates.label($0.quoteTime) + " · " + service.sourceName($0) + (service.isCached(pair) ? " · 缓存" : "") } ?? "暂无报价")
-                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(expanded ? 3 : 2)
+            Text(quote.map { MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? " · 缓存" : "") } ?? "暂无报价")
+                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).help(quote.map { "报价：" + MacFXDates.label($0.quoteTime) + "\n获取：" + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? "暂无报价")
             Spacer(minLength: 0)
             Menu {
                 Button("复制汇率") { MacFXCopy.text(pair.key + " " + valueText) }.disabled(quote == nil)

@@ -15,6 +15,7 @@ private struct OverviewCard<Content: View>: View {
 }
 
 struct MacOverviewView: View {
+    @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     let bookCurrency: String?
     // This page only sends navigation actions. Observing section changes also
     // rebuilt the outgoing page before SwiftUI removed it from the hierarchy.
@@ -221,18 +222,14 @@ struct MacOverviewView: View {
             }
             Divider()
             Text("收支类型").appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
-            Picker("收支类型", selection: $scope.type) {
-                Text("全部").tag(nil as TransactionType?)
-                Text("收入").tag(Optional(TransactionType.income))
-                Text("支出").tag(Optional(TransactionType.expense))
-            }.labelsHidden().accessibilityIdentifier("overviewTypeFilter")
+            MacSettingsMenu(selection: $scope.type, options: [("全部收支", TransactionType?.none), ("收入", Optional(TransactionType.income)), ("支出", Optional(TransactionType.expense))]).accessibilityIdentifier("overviewTypeFilter")
             Text("账目类别").appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
             Button { scope.category = nil } label: {
                 filterRow("全部类别", icon: "square.grid.2x2", selected: scope.category == nil, count: nil)
             }.buttonStyle(.plain).accessibilityIdentifier("overviewAllCategories")
             VStack(spacing: MacUI.space(3)) { ForEach(categoryRows) { row in
                 Button { scope.category = row.id } label: {
-                    filterRow(MacOverviewStyle.category(row.id), icon: MacCategoryCatalog.emoji(name: row.id, type: (scope.type ?? .expense).rawValue), selected: scope.category == row.id, count: row.count)
+                    filterRow(MacOverviewStyle.category(row.id), icon: MacCategoryCatalog.style(name: row.id, type: (scope.type ?? .expense).rawValue).symbol, selected: scope.category == row.id, count: row.count)
                 }.buttonStyle(.plain).accessibilityIdentifier("overviewCategory-\(row.id)")
             } }
             if categoryRows.isEmpty { Text("该期间暂无类别").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
@@ -258,8 +255,8 @@ struct MacOverviewView: View {
         // One read-only result per render, with no persistent cache or invalidation policy.
         let totals = self.totals, previous = self.previous, snapshot = self.snapshot
         let tier = MacUI.fontTier
-        let font = NSFont.monospacedDigitSystemFont(ofSize: MacUI.fontSize(.amount, tier: tier), weight: .semibold)
-        let currencyFont = NSFont.systemFont(ofSize: MacUI.fontSize(.caption, tier: tier), weight: .medium)
+        let font = MacInterfaceFonts.font(size: MacUI.fontSize(.amount, tier: tier), weight: .semibold, monospacedDigits: true)
+        let currencyFont = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: tier), weight: .medium)
         let amounts = [totals.income, totals.expense, totals.net, snapshot.availableAssets + snapshot.frozenDepositPrincipal]
         let textWidth = amounts.map { (MacOverviewStyle.money($0) as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
         let currencyWidth = (currency as NSString).size(withAttributes: [.font: currencyFont]).width
@@ -368,10 +365,10 @@ struct MacOverviewView: View {
         let kind = type.rawValue
         let chartIdentifier = isIncome ? "overviewIncomeChart" : "overviewExpenseChart"
         let categoryIdentifier = isIncome ? "overviewIncomeCategory-" : "overviewExpenseCategory-"
-        let percentFont = NSFont.systemFont(ofSize: MacUI.fontSize(.caption, tier: MacUI.fontTier))
+        let percentFont = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: MacUI.fontTier))
         let percentWidth = max(MacUI.space(32), ("100%" as NSString).size(withAttributes: [.font: percentFont]).width + MacUI.space(6))
         let totalText = MacOverviewStyle.money(total)
-        let centerFont = NSFont.systemFont(ofSize: MacUI.fontSize(.section, tier: MacUI.fontTier), weight: .semibold)
+        let centerFont = MacInterfaceFonts.font(size: MacUI.fontSize(.section, tier: MacUI.fontTier), weight: .semibold)
         let centerTotalFits = (totalText as NSString).size(withAttributes: [.font: centerFont]).width <= chartSize * 0.62
         return OverviewCard(help: "点击类别查看对应的\(title)账目", height: 258) {
             VStack(alignment: .leading, spacing: MacUI.space(12)) {
@@ -538,7 +535,7 @@ struct MacOverviewView: View {
     }
 
     private var recentAmountColumnWidth: CGFloat {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: MacUI.fontSize(.caption, tier: MacUI.fontTier), weight: .regular)
+        let font = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: MacUI.fontTier), weight: .regular, monospacedDigits: true)
         let values = periodRows.prefix(5).map { (MacOverviewStyle.money($0.baseAmount) as NSString).size(withAttributes: [.font: font]).width }
         return max(MacUI.space(105), (values.max() ?? 0) + MacUI.space(10))
     }
@@ -809,9 +806,7 @@ private struct MacOverviewTrendCard: View {
             VStack(alignment: .leading, spacing: MacUI.space(16)) {
                 HStack {
                     Text("收支趋势").appFont(.body, weight: .semibold, design: .default); Spacer()
-                    Picker("趋势范围", selection: $trendMonths) {
-                        Text("近 6 个月").tag(6); Text("近 12 个月").tag(12)
-                    }.labelsHidden().frame(width: MacUI.space(113)).accessibilityIdentifier("overviewTrendRange")
+                    MacSettingsMenu(selection: $trendMonths, options: [("近 6 个月", 6), ("近 12 个月", 12)]).frame(width: MacUI.space(130)).accessibilityIdentifier("overviewTrendRange")
                     Button { var records = scope; records.period = .custom; records.from = trend.first?.id ?? scope.reference; records.through = Calendar.current.dateInterval(of: .month, for: scope.reference)!.end.addingTimeInterval(-1); showRecords(records) } label: { Image(systemName: "arrow.up.right") }
                         .buttonStyle(.plain).help("查看趋势账目")
                 }

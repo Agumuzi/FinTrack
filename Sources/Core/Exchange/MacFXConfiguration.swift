@@ -35,7 +35,7 @@ nonisolated struct MacFXConfiguration: Codable, Equatable {
         if ![2,4,6].contains(c.rateDigits) { c.rateDigits = 4 }
         if !(1...1440).contains(c.intervalMinutes) { c.intervalMinutes = 30 }
         if !(1...1440).contains(c.openMaxAgeMinutes) { c.openMaxAgeMinutes = 10 }
-        if c.sourcePolicy == "auto" || (c.sourcePolicy != "free" && UUID(uuidString:c.sourcePolicy) == nil) { c.sourcePolicy = "free" }
+        if !["auto", "free"].contains(c.sourcePolicy) && UUID(uuidString:c.sourcePolicy) == nil { c.sourcePolicy = "free" }
         if c.accountingSourcePolicy != "free" && UUID(uuidString:c.accountingSourcePolicy) == nil { c.accountingSourcePolicy = "free" }
         if (try? MacFXPair(base: c.referenceCurrency, quote: c.referenceCurrency)) == nil { c.referenceCurrency = "USD" }
         c.referenceCurrency = c.referenceCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()

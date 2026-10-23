@@ -35,6 +35,12 @@ struct CategoryUsageHelper {
     ]
 
     static func localizedDisplayName(for name: String) -> String {
+        #if os(macOS)
+        if name == depositCategoryName || name == loanCategoryName {
+            let type = name == depositCategoryName ? "Income" : "Expense"
+            if let alias = MacCategoryCatalog.style(name: name, type: type).displayName, !alias.isEmpty { return alias }
+        }
+        #endif
         switch name {
         case customCategoryName:
             return LanguageManager.shared.ui(UIStringKey.Common.custom)

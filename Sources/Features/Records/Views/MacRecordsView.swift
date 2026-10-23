@@ -61,6 +61,8 @@ struct MacRecordSection: View {
     @State private var currencyFilter = "All"
     @State private var categoryFilter = "All"
     @State private var batchSelection = Set<UUID>()
+    @State private var selectionMode = false
+    private var showsSelectionBoxes: Bool { selectionMode || batchSelection.count > 1 }
     @State private var confirmsBatchDelete = false
     @State private var showsDetails = false
     @State private var recordSort = MacPreferences.defaults.string(forKey: "v2_sort") ?? "最新优先"
@@ -207,8 +209,20 @@ struct MacRecordSection: View {
         .onChange(of: recordSort) { _, _ in refreshVisibleRows() }
         .onChange(of: batchSelection) { old, value in
             if let id = value.subtracting(old).first ?? value.first {
-                selectedTransactionID = id; showsDetails = true
+                selectedTransactionID = id; showsDetails = batchSelection.count == 1 && !selectionMode
             } else { selectedTransactionID = nil; showsDetails = false }
+        }
+        .sheet(item: $editingTransaction) { transaction in
+            MacTransactionEditor(
+                bookCurrency: activeBookCurrency ?? preferredBookCurrency,
+                existing: transaction,
+                onSaved: { id in
+                    refreshLedgerState()
+                    selectedTransactionID = id
+                    batchSelection = [id]; showsDetails = true
+                    saveError = nil
+                }
+            )
         }
         .sheet(isPresented: $showsNewTransaction) {
             MacTransactionEditor(
@@ -331,7 +345,7 @@ struct MacRecordSection: View {
                 options.append(.init(title:type == .income ? "收入分类" : "支出分类",value:nil))
                 options += names.map { name in
                     .init(title:MacOverviewStyle.category(name),value:type.rawValue + separator + name,
-                          symbol:MacCategoryCatalog.style(name:name,type:type.rawValue,in:styles).symbol)
+                          image:MacCategoryCatalog.menuImage(style:MacCategoryCatalog.style(name:name,type:type.rawValue,in:styles),name:name))
                 }
             }
         }
@@ -355,10 +369,10 @@ struct MacRecordSection: View {
     }
     private var tableToolbar: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: MacUI.space(12)) { tableCount; sortPicker; detailsButton; Spacer(); batchMenu; exportButton }
+            HStack(spacing: MacUI.space(12)) { tableCount; sortPicker; detailsButton; Spacer(); exportButton }
             VStack(alignment: .leading, spacing: MacUI.space(9)) {
                 HStack { tableCount; Spacer(); sortPicker }
-                HStack { batchMenu; detailsButton; Spacer(); exportButton }
+                HStack { detailsButton; Spacer(); exportButton }
             }
         }.appPadding(.horizontal, 12).appPadding(.vertical, 8)
     }
@@ -381,9 +395,7 @@ struct MacRecordSection: View {
             .accessibilityIdentifier("transactionCount")
     }
     private var sortPicker: some View {
-        Picker("排序", selection: $recordSort) {
-            ForEach(["最新优先", "最早优先", "金额从高到低"], id: \.self) { Text($0).tag($0) }
-        }.labelsHidden().frame(width: MacUI.space(132)).accessibilityIdentifier("recordSort")
+        MacSettingsMenu(selection: $recordSort, options: ["最新优先", "最早优先", "金额从高到低"].map { ($0, $0) }).frame(width: MacUI.space(132)).accessibilityIdentifier("recordSort")
     }
     private var batchMenu: some View {
         Menu("批量操作\(batchSelection.isEmpty ? "" : "（\(batchSelection.count)）")") {
@@ -405,34 +417,72 @@ struct MacRecordSection: View {
             .buttonStyle(.plain).disabled(visibleTransactions.isEmpty).help("将当前筛选结果导出为 CSV")
             .accessibilityIdentifier("recordExport")
     }
+    private func selectAllRecords() {
+        selectionMode = true; showsDetails = false
+        displayLimit = max(displayLimit, visibleTransactions.count)
+        batchSelection = Set(visibleTransactions.map(\.id))
+    }
+    private func selectionCheckbox(_ row: Transaction) -> some View {
+        Toggle("选择账目", isOn: Binding(get: { batchSelection.contains(row.id) }, set: { value in
+            selectionMode = true
+            if value { batchSelection.insert(row.id) } else { batchSelection.remove(row.id) }
+        })).toggleStyle(.checkbox).labelsHidden().accessibilityIdentifier("recordSelect-" + row.id.uuidString)
+    }
+    @ViewBuilder private func recordContextMenu(_ ids: Set<UUID>) -> some View {
+        let rows = visibleTransactions.filter { ids.contains($0.id) }
+        if rows.count == 1, let row = rows.first {
+            Button("查看详情", systemImage: "sidebar.right") { selectedTransactionID = row.id; showsDetails = true }
+            Button("编辑", systemImage: "pencil") { editingTransaction = row }.disabled(activeBookCurrency == nil || MacTransactionCRUD.isProtectedGeneratedPosting(row))
+        }
+        if !rows.isEmpty {
+            Button(rows.count == 1 ? "删除账目" : "删除选中的 \(rows.count) 笔账目", systemImage: "trash", role: .destructive) {
+                batchSelection = ids; deletionAcknowledged = false; confirmsBatchDelete = true
+            }.disabled(rows.allSatisfy(MacTransactionCRUD.isProtectedGeneratedPosting))
+            Divider()
+        }
+        Button(showsSelectionBoxes ? "结束多选" : "多选", systemImage: "checklist") {
+            if showsSelectionBoxes { selectionMode = false; batchSelection.removeAll() }
+            else { selectionMode = true; batchSelection.formUnion(ids); showsDetails = false }
+        }.accessibilityIdentifier("recordContextMultiSelect")
+        Button("全选", systemImage: "checkmark.circle") { selectAllRecords() }.keyboardShortcut("a", modifiers: .command).disabled(visibleTransactions.isEmpty).accessibilityIdentifier("recordContextSelectAll")
+        Button("取消选择") { batchSelection.removeAll() }.disabled(batchSelection.isEmpty)
+    }
     private var transactionTable: some View {
         Table(Array(visibleTransactions.prefix(displayLimit)), selection: $batchSelection) {
+            if showsSelectionBoxes {
+                TableColumn("") { row in selectionCheckbox(row) }.width(MacUI.space(26))
+            }
             TableColumn("日期") { row in
                 Text(MacDateDisplay.string(row.date))
-                    .appFont(.body, weight: .regular, design: .default).help(MacDateDisplay.string(row.date))
+                    .appFont(.body, weight: .regular, design: .default)
             }.width(min: MacUI.space(85), ideal: MacUI.space(95), max: MacUI.space(110))
             TableColumn("类别") { row in
                 HStack(spacing: MacUI.space(6)) {
                     MacCategoryBadge(name: row.category, type: row.type, size: 22)
                     Text(MacOverviewStyle.category(row.category)).lineLimit(1).accessibilityIdentifier("recordRow-\(row.id.uuidString)")
                     if MacTransactionCRUD.isProtectedGeneratedPosting(row) {
-                        Image(systemName: "lock").appFont(.body, weight: .regular).help("自动入账记录，请到对应财务页面核对")
+                        Image(systemName: "lock").appFont(.body, weight: .regular)
                     }
                 }.appFont(.body, weight: .regular, design: .default)
             }.width(min: MacUI.space(110), ideal: MacUI.space(150), max: MacUI.space(190))
             TableColumn("备注") { row in
-                Text(showsNotesPreview ? (row.note ?? "—") : "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(1).help(row.note ?? "无备注")
+                Text(showsNotesPreview ? (MacFinanceNotes.visible(row.note).isEmpty ? "—" : MacFinanceNotes.visible(row.note)) : "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(1)
             }.width(min: MacUI.space(90), ideal: MacUI.space(175))
             TableColumn("原币") { row in Text(row.originalCurrency).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary) }
                 .width(MacUI.space(50))
             TableColumn("金额（\(activeBookCurrency ?? "本位币")）") { row in signedTableAmount(row) }
                 .width(min: MacUI.space(135), ideal: MacUI.space(155), max: MacUI.space(190))
         }.tableStyle(.inset(alternatesRowBackgrounds: true))
+            .contextMenu(forSelectionType: UUID.self) { ids in recordContextMenu(ids) }
+            .background(MacRecordsKeyboardActions(selectAll: selectAllRecords).frame(width: 0, height: 0))
             .accessibilityIdentifier("recordsTable")
-            .help("点击查看详情；按住 Command 或 Shift 选择多笔账目。金额为各笔已保存的本位币金额。")
+
     }
     private var compactTransactionTable: some View {
         Table(Array(visibleTransactions.prefix(displayLimit)), selection: $batchSelection) {
+            if showsSelectionBoxes {
+                TableColumn("") { row in selectionCheckbox(row) }.width(MacUI.space(26))
+            }
             TableColumn("日期") { row in Text(MacDateDisplay.string(row.date)).appFont(.body, weight: .regular, design: .default) }.width(MacUI.space(110))
             TableColumn("类别") { row in
                 Text(MacOverviewStyle.category(row.category)).appFont(.body, weight: .regular, design: .default).lineLimit(1)
@@ -446,8 +496,10 @@ struct MacRecordSection: View {
                     }
                 }.frame(maxWidth:.infinity,alignment:.trailing)
             }.width(min:MacUI.space(140),ideal:MacUI.space(170),max:MacUI.space(205))
-        }.tableStyle(.inset(alternatesRowBackgrounds: true)).accessibilityIdentifier("recordsTable")
-            .help("点击账目查看完整备注、原币金额与历史汇率；按住Command或Shift多选。")
+        }.tableStyle(.inset(alternatesRowBackgrounds: true))
+            .contextMenu(forSelectionType: UUID.self) { ids in recordContextMenu(ids) }
+            .background(MacRecordsKeyboardActions(selectAll: selectAllRecords).frame(width: 0, height: 0)).accessibilityIdentifier("recordsTable")
+
     }
     private func signedTableAmount(_ row: Transaction) -> some View {
         let income = row.typedType == .income
@@ -477,7 +529,7 @@ struct MacRecordSection: View {
                     detailField("日期", value: MacDateDisplay.string(row.date), id: "recordDetailDate")
                     detailField("记账金额", value: "\(MacOverviewStyle.money(row.baseAmount)) \(row.baseCurrencyCode)", id: "recordBookAmount")
                     detailField("记账时汇率", value: row.exchangeRateToBase.formatted(.number.precision(.fractionLength(0...8))), id: "recordStoredFX")
-                    detailField("备注", value: row.note?.isEmpty == false ? row.note! : "无备注", id: "recordDetailNote")
+                    detailField("备注", value: MacFinanceNotes.visible(row.note).isEmpty ? "无备注" : MacFinanceNotes.visible(row.note), id: "recordDetailNote")
                     if MacTransactionCRUD.isProtectedGeneratedPosting(row) {
                         Label("自动入账记录，请到对应财务页面核对。", systemImage: "lock").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     }
@@ -494,18 +546,6 @@ struct MacRecordSection: View {
         }.appPadding(18).frame(maxHeight: .infinity)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.045)))
-        .sheet(item: $editingTransaction) { transaction in
-            MacTransactionEditor(
-                bookCurrency: activeBookCurrency ?? preferredBookCurrency,
-                existing: transaction,
-                onSaved: { id in
-                    refreshLedgerState()
-                    selectedTransactionID = id
-                    batchSelection = [id]; showsDetails = true
-                    saveError = nil
-                }
-            )
-        }
         .sheet(isPresented: $showsDeleteConfirmation) {
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
                 Text("删除这笔账目？")

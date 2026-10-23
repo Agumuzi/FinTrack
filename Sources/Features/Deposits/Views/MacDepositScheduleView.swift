@@ -5,20 +5,7 @@ struct MacDepositScheduleView: View {
     @Environment(\.dismiss) private var dismiss
     struct Row: Identifiable { let id: Int; let date: Date; let interest: Double }
     static func rows(for deposit: DepositRecord) -> [Row] {
-        if deposit.typedInterestSettlementMode != .monthly {
-            return [Row(id: 1, date: deposit.maturityDate, interest: DepositSettlementRule.maturitySettlementInterest(
-                principal: deposit.principal, annualInterestRate: deposit.annualInterestRate, startDate: deposit.startDate,
-                maturityDate: deposit.maturityDate, settlementMode: deposit.typedInterestSettlementMode))]
-        }
-        var rows: [Row] = [], start = deposit.startDate
-        for index in 1...1200 {
-            guard start < deposit.maturityDate, let next = Calendar.current.date(byAdding: .month, value: 1, to: start), next > start else { break }
-            let due = min(next, deposit.maturityDate)
-            rows.append(Row(id: index, date: due, interest: DepositSettlementRule.periodicPayoutInterest(
-                principal: deposit.principal, annualInterestRate: deposit.annualInterestRate, from: start, to: due)))
-            start = due
-        }
-        return rows
+        MacDepositTerms.schedule(deposit).enumerated().map { Row(id: $0.offset + 1, date: $0.element.date, interest: $0.element.interest) }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {

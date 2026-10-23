@@ -86,8 +86,14 @@ enum MacDataManagement {
             defer { recordTiming(phase, ProcessInfo.processInfo.systemUptime - start) }
             return try work()
         }
-        guard !CategoryUsageHelper.isProtectedCategory(category) else {
-            throw Failure.protectedCategory
+        if CategoryUsageHelper.isProtectedCategory(category) {
+            let clean = try MacTransactionCRUD.validatedCategory(name)
+            let catalog = try context.fetch(FetchDescriptor<Category>())
+            guard !catalog.contains(where: { $0.deletedAt == nil && $0.id != category.id && $0.type == category.type && ($0.name.localizedCaseInsensitiveCompare(clean) == .orderedSame || MacOverviewStyle.category($0.name).localizedCaseInsensitiveCompare(clean) == .orderedSame) }) else { throw MacSettingsFailure.invalid("系统分类显示名称不能与其他分类重复") }
+            var style = MacCategoryCatalog.style(name: category.name, type: category.type)
+            style.displayName = clean
+            try MacCategoryCatalog.saveStyle(style, name: category.name, type: category.type)
+            return
         }
         let name = try MacTransactionCRUD.validatedCategory(CategoryUsageHelper.canonicalCategoryName(name, type: category.type))
         guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再重命名分类") }

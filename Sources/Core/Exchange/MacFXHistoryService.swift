@@ -71,12 +71,7 @@ final class MacFXHistoryService: ObservableObject {
     func request(pair: MacFXPair, range: MacFXHistoryRange, monitor: MacFXMonitor) -> MacFXHistoryRequest? {
         guard let provider = monitor.historyProvider(pair) else { return nil }
         // A publication date is a day, not a local-midnight instant.
-        let end: String
-        switch monitor.quote(pair)?.quoteTime {
-        case .day(let day, _): end = day
-        case .instant(let date, _): end = MacFXDates.tag(date, calendar: provider.dayCalendar)
-        default: end = MacFXDates.tag(now(), calendar: provider.dayCalendar)
-        }
+        let end = MacFXDates.tag(now(), calendar: provider.dayCalendar)
         return MacFXHistoryRequest(pair: pair, range: range, sourceID: provider.id, revision: provider.revision, endingDay: end)
     }
     func load(_ request: MacFXHistoryRequest, monitor: MacFXMonitor) async {

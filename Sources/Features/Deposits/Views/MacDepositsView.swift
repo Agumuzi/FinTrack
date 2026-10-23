@@ -16,6 +16,11 @@ struct MacDepositsView: View {
     @State private var selectedID: UUID?
     @State private var showsDetails = false
     @State private var showsNew = false
+    @State private var copying: DepositRecord?
+    @State private var reconciling: Transaction?
+    @AppStorage("v13_deposit_single_list_width", store: MacPreferences.defaults) private var singleListWidth = 340.0
+    @AppStorage("v13_deposit_columns", store: MacPreferences.defaults) private var listColumns = 1
+
     @State private var editing: MacFinanceRecord?
     @State private var schedule: DepositRecord?
     @State private var reviewing: MacFinanceRecord?
@@ -27,6 +32,9 @@ struct MacDepositsView: View {
     @State private var logoRevision = 0
     @State private var cropInput: MacBankLogos.CropInput?
     @State private var now = Date()
+    @AppStorage("v13_deposit_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
+    private var listWidth: Double { listColumns == 2 ? doubleListWidth : singleListWidth }
+    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { if listColumns == 2 { doubleListWidth = $0 } else { singleListWidth = $0 } }) }
     private var active: [DepositRecord] { deposits.filter { $0.deletedAt == nil } }
     private var visible: [DepositRecord] {
         MacDepositsData.filtered(active, search: search, status: status, bank: bank, currency: currency, sort: sort, now: now)
@@ -42,9 +50,10 @@ struct MacDepositsView: View {
             HStack(spacing: MacUI.space(0)) {
                 filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).frame(width: wide ? MacUI.space(310) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                let maximum = max(300, Double(geometry.size.width - filterWidth - 340))
+                list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
-                    Divider()
+                    MacFinanceListDivider(width: widthBinding, maximum: maximum)
                     if let selected { presentedDetail(selected, compact: false).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一笔存款", systemImage: "building.columns", description: Text("在列表中查看本金、期限与结息记录。")).frame(maxWidth: .infinity) }
                 }
@@ -57,6 +66,10 @@ struct MacDepositsView: View {
                     }.appPanel(width: 560, height: 670)
                 }
             }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Button { showsNew = true } label: { Image(systemName: "plus").appIconFont(22, weight: .semibold).foregroundStyle(.white).frame(width: 46, height: 46).background(MacUI.accent, in: Circle()).contentShape(Circle()) }
+                .buttonStyle(.plain).help("新建存款").accessibilityLabel("新建存款").accessibilityIdentifier("depositQuickAdd").disabled(bookCurrency == nil || posting).padding(22)
         }
         .onAppear { selectedID = visible.first?.id }
         .onChange(of: visible.map(\.id)) { _, ids in
@@ -74,6 +87,8 @@ struct MacDepositsView: View {
             MacBankLogoCropView(input: input) { logoRevision += 1; cropInput = nil }
         }
         .sheet(item: $schedule) { MacDepositScheduleView(deposit: $0) }
+        .sheet(item: $copying) { source in if let bookCurrency { MacFinanceEditor(panel: .deposits, currency: bookCurrency, copyFrom: source) { saved() } } }
+        .sheet(item: $reconciling) { receipt in MacDepositReceiptReviewView(deposit: deposit, receipt: receipt) }
         .sheet(item: $editing) { record in
             if let bookCurrency { MacFinanceEditor(panel: .deposits, currency: bookCurrency, existing: record) { saved() } }
         }
@@ -154,8 +169,7 @@ struct MacDepositsView: View {
             HStack { Text("\(visible.count) 笔存款").appFont(.section, weight: .semibold).accessibilityIdentifier("depositCount"); Spacer()
                 if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("depositOpenDetails") }
             }
-            Picker("排序", selection: $sort) { ForEach(MacDepositsData.Sort.allCases) { Text($0.rawValue).tag($0) } }
-                .labelsHidden().accessibilityIdentifier("depositSort")
+            MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacDepositsData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "deposit")
             if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("financeActionError") }
             if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(MacOverviewStyle.income).accessibilityIdentifier("financeActionMessage") }
             if bookCurrency == nil { Text("账本包含不同本位币，请在设置中核对后再新增或编辑。").appFont(.caption, weight: .regular).foregroundStyle(.orange) }
@@ -164,7 +178,7 @@ struct MacDepositsView: View {
                     .accessibilityIdentifier("depositsEmptyState").frame(maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: MacUI.space(10)) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                         ForEach(visible, id: \.id) { deposit in
                             Button { selectedID = deposit.id; if !wide { showsDetails = true } } label: { row(deposit) }
                                 .buttonStyle(.plain).accessibilityIdentifier("depositRow-\(deposit.bankName)")
@@ -175,17 +189,18 @@ struct MacDepositsView: View {
         }.appPadding(18).background(MacOverviewStyle.canvas)
     }
     private func row(_ deposit: DepositRecord) -> some View {
-        VStack(alignment: .leading, spacing: MacUI.space(12)) {
-            HStack(alignment: .top, spacing: MacUI.space(10)) {
-                MacBankIcon(bank: deposit.bankName, revision: logoRevision)
-                VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(deposit.bankName).appFont(.section, weight: .semibold).lineLimit(2); Text(MacDepositsData.mode(deposit)).appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                MacBankIcon(bank: deposit.bankName, size: 32, revision: logoRevision)
+                VStack(alignment: .leading, spacing: 3) { Text(deposit.bankName).appFont(.body, weight: .semibold).lineLimit(1); Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                Spacer(minLength: 0); badge(deposit)
             }
-            Text("\(MacOverviewStyle.money(deposit.originalPrincipal)) \(deposit.originalCurrency)").appFont(.section, weight: .semibold, design: .default).monospacedDigit()
-            HStack { Text("年利率 \(deposit.annualInterestRate.formatted(.number.precision(.fractionLength(0...4))))%").appFont(.caption, weight: .regular); Spacer(); badge(deposit) }
-            Text("到期 \(MacDateDisplay.string(deposit.maturityDate))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-        }.appPadding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .macFinanceSelectableRow(selected: selectedID == deposit.id)
+            Text("\(MacOverviewStyle.money(deposit.originalPrincipal)) \(deposit.originalCurrency)").appFont(.section, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            ViewThatFits(in: .horizontal) {
+                HStack { Text(String(format: "%.2f%%", deposit.annualInterestRate)); Spacer(minLength: 4); Text(MacDateDisplay.string(deposit.maturityDate)) }
+                VStack(alignment: .leading, spacing: 3) { Text(String(format: "%.2f%%", deposit.annualInterestRate)); Text(MacDateDisplay.string(deposit.maturityDate)) }
+            }.appFont(.caption).foregroundStyle(.secondary)
+        }.padding(12).frame(maxWidth: .infinity, minHeight: 104, alignment: .leading).contentShape(Rectangle()).macFinanceSelectableRow(selected: selectedID == deposit.id)
     }
     private func badge(_ deposit: DepositRecord) -> some View {
         let status = MacDepositsData.status(deposit, now: now)
@@ -194,95 +209,110 @@ struct MacDepositsView: View {
             .background(color.opacity(0.1), in: Capsule())
     }
     private func detail(_ deposit: DepositRecord, compact: Bool) -> some View {
-        let timing = MacDepositsData.timing(deposit, now: now)
-        let audit = MacDepositsData.audit(deposit, transactions: transactions)
-        return ScrollView {
-            VStack(alignment: .leading, spacing: MacUI.space(16)) {
-                HStack(alignment: .top, spacing: MacUI.space(12)) {
-                    MacBankIcon(bank: deposit.bankName, size: 46, revision: logoRevision)
-                    VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(deposit.bankName).appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("depositDetailTitle"); Text(MacDepositsData.mode(deposit)).foregroundStyle(.secondary).appFont(.caption, weight: .regular) }
-                    Spacer(); badge(deposit)
-                }
-                HStack {
-                    Button("编辑", systemImage: "pencil") { editing = .deposit(deposit) }.accessibilityIdentifier("editFinance-\(deposit.id.uuidString)").disabled(bookCurrency == nil || posting)
+        GeometryReader { geometry in
+            let audit = MacDepositsData.audit(deposit, transactions: transactions)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    detailHeader(deposit)
+                    if geometry.size.width >= 650 {
+                        HStack(alignment: .top, spacing: 14) { summaryCard(deposit).frame(maxWidth: .infinity); notesCard(deposit).frame(width: max(160, geometry.size.width * 0.29)) }
+                    } else { summaryCard(deposit); if !MacFinanceNotes.visible(deposit.note).isEmpty { notesCard(deposit) } }
+                    timingCard(deposit)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: geometry.size.width >= 1000 ? 3 : geometry.size.width >= 700 ? 2 : 1), alignment: .leading, spacing: 12) {
+                        settlementCard(deposit, audit: audit)
+                        receiptsCard(deposit, audit: audit)
+                        scheduleCard(deposit)
+                    }
+                    if deposit.originalCurrency != deposit.baseCurrencyCode {
+                        card { Text("本金记账快照").appFont(.section, weight: .semibold); Text("\(MacOverviewStyle.money(deposit.basePrincipal)) \(deposit.baseCurrencyCode)").accessibilityIdentifier("depositBookPrincipal"); Text("保存汇率：" + String(deposit.principalExchangeRateToBase)).appFont(.caption).foregroundStyle(.secondary) }
+                    }
+                }.padding(compact ? 18 : 22).padding(.bottom, 52)
+            }.background(MacOverviewStyle.canvas).accessibilityIdentifier("depositDetailScroll").id(deposit.id)
+        }
+    }
+    private func detailHeader(_ deposit: DepositRecord) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            MacBankIcon(bank: deposit.bankName, size: 46, revision: logoRevision)
+            VStack(alignment: .leading, spacing: 5) { Text(deposit.bankName).appFont(.dialogTitle, weight: .semibold).lineLimit(2).accessibilityIdentifier("depositDetailTitle"); Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary) }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 8) {
+                badge(deposit)
+                HStack(spacing: 8) {
+                    Button("编辑", systemImage: "pencil") { editing = .deposit(deposit) }.accessibilityIdentifier("editFinance-" + deposit.id.uuidString).disabled(bookCurrency == nil || posting)
                     Menu {
+                        Button("复制存款", systemImage: "doc.on.doc") { copying = deposit }.accessibilityIdentifier("depositCopy").disabled(bookCurrency == nil)
                         Button("选择银行图标…") { chooseLogo(deposit.bankName) }.accessibilityIdentifier("depositChooseLogo")
-                        Button("恢复默认图标") { do { try MacBankLogos.reset(deposit.bankName); logoRevision += 1 } catch { self.error = error.localizedDescription } }.accessibilityIdentifier("depositResetLogo")
-                        Divider()
-                        Button("移除存款…", role: .destructive) { removing = deposit }.accessibilityIdentifier("depositRemove")
-                    } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: MacUI.space(35)).accessibilityIdentifier("depositMore").disabled(posting)
-                    Spacer()
+                        Button("恢复默认图标") { do { try MacBankLogos.reset(deposit.bankName); logoRevision += 1 } catch { self.error = MacLocalization.error(error) } }
+                        Divider(); Button("移除存款…", role: .destructive) { removing = deposit }.accessibilityIdentifier("depositRemove")
+                    } label: { Image(systemName: "ellipsis").frame(width: 28, height: 30).contentShape(Rectangle()) }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityIdentifier("depositMore").disabled(posting)
                 }
-                card {
-                    Text("\(MacOverviewStyle.money(deposit.originalPrincipal)) \(deposit.originalCurrency)").appFont(.amount, weight: .semibold, design: .default).monospacedDigit().textSelection(.enabled).accessibilityIdentifier("depositPrincipal").id("principal-\(deposit.id)-\(deposit.originalPrincipal)")
-                    Text("本金 · 原币").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                    Divider().appPadding(.vertical, 6)
-                    HStack(alignment: .top) {
-                        metric("年利率", "\(deposit.annualInterestRate.formatted(.number.precision(.fractionLength(0...4))))%")
-                        Spacer(); metric("存期", "\(timing.total) 天")
-                        Spacer(); metric("预计总利息", "\(MacOverviewStyle.money(deposit.expectedInterest)) \(deposit.originalCurrency)", id: "depositExpectedInterest")
-                    }
-                    if deposit.isInterestManuallyEdited { Text("预计利息按手动输入金额保存。").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
-                }
-                card {
-                    HStack { metric("开始日期", MacDateDisplay.string(deposit.startDate)); Spacer(); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }
-                    ProgressView(value: timing.progress).tint(MacOverviewStyle.accent).appPadding(.vertical, 5)
-                    HStack { Text(now < deposit.startDate ? "尚未起息" : "已存 \(timing.elapsed) 天"); Spacer(); Text(timing.remaining > 0 ? "距离到期 \(timing.remaining) 天" : "已到期") }.appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                }
-                card {
-                    Text("结息与入账").appFont(.section, weight: .semibold)
-                    HStack(alignment: .top) {
-                        metric("已核验入账利息", "\(MacOverviewStyle.money(audit.total)) \(deposit.originalCurrency)", id: "depositPostedInterest")
-                        Spacer(); metric("结息状态", deposit.hasCreditedInterest ? "已完成结息" : (deposit.isActive ? "尚未完成" : "已结束"), id: "depositSettlementStatus")
-                    }
-                    if let next = deposit.nextInterestPayoutDate, deposit.isActive { Text("下一计划结息：\(MacDateDisplay.string(next))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
-                    if audit.unverifiedCount > 0 { Label("\(audit.unverifiedCount) 条结息记录待核对，未计入合计。", systemImage: "exclamationmark.triangle").appFont(.caption, weight: .regular).foregroundStyle(.orange).accessibilityIdentifier("depositReceiptWarning") }
-                    if !MacDepositSettlement.isManaged(deposit) {
-                        Text("旧记录的历史到账需人工核对，不能仅凭到期状态推断利息已收到。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                        Button("核对历史结息") { reviewing = .deposit(deposit) }.accessibilityIdentifier("reviewFinance-\(deposit.id.uuidString)").disabled(bookCurrency == nil || posting)
-                    } else if !deposit.hasCreditedInterest {
-                        Button(posting ? "正在记账…" : "确认收到到期利息", systemImage: "checkmark.circle") { confirming = deposit }
-                            .accessibilityIdentifier("postDepositInterest-\(deposit.id.uuidString)")
-                            .disabled(posting || bookCurrency == nil || !MacDepositSettlement.isEligible(deposit, now: now))
-                    }
-                    if deposit.hasCreditedInterest || deposit.lastInterestPayoutDate != nil {
-                        Text("已有结息后，本金、利率和日期等关键参数受保护；仍可修改银行名称和备注。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                    }
-                }
-                card {
-                    Text("结息记录").appFont(.section, weight: .semibold)
-                    if audit.receipts.isEmpty { Text("暂无可核验的利息入账记录").appFont(.body, weight: .regular).foregroundStyle(.secondary) }
-                    else {
-                        HStack { Text("日期"); Spacer(); Text("已到账 · 原币") }.appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                        ForEach(audit.receipts, id: \.id) { receipt in
-                            Divider()
-                            HStack { Text(MacDateDisplay.string(receipt.date)); Spacer(); Text("+\(MacOverviewStyle.money(receipt.originalAmount)) \(receipt.originalCurrency)").monospacedDigit().foregroundStyle(MacOverviewStyle.income) }.appFont(.body, weight: .regular)
-                            if receipt.originalCurrency != receipt.baseCurrencyCode {
-                                Text("记账 \(MacOverviewStyle.money(receipt.baseAmount)) \(receipt.baseCurrencyCode) · 汇率 \(receipt.exchangeRateToBase.formatted(.number.precision(.fractionLength(0...8))))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                            }
+            }
+        }
+    }
+    private func summaryCard(_ deposit: DepositRecord) -> some View {
+        card {
+            Text("\(MacOverviewStyle.money(deposit.originalPrincipal)) \(deposit.originalCurrency)").appFont(.amount, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65).accessibilityIdentifier("depositPrincipal")
+            Text("本金 · 原币").appFont(.caption).foregroundStyle(.secondary); Divider()
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top) { metric("年利率", String(format: "%.2f%%", deposit.annualInterestRate)); Spacer(); metric("存期", "\(MacDepositsData.timing(deposit, now: now).total) 天"); Spacer(); metric("预计总利息", "\(MacOverviewStyle.money(deposit.expectedInterest)) \(deposit.originalCurrency)", id: "depositExpectedInterest") }
+                VStack(alignment: .leading, spacing: 10) { metric("年利率", String(format: "%.2f%%", deposit.annualInterestRate)); metric("存期", "\(MacDepositsData.timing(deposit, now: now).total) 天"); metric("预计总利息", "\(MacOverviewStyle.money(deposit.expectedInterest)) \(deposit.originalCurrency)", id: "depositExpectedInterest") }
+            }
+            if deposit.isInterestManuallyEdited { Text("预计利息按手动输入金额保存。").appFont(.caption).foregroundStyle(.secondary) }
+        }
+    }
+    private func notesCard(_ deposit: DepositRecord) -> some View {
+        card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(deposit.note).isEmpty ? "暂无备注" : MacFinanceNotes.visible(deposit.note)).foregroundStyle(.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+    }
+    private func timingCard(_ deposit: DepositRecord) -> some View {
+        let timing = MacDepositsData.timing(deposit, now: now)
+        return card {
+            HStack { metric("开始日期", MacDateDisplay.string(deposit.startDate)); Spacer(); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }
+            ProgressView(value: timing.progress).tint(MacUI.accent)
+            HStack { Text(now < deposit.startDate ? "尚未起息" : "已存 \(timing.elapsed) 天"); Spacer(); Text(timing.remaining > 0 ? "距离到期 \(timing.remaining) 天" : "已到期") }.appFont(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private func settlementCard(_ deposit: DepositRecord, audit: MacDepositsData.ReceiptAudit) -> some View {
+        card {
+            Text("结息与入账").appFont(.section, weight: .semibold)
+            metric("已核对到账利息", "\(MacOverviewStyle.money(audit.total)) \(deposit.originalCurrency)", id: "depositPostedInterest")
+            Text(audit.pendingCount > 0 ? "\(audit.pendingCount) 笔计划收入待核对" : deposit.hasCreditedInterest ? "已完成结息" : "尚未完成").appFont(.caption).foregroundStyle(audit.pendingCount > 0 ? .orange : .secondary).accessibilityIdentifier("depositSettlementStatus")
+            if audit.unverifiedCount > 0 { Label("\(audit.unverifiedCount) 条记录关联或金额异常，需核对历史。", systemImage: "exclamationmark.triangle").appFont(.caption).foregroundStyle(.orange).accessibilityIdentifier("depositReceiptWarning") }
+            if !MacDepositSettlement.isManaged(deposit) {
+                Text("旧记录需先核对历史到账。").appFont(.caption).foregroundStyle(.secondary)
+                Button("核对历史结息") { reviewing = .deposit(deposit) }.accessibilityIdentifier("reviewFinance-" + deposit.id.uuidString).disabled(bookCurrency == nil || posting)
+            } else if !deposit.hasCreditedInterest {
+                Text("到期后自动生成待核对收入，也可在下方手动确认实际到账。").appFont(.caption).foregroundStyle(.secondary)
+                Button(posting ? "正在记账…" : "确认收到到期利息", systemImage: "checkmark.circle") { confirming = deposit }.accessibilityIdentifier("postDepositInterest-" + deposit.id.uuidString).disabled(posting || bookCurrency == nil || !MacDepositSettlement.isEligible(deposit, now: now))
+            }
+        }
+    }
+    private func receiptsCard(_ deposit: DepositRecord, audit: MacDepositsData.ReceiptAudit) -> some View {
+        card {
+            Text("结息记录").appFont(.section, weight: .semibold)
+            if audit.receipts.isEmpty { Text("暂无利息入账记录").foregroundStyle(.secondary) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(audit.receipts, id: \.id) { receipt in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(MacDateDisplay.string(receipt.date)).appFont(.caption).foregroundStyle(.secondary)
+                            Text("+\(MacOverviewStyle.money(receipt.originalAmount)) \(receipt.originalCurrency)").appFont(.body, weight: .semibold).foregroundStyle(MacOverviewStyle.income)
+                            Button((receipt.note ?? "").contains("[FTEstimated]") ? "核对实际到账" : "调整到账金额") { reconciling = receipt }.appFont(.caption).disabled(bookCurrency == nil || posting)
                         }
+                        Divider()
                     }
                 }
-                card {
-                    Text("结息计划").appFont(.section, weight: .semibold)
-                    Text("预计金额尚未代表实际到账。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                    let rows = MacDepositScheduleView.rows(for: deposit)
-                    ForEach(Array(rows.prefix(12))) { row in
-                        HStack { Text(MacDateDisplay.string(row.date)); Spacer(); Text("\(MacOverviewStyle.money(row.interest)) \(deposit.originalCurrency)").monospacedDigit() }.appFont(.body, weight: .regular)
-                        if row.id != rows.prefix(12).last?.id { Divider() }
-                    }
-                }
-                Button("查看完整结息计划") { schedule = deposit }.accessibilityIdentifier("depositFullSchedule")
-                if deposit.originalCurrency != deposit.baseCurrencyCode {
-                    card {
-                        Text("本金记账快照").appFont(.section, weight: .semibold)
-                        Text("\(MacOverviewStyle.money(deposit.basePrincipal)) \(deposit.baseCurrencyCode)").monospacedDigit().accessibilityIdentifier("depositBookPrincipal")
-                        Text("保存汇率：\(deposit.principalExchangeRateToBase.formatted(.number.precision(.fractionLength(0...8))))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                    }
-                }
-                card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(deposit.note).isEmpty ? "暂无备注" : MacFinanceNotes.visible(deposit.note)).foregroundStyle(.secondary).textSelection(.enabled) }
-            }.appPadding(compact ? 18 : 24)
-        }.background(MacOverviewStyle.canvas).accessibilityIdentifier("depositDetailScroll").id(deposit.id)
+            }.frame(minHeight: audit.receipts.isEmpty ? 1 : 80, maxHeight: 210)
+        }
+    }
+    private func scheduleCard(_ deposit: DepositRecord) -> some View {
+        card {
+            Text("结息计划").appFont(.section, weight: .semibold)
+            Text("计划金额在核对前不代表实际到账。").appFont(.caption).foregroundStyle(.secondary)
+            ForEach(Array(MacDepositScheduleView.rows(for: deposit).prefix(3))) { row in
+                VStack(alignment: .leading, spacing: 4) { Text(MacDateDisplay.string(row.date)).appFont(.caption).foregroundStyle(.secondary); Text("\(MacOverviewStyle.money(row.interest)) \(deposit.originalCurrency)").appFont(.body, weight: .medium).monospacedDigit() }
+            }
+            Button("查看完整结息计划") { schedule = deposit }.appFont(.caption).accessibilityIdentifier("depositFullSchedule")
+        }
     }
     private func metric(_ title: String, _ value: String, id: String = "") -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(7)) {

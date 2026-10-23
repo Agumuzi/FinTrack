@@ -14,7 +14,7 @@ enum MacDepositSettlement {
     enum PostingError: LocalizedError {
         case legacyRecord, unsafeRollover, currencyMismatch, notDue
         case corruptedSchedule, duplicateReceipt, tooManyPeriods
-        case noLongerActive
+        case noLongerActive, possibleManualReceipt
 
         var errorDescription: String? {
             switch self {
@@ -26,6 +26,7 @@ enum MacDepositSettlement {
             case .duplicateReceipt: "This deposit interest period already has a posted receipt."
             case .tooManyPeriods: "More than 24 unpaid periods: review before posting."
             case .noLongerActive: "This deposit is inactive or has already been settled."
+            case .possibleManualReceipt: "发现同日同金额的手动利息账目，请先核对历史，避免重复入账。"
             }
         }
     }
@@ -71,7 +72,7 @@ enum MacDepositSettlement {
     @discardableResult
     static func postDue(
         _ deposit: DepositRecord, now: Date, bookCurrency: String,
-        exchangeRates: [Int64: Double] = [:], in context: ModelContext
+        exchangeRates: [Int64: Double] = [:], estimated: Bool = false, in context: ModelContext
     ) throws -> PostingResult {
         guard isManaged(deposit) else { throw PostingError.legacyRecord }
         if let sourceID = deposit.sourceDepositID {
@@ -121,11 +122,7 @@ enum MacDepositSettlement {
                 periods += 1
                 let start = newLast ?? deposit.startDate
                 guard due > start else { throw PostingError.corruptedSchedule }
-                let amount = DepositSettlementRule.periodicPayoutInterest(
-                    principal: deposit.principal,
-                    annualInterestRate: deposit.annualInterestRate,
-                    from: start, to: due
-                )
+                guard let amount = MacDepositTerms.schedule(deposit).first(where: { $0.date == due })?.interest else { throw PostingError.corruptedSchedule }
                 let marker = receiptMarker(depositID: deposit.id, date: due, monthly: true)
                 if amount > 0 { items.append((due, amount, marker)) }
                 newLast = due
@@ -145,13 +142,7 @@ enum MacDepositSettlement {
             guard today >= calendar.startOfDay(for: deposit.maturityDate) else {
                 throw PostingError.notDue
             }
-            let amount = DepositSettlementRule.maturitySettlementInterest(
-                principal: deposit.principal,
-                annualInterestRate: deposit.annualInterestRate,
-                startDate: deposit.startDate,
-                maturityDate: deposit.maturityDate,
-                settlementMode: deposit.typedInterestSettlementMode
-            )
+            guard let amount = MacDepositTerms.schedule(deposit).first?.interest else { throw PostingError.corruptedSchedule }
             let marker = receiptMarker(
                 depositID: deposit.id, date: deposit.maturityDate, monthly: false)
             if amount > 0 { items.append((deposit.maturityDate, amount, marker)) }
@@ -168,6 +159,11 @@ enum MacDepositSettlement {
                   return uniqueMarkers.contains(where: { note.contains($0) })
               })
         else { throw PostingError.duplicateReceipt }
+        if estimated {
+            guard !items.contains(where: { item in allTransactions.contains { row in
+                row.deletedAt == nil && row.typedType == .income && !MacTransactionCRUD.isProtectedGeneratedPosting(row) && row.originalCurrency == deposit.originalCurrency && abs(row.originalAmount - item.amount) < 0.005 && calendar.isDate(row.date, inSameDayAs: item.date) && (row.category == "Deposit" || (row.note ?? "").localizedCaseInsensitiveContains(deposit.bankName))
+            } }) else { throw PostingError.possibleManualReceipt }
+        }
         let snapshots = try items.map { item in
             try MacCurrency.snapshot(amount: item.amount, original: deposit.originalCurrency,
                 base: bookCurrency, rate: deposit.originalCurrency == bookCurrency ? 1 : exchangeRates[Int64(item.date.timeIntervalSince1970)])
@@ -178,7 +174,7 @@ enum MacDepositSettlement {
                 context.insert(Transaction(
                     amount: snapshot.baseAmount, currency: bookCurrency, type: .income,
                     category: "Deposit",
-                    note: "Bank interest: \(deposit.bankName) \(item.marker)",
+                    note: "银行利息：\(deposit.bankName) \(item.marker)" + (estimated ? " [FTEstimated]（待核对）" : ""),
                     date: item.date,
                     originalAmount: item.amount, originalCurrency: deposit.originalCurrency,
                     exchangeRateToBase: snapshot.rate, baseAmount: snapshot.baseAmount,
