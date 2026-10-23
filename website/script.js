@@ -36,10 +36,10 @@
   document.addEventListener('click', event => { if (!event.target.closest('.nav-wrap')) closeMenu(); });
 
   const screens = {
-    records: {alt: 'FinTrack v1.0 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'},
-    finance: {alt: 'FinTrack v1.0 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'},
-    exchange: {alt: 'FinTrack v1.0 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'},
-    settings: {alt: 'FinTrack v1.0 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'}
+    records: {alt: 'FinTrack v1.3 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'},
+    finance: {alt: 'FinTrack v1.3 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'},
+    exchange: {alt: 'FinTrack v1.3 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'},
+    settings: {alt: 'FinTrack v1.3 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'}
   };
   const tabs = [...document.querySelectorAll('[data-screen]')];
   const image = document.querySelector('#gallery-image');

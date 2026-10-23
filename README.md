@@ -4,10 +4,10 @@
 
 <h1 align="center">FinTrack</h1>
 <p align="center">为 Mac 打造的个人财务工作台。记录收支，整理资产，把计划看清楚。</p>
-<p align="center"><strong>v1.2.1 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
+<p align="center"><strong>v1.3 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
 <p align="center">
   <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
-  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.2.1">下载 macOS 版</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.3">下载 macOS 版</a> ·
   <a href="docs/INSTALLATION.md">安装指南</a> ·
   <a href="CHANGELOG.md">更新记录</a>
 </p>
@@ -21,14 +21,14 @@
 - **日常记账**：管理收入与支出，按日期、类别和币种查找；类别跟随收支范围，明细保留原币与历史汇率，查看趋势与分类统计。
 - **资产与计划**：整理账户与资产，管理存款、贷款、周期记账、预算及财务目标。银行图片支持自行上传，与银行名称关联保存；再次输入相同名称会自动匹配，无需重复添加。
 - **多币种**：保留原币、记账汇率和本位币金额，查询与换算汇率，分别选择记账及菜单栏的数据来源。
-- **Mac 原生体验**：SwiftUI 界面、菜单栏快速操作、键盘交互与浅色 / 深色外观。
+- **Mac 原生体验**：SwiftUI 界面、菜单栏快速操作、键盘交互与浅色 / 深色外观；支持从 macOS 字体库选择界面字体。
 - **本地数据管理**：原生完整备份与恢复，四类 CSV 模板及导入导出。
 
 更多真实界面见[产品官网](https://agumuzi.github.io/FinTrack/#showcase)。
 
 ## 下载与安装
 
-[**下载 FinTrack v1.2.1 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.2.1/FinTrack-v1.2.1-macOS.zip) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.2.1/SHA256.txt)
+[**下载 FinTrack v1.3 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.3/FinTrack-v1.3-macOS.zip) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.3/SHA256.txt)
 
 1. 下载并校验 ZIP，解压后将 `FinTrack.app` 拖入“应用程序”。
 2. 首次打开可能受到 macOS 安全检查限制。当前安装包采用 **Ad-hoc 签名，未经 Apple 公证**，详见[安装指南](docs/INSTALLATION.md)。

@@ -2,7 +2,7 @@
 
 ## 下载和校验
 
-从 [v1.2.1 Release](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2.1) 下载 `FinTrack-v1.2.1-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+从 [v1.3 Release](https://github.com/Agumuzi/FinTrack/releases/tag/v1.3) 下载 `FinTrack-v1.3-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
 
 在下载目录检查：
 
@@ -39,3 +39,7 @@ v1.2.1修复了更新下载流程。旧版程序中的下载实现不会随新�
 如需降级，请使用升级前对应版本的完整备份；不保证旧版本直接读取新版账本。分类合并与恢复涉及多种本地存储，操作完成前请避免强制退出。
 
 Intel 实机、macOS 15 实机、完整 VoiceOver 及长期真实财务场景尚未完成验证。
+
+## 自定义显示字体
+
+在“设置 → 外观与语言 → 显示字体”中点击“选择字体”，使用 macOS 原生字体面板选择本机已安装字体；可打开“字体册”管理字体，或点击“恢复系统字体”。字体大小仍由应用内三档设置控制。备份保留字体选择；在未安装该字体的设备上恢复时自动使用系统字体。
