@@ -299,7 +299,7 @@ struct MacSettingsMenu<Value: Hashable>: View {
     var body: some View {
         MacSettingsPopupButton(selection: $selection, options: options)
             .frame(minWidth: MacUI.space(minimumWidth), maxWidth: .infinity)
-            .frame(minHeight: MacInterfaceFonts.controlHeight())
+            .frame(height: MacInterfaceFonts.controlHeight())
             .accessibilityLabel(selectedTitle)
             .accessibilityValue(selectedTitle)
     }
