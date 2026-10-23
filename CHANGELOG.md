@@ -17,6 +17,8 @@
 
 系统要求：macOS 15.0+；Universal（Apple Silicon / Intel）。Ad-hoc签名，未经Apple公证；Intel/macOS 15实机、完整VoiceOver及长期真实财务使用仍有验证边界。
 
+应用内更新检查可识别新版本；当前环境的旧版下载曾出现网络超时，公开安装包直接下载与独立校验通过。遇到超时请使用 Releases 附件手动更新，实际安装与重启回滚仍需用户验证。
+
 [下载与版本说明](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2) · [安装指南](docs/INSTALLATION.md)
 
 ## v1.1 — 2026-10-20
