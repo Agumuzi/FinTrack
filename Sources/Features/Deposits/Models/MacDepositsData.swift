@@ -12,8 +12,8 @@ enum MacDepositsData {
     }
     static func status(_ deposit: DepositRecord, now: Date = Date(), calendar: Calendar = .current) -> Status {
         let today = calendar.startOfDay(for: now), end = calendar.startOfDay(for: deposit.maturityDate)
-        if end <= today { return .matured }
         if !deposit.isActive { return .ended }
+        if end <= today { return .matured }
         let days = calendar.dateComponents([.day], from: today, to: end).day ?? Int.max
         return days <= 30 ? .soon : .active
     }

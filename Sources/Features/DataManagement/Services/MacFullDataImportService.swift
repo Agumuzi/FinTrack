@@ -40,6 +40,7 @@ struct MacFullDataImportService {
         into modelContext: ModelContext
     ) throws -> FullDataImportCommitResult {
         let existingTransactions = try modelContext.fetch(FetchDescriptor<Transaction>())
+        let existingTransactionIDs = Set(existingTransactions.map(\.id))
         let existingRecurringRules = try modelContext.fetch(FetchDescriptor<RecurringTransaction>())
         let existingDeposits = try modelContext.fetch(FetchDescriptor<DepositRecord>())
         let existingLoans = try modelContext.fetch(FetchDescriptor<LoanRule>())
@@ -128,7 +129,9 @@ struct MacFullDataImportService {
                         updatedAt: date("UpdatedAt", from: row.values) ?? date("CreatedAt", from: row.values) ?? Date(),
                         deletedAt: date("DeletedAt", from: row.values),
                         lastModifiedDeviceID: optionalString("LastModifiedDeviceID", from: row.values) ?? SyncMetadataDefaults.currentDeviceID,
-                        syncVersion: int("SyncVersion", from: row.values) ?? 1
+                        syncVersion: int("SyncVersion", from: row.values) ?? 1,
+                        targetDatePrecisionRaw: optionalString("TargetDatePrecision", from: row.values),
+                        targetDateValueRaw: optionalString("TargetDateValue", from: row.values)
                     )
                 )
                 importedGoals += 1
@@ -136,7 +139,7 @@ struct MacFullDataImportService {
         }
 
         if let table = sections[SectionKey.transactions] {
-            for row in table.rows where shouldImportTransaction(row.values, existingTransactions: existingTransactions) {
+            for row in table.rows where shouldImportTransaction(row.values, existingTransactions: existingTransactions, existingIDs: existingTransactionIDs) {
                 modelContext.insert(
                     Transaction(
                         id: uuid("ID", from: row.values) ?? UUID(),
@@ -355,9 +358,9 @@ struct MacFullDataImportService {
         } == false
     }
 
-    private func shouldImportTransaction(_ values: [String: String], existingTransactions: [Transaction]) -> Bool {
+    private func shouldImportTransaction(_ values: [String: String], existingTransactions: [Transaction], existingIDs: Set<UUID>) -> Bool {
         if let importedID = uuid("ID", from: values) {
-            return existingTransactions.contains(where: { $0.id == importedID }) == false
+            return !existingIDs.contains(importedID)
         }
         let type = string("Type", from: values)
         let category = string("Category", from: values)

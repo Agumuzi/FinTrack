@@ -129,6 +129,8 @@ struct MacBackupGoal: Codable {
     var targetAmount: Double
     var startDate: Date
     var deadline: Date?
+    var targetDatePrecisionRaw: String?
+    var targetDateValueRaw: String?
     var includesCurrentAssets: Bool
     var creationNetWorth: Double
     var isAccomplished: Bool
@@ -145,6 +147,8 @@ struct MacBackupGoal: Codable {
         targetAmount = row.targetAmount
         startDate = row.startDate
         deadline = row.deadline
+        targetDatePrecisionRaw = row.targetDatePrecisionRaw
+        targetDateValueRaw = row.targetDateValueRaw
         includesCurrentAssets = row.includesCurrentAssets
         creationNetWorth = row.creationNetWorth
         isAccomplished = row.isAccomplished
@@ -163,6 +167,8 @@ struct MacBackupGoal: Codable {
         row.targetAmount = targetAmount
         row.startDate = startDate
         row.deadline = deadline
+        row.targetDatePrecisionRaw = targetDatePrecisionRaw
+        row.targetDateValueRaw = targetDateValueRaw
         row.includesCurrentAssets = includesCurrentAssets
         row.creationNetWorth = creationNetWorth
         row.isAccomplished = isAccomplished
@@ -625,6 +631,13 @@ enum MacNativeBackup {
         guard Set(p.depositRecord.map(\.id)).count == p.depositRecord.count else { throw MacSettingsFailure.invalid("DepositRecord 编号重复") }
         guard Set(p.loanRule.map(\.id)).count == p.loanRule.count else { throw MacSettingsFailure.invalid("LoanRule 编号重复") }
 
+        guard p.goal.allSatisfy({ $0.targetDatePrecisionRaw == nil || TargetDatePrecision(rawValue: $0.targetDatePrecisionRaw!) != nil })
+        else { throw MacSettingsFailure.invalid("目标期望时间精度无效") }
+        guard p.goal.allSatisfy({ row in
+            guard let raw = row.targetDateValueRaw else { return true }
+            guard row.deadline != nil, let precision = row.targetDatePrecisionRaw.flatMap(TargetDatePrecision.init(rawValue:)) else { return false }
+            return GoalTargetTime.components(raw, precision: precision) != nil
+        }) else { throw MacSettingsFailure.invalid("目标期望时间日历值无效") }
         let rules = Set(p.recurringTransaction.map(\.id))
         for loan in p.loanRule {
             guard Set(loan.generatedRuleIDs).count == loan.generatedRuleIDs.count, Set(loan.generatedRuleIDs).isSubset(of: rules)
@@ -703,6 +716,7 @@ enum MacNativeBackup {
 
             let lookup = Dictionary(uniqueKeysWithValues: recurringTransaction.map { ($0.id, $0) })
             for (index, row) in loanRule.enumerated() { row.generatedRules = p.loanRule[index].generatedRuleIDs.compactMap { lookup[$0] } }
+            try MacDataManagement.registerReferencedCategories(in: context)
             if let save { try save(context) } else { try context.save() }
         } catch {
             context.rollback()

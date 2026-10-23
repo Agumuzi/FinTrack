@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MacInAppReminders: View {
-    @EnvironmentObject private var workspace: MacWorkspaceSession
+    let workspace: MacWorkspaceSession
     @Query private var recurring: [RecurringTransaction]
     @Query private var goals: [Goal]
     @Query private var transactions: [Transaction]
@@ -31,20 +31,29 @@ struct MacInAppReminders: View {
         let allCodes = Set(transactions.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + deposits.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + loans.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + recurring.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode))
         guard allCodes.count <= 1, allCodes.isEmpty || allCodes.contains(preferredCurrency) else { return items }
         if goalsEnabled {
-            let net = MacFinancialSettings.snapshot(profile: profiles.first { $0.deletedAt == nil }, transactions: transactions.filter { $0.date < (Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date())) ?? Date()) }, loans: loans, deposits: deposits, currency: preferredCurrency, asOf: now).netWorth
-            let baseline = Goal.baselineNetWorth(from: profiles.first { $0.deletedAt == nil })
             let horizon = calendar.date(byAdding: .day, value: 30, to: now)!
-            let due = goals.filter { $0.deletedAt == nil && !$0.isPaused && !$0.isAccomplished && !$0.isCompleted(currentNetWorth: net, baselineNetWorth: baseline) && $0.deadline != nil && $0.deadline! <= horizon }
-            if !due.isEmpty { items.append(("\(due.count) 个目标临近截止或已逾期", .settings, .goals)) }
+            let candidates = goals.filter { $0.deletedAt == nil && !$0.isPaused && !$0.isAccomplished && ($0.targetTime.planningBoundary().map { $0 <= horizon } ?? false) }
+            if !candidates.isEmpty {
+                let net = MacFinancialSettings.snapshot(profile: profiles.first { $0.deletedAt == nil }, transactions: transactions.filter { $0.date < (calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now) }, loans: loans, deposits: deposits, currency: preferredCurrency, asOf: now).netWorth
+                let baseline = Goal.baselineNetWorth(from: profiles.first { $0.deletedAt == nil })
+                let due = candidates.filter { !$0.isCompleted(currentNetWorth: net, baselineNetWorth: baseline) }
+                if !due.isEmpty { items.append(("\(due.count) 个目标临近或超过期望时间", .settings, .goals)) }
+            }
         }
         if budgetsEnabled {
             let budgets = (try? JSONDecoder().decode([MacBudget].self, from: budgetBytes)) ?? []
-            let warning = budgets.filter { $0.enabled && $0.currency == preferredCurrency && $0.month == MacBudgetData.month(now) && $0.amount > 0 && MacBudgetData.spent($0, rows: transactions, categories: categories) / $0.amount >= 0.8 }
-            if !warning.isEmpty { items.append(("\(warning.count) 项预算已使用 80% 或以上", .settings, .budgets)) }
+            let month = MacBudgetData.month(now)
+            let candidates = budgets.filter { $0.enabled && $0.currency == preferredCurrency && $0.month == month && $0.amount > 0 }
+            if !candidates.isEmpty {
+                let spending = MacBudgetSpendingSnapshot(rows: transactions, categories: categories)
+                let warning = candidates.filter { spending.spent($0) / $0.amount >= 0.8 }
+                if !warning.isEmpty { items.append(("\(warning.count) 项预算已使用 80% 或以上", .settings, .budgets)) }
+            }
         }
         return items
     }
     var body: some View {
+        let items = self.items
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: MacUI.space(8)) {
                 ForEach(items.indices, id: \.self) { index in

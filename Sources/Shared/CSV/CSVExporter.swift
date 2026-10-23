@@ -215,7 +215,7 @@ struct CSVExporter {
 
         sections.append("")
         sections.append(sectionHeader("Goals"))
-        sections.append("ID,OwnerUID,Title,TargetAmount,StartDate,Deadline,IncludesCurrentAssets,CreationNetWorth,IsAccomplished,IsPaused,CreatedAt,UpdatedAt,DeletedAt,LastModifiedDeviceID,SyncVersion")
+        sections.append("ID,OwnerUID,Title,TargetAmount,StartDate,Deadline,TargetDatePrecision,TargetDateValue,IncludesCurrentAssets,CreationNetWorth,IsAccomplished,IsPaused,CreatedAt,UpdatedAt,DeletedAt,LastModifiedDeviceID,SyncVersion")
         sections.append(contentsOf: goals.map { goal in
             let id = escapeCSV(goal.id.uuidString)
             let ownerUID = escapeCSV(goal.ownerUID ?? "")
@@ -233,7 +233,7 @@ struct CSVExporter {
             let lastModifiedDeviceID = escapeCSV(goal.lastModifiedDeviceID)
             let syncVersion = String(goal.syncVersion)
 
-            return "\(id),\(ownerUID),\(title),\(targetAmount),\(startDate),\(deadline),\(includesAssets),\(creationNetWorth),\(isAccomplished),\(isPaused),\(createdAt),\(updatedAt),\(deletedAt),\(lastModifiedDeviceID),\(syncVersion)"
+            return "\(id),\(ownerUID),\(title),\(targetAmount),\(startDate),\(deadline),\(escapeCSV(goal.targetDatePrecisionRaw ?? "")),\(escapeCSV(goal.targetDateValueRaw ?? "")),\(includesAssets),\(creationNetWorth),\(isAccomplished),\(isPaused),\(createdAt),\(updatedAt),\(deletedAt),\(lastModifiedDeviceID),\(syncVersion)"
         })
 
         sections.append("")

@@ -216,7 +216,8 @@ private final class MacSettingsPopUp: NSPopUpButton {
         let height = (text as NSString).size(withAttributes: attributes).height
         (text as NSString).draw(in: NSRect(x: 12, y: (bounds.height - height) / 2, width: max(0, bounds.width - 43), height: height), withAttributes: attributes)
         if let image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil) {
-            image.draw(in: NSRect(x: bounds.width - 25, y: (bounds.height - 12) / 2, width: 12, height: 12))
+            let glyph = image.withSymbolConfiguration(.init(paletteColors: [isEnabled ? NSColor.secondaryLabelColor : NSColor.disabledControlTextColor])) ?? image
+            glyph.draw(in: NSRect(x: bounds.width - 25, y: (bounds.height - 12) / 2, width: 12, height: 12))
         }
         if window?.firstResponder === self {
             NSColor.keyboardFocusIndicatorColor.setStroke()
@@ -366,10 +367,11 @@ struct MacCalendarPickerPopover: View {
     var width: CGFloat = 330
     var doneIdentifier: String? = nil
     var onDone: (() -> Void)? = nil
+    var precision: TargetDatePrecision = .day
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var fontTierValue = MacFontSizeTier.standard.rawValue
     @AppStorage("v2_week_start", store: MacPreferences.defaults) private var weekStart = 2
     @State private var displayedMonth = Date()
-    @FocusState private var focusedDayIdentifier: String?
+    @FocusState private var focusedCellIdentifier: String?
 
     private var calendar: Calendar {
         var value = Calendar.current
@@ -377,6 +379,13 @@ struct MacCalendarPickerPopover: View {
         return value
     }
     private var monthStart: Date { startOfMonth(containing: displayedMonth) }
+    private var periodTitle: String {
+        let year = calendar.component(.year, from: monthStart)
+        if precision == .year { return "\((year / 12) * 12) — \((year / 12) * 12 + 11) 年" }
+        return precision == .month ? "\(year) 年" : MacDisplayPreferences.month(monthStart)
+    }
+    private var previousTitle: String { precision == .day ? "上个月" : precision == .month ? "上一年" : "上一组年份" }
+    private var nextTitle: String { precision == .day ? "下个月" : precision == .month ? "下一年" : "下一组年份" }
     private var weekdayLabels: [String] {
         let labels = ["日", "一", "二", "三", "四", "五", "六"]
         let offset = max(0, min(6, calendar.firstWeekday - 1))
@@ -399,55 +408,113 @@ struct MacCalendarPickerPopover: View {
                 if let onDone {
                     Button("完成", action: onDone)
                         .buttonStyle(.plain)
+                        .keyboardShortcut(.defaultAction)
                         .appFont(.body, weight: .semibold)
                         .accessibilityIdentifier(doneIdentifier ?? "calendarPopoverDone")
                 }
             }
             HStack(spacing: 4) {
                 Button { moveMonth(-1) } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.plain).help("上个月").accessibilityLabel("上个月").accessibilityIdentifier("calendarPreviousMonth")
+                    .buttonStyle(.plain).help(previousTitle).accessibilityLabel(previousTitle).accessibilityIdentifier("calendarPreviousMonth")
                 Spacer(minLength: 0)
-                Text(MacDisplayPreferences.month(monthStart)).appFont(.body, weight: .semibold)
+                Text(periodTitle).appFont(.body, weight: .semibold)
                     .accessibilityIdentifier("calendarDisplayedMonth")
                 Spacer(minLength: 0)
                 Button { moveMonth(1) } label: { Image(systemName: "chevron.right") }
-                    .buttonStyle(.plain).help("下个月").accessibilityLabel("下个月").accessibilityIdentifier("calendarNextMonth")
+                    .buttonStyle(.plain).help(nextTitle).accessibilityLabel(nextTitle).accessibilityIdentifier("calendarNextMonth")
             }
-            HStack(spacing: 4) {
-                ForEach(weekdayLabels.indices, id: \.self) { index in
-                    Text(weekdayLabels[index]).appFont(.caption, weight: .semibold)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 22)
-                        .accessibilityIdentifier("calendarWeekday-\(index)")
+            Group {
+                if precision == .day {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            ForEach(weekdayLabels.indices, id: \.self) { index in
+                                Text(weekdayLabels[index]).appFont(.caption, weight: .semibold)
+                                    .foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 22)
+                                    .accessibilityIdentifier("calendarWeekday-\(index)")
+                            }
+                        }
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
+                            ForEach(displayedDays, id: \.self) { day in dayButton(day, tier: tier) }
+                        }
+                    }
+                } else {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+                        ForEach(0..<12, id: \.self) { index in periodButton(index) }
+                    }
                 }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                ForEach(displayedDays, id: \.self) { day in dayButton(day, tier: tier) }
-            }
-            .accessibilityIdentifier(pickerIdentifier)
+            Button(precision == .day ? "今天" : precision == .month ? "本月" : "今年") {
+                let now = Date()
+                let delta = calendar.dateComponents([.day], from: calendar.startOfDay(for: selection), to: calendar.startOfDay(for: now)).day ?? 0
+                if let value = calendar.date(byAdding: .day, value: delta, to: selection) { selection = value }
+            }.buttonStyle(.plain).foregroundStyle(MacUI.accent).accessibilityIdentifier("calendarToday")
         }
         .appPadding(14)
         .frame(width: width)
         .background(MacOverviewStyle.card)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(pickerIdentifier)
+        .onExitCommand { onDone?() }
+        .onMoveCommand { direction in
+            let stride = precision == .day ? 7 : 3
+            let offset: Int
+            switch direction { case .left: offset = -1; case .right: offset = 1; case .up: offset = -stride; case .down: offset = stride; default: return }
+            let component: Calendar.Component = precision == .day ? .day : precision == .month ? .month : .year
+            if let value = calendar.date(byAdding: component, value: offset, to: selection) { selection = value }
+        }
         .onAppear {
             displayedMonth = startOfMonth(containing: selection)
-            focusedDayIdentifier = dayIdentifier(selection)
+            DispatchQueue.main.async { focusedCellIdentifier = cellIdentifier(selection) }
         }
         .onChange(of: selection) { _, value in
             let newMonth = startOfMonth(containing: value)
             if !calendar.isDate(newMonth, equalTo: monthStart, toGranularity: .month) { displayedMonth = newMonth }
-            focusedDayIdentifier = dayIdentifier(value)
+            DispatchQueue.main.async {
+                if selection == value { focusedCellIdentifier = cellIdentifier(value) }
+            }
         }
     }
 
     private func moveMonth(_ offset: Int) {
-        if let month = calendar.date(byAdding: .month, value: offset, to: monthStart) {
+        if let month = calendar.date(byAdding: precision == .day ? .month : .year, value: precision == .year ? offset * 12 : offset, to: monthStart) {
             displayedMonth = startOfMonth(containing: month)
         }
     }
 
+    private func periodButton(_ index: Int) -> some View {
+        let year = calendar.component(.year, from: displayedMonth)
+        let value = precision == .month ? index + 1 : (year / 12) * 12 + index
+        let label = "\(value)" + (precision == .month ? " 月" : " 年")
+        let selected = precision == .month
+            ? calendar.component(.year, from: selection) == year && calendar.component(.month, from: selection) == value
+            : calendar.component(.year, from: selection) == value
+        return Button {
+            var parts = calendar.dateComponents([.era, .hour, .minute, .second, .nanosecond], from: selection)
+            parts.year = precision == .month ? year : value
+            parts.month = precision == .month ? value : 1; parts.day = 1
+            if let date = calendar.date(from: parts) { selection = date }
+        } label: {
+            Text(label).appFont(.body, weight: selected ? .semibold : .regular)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .background(selected ? MacUI.accent : .clear, in: RoundedRectangle(cornerRadius: 7))
+        }.buttonStyle(.plain).focusable()
+            .focused($focusedCellIdentifier, equals: precision == .month ? "calendarMonth-\(value)" : "calendarYear-\(value)")
+            .disabled(precision == .year && !(1...9999).contains(value)).accessibilityLabel(label)
+            .accessibilityValue(selected ? "已选择" : "")
+            .accessibilityIdentifier(precision == .month ? "calendarMonth-\(value)" : "calendarYear-\(value)")
+    }
+
     private func startOfMonth(containing date: Date) -> Date {
         calendar.date(from: calendar.dateComponents([.era, .year, .month], from: date)) ?? calendar.startOfDay(for: date)
+    }
+
+    private func cellIdentifier(_ date: Date) -> String {
+        switch precision {
+        case .day: return dayIdentifier(date)
+        case .month: return "calendarMonth-\(calendar.component(.month, from: date))"
+        case .year: return "calendarYear-\(calendar.component(.year, from: date))"
+        }
     }
 
     private func dayIdentifier(_ date: Date) -> String {
@@ -470,7 +537,7 @@ struct MacCalendarPickerPopover: View {
             chosen.hour = time.hour; chosen.minute = time.minute; chosen.second = time.second; chosen.nanosecond = time.nanosecond
             selection = calendar.date(from: chosen) ?? date
             displayedMonth = startOfMonth(containing: date)
-            focusedDayIdentifier = identifier
+            focusedCellIdentifier = identifier
         } label: {
             Text(String(day))
                 .font(.system(size: MacUI.fontSize(.body, tier: tier), weight: selected ? .semibold : .regular))
@@ -480,8 +547,10 @@ struct MacCalendarPickerPopover: View {
                 .background(selected ? MacUI.accent : .clear, in: RoundedRectangle(cornerRadius: 7))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .focused($focusedDayIdentifier, equals: identifier)
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(calendar.isDateInToday(date) && !selected ? MacUI.accent.opacity(0.6) : .clear))
+        .help(calendar.isDateInToday(date) ? "今天 · " + label : label)
+        .buttonStyle(.plain).focusable()
+        .focused($focusedCellIdentifier, equals: identifier)
         .accessibilityLabel(label)
         .accessibilityValue(selected ? "已选择" : inDisplayedMonth ? "" : "其他月份")
         .accessibilityIdentifier(identifier)
@@ -492,20 +561,23 @@ struct MacSettingsDateButton: View {
     @Binding var date: Date
     var monthOnly = false
     var identifier: String? = nil
+    var precision: TargetDatePrecision? = nil
+    private var effectivePrecision: TargetDatePrecision { precision ?? (monthOnly ? .month : .day) }
     @State private var showing = false
     @FocusState private var dateButtonFocused: Bool
     var body: some View {
-        Button { showing = true } label: { HStack { Text(monthOnly ? MacDisplayPreferences.month(date) : MacDateDisplay.string(date)); Spacer(); Image(systemName: "chevron.down").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.appFont(.body, weight: .medium, design: .default).appPadding(.horizontal, 12).appMinHeight(40).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.gray.opacity(0.2))).contentShape(Rectangle()) }
+        Button { showing = true } label: { HStack { Text(effectivePrecision == .day ? MacDateDisplay.string(date) : MacGoalTargetDate.label(GoalTargetTime(date: date, precision: effectivePrecision))); Spacer(); Image(systemName: "chevron.down").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.appFont(.body, weight: .medium, design: .default).appPadding(.horizontal, 12).appMinHeight(40).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.gray.opacity(0.2))).contentShape(Rectangle()) }
             .buttonStyle(.plain).focusable().focused($dateButtonFocused)
             .accessibilityIdentifier(identifier ?? (monthOnly ? "settingsMonthDateButton" : "settingsDateButton"))
             .accessibilityValue(showing ? "已展开" : "已折叠")
             .popover(isPresented: $showing) {
                 MacCalendarPickerPopover(
-                    title: monthOnly ? "选择月份" : "选择日期",
+                    title: effectivePrecision == .year ? "选择年份" : effectivePrecision == .month ? "选择月份" : "选择日期",
                     selection: $date,
                     pickerIdentifier: "settingsDatePicker",
                     doneIdentifier: "settingsDateDone",
-                    onDone: { showing = false }
+                    onDone: { showing = false },
+                    precision: effectivePrecision
                 )
             }
             .onChange(of: showing) { _, isPresented in
@@ -526,5 +598,40 @@ struct MacBookCurrencyChoice: View {
     }
     var body: some View {
         MacEditableCurrencyMenu(currency:$currency,custom:$custom,codes:codes,identifier:"bookCurrencyChoiceMenu",textIdentifier:"bookCurrencyCustomCode")
+    }
+}
+
+
+struct MacDateTimeField: View {
+    var title: String
+    @Binding var date: Date
+    var includesTime = false
+    var identifier: String? = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).appFont(.caption, weight: .medium).foregroundStyle(.secondary)
+            MacSettingsDateButton(date: $date, identifier: identifier)
+            if includesTime { DatePicker("时间", selection: $date, displayedComponents: .hourAndMinute).labelsHidden() }
+        }
+    }
+}
+
+struct MacGoalTargetTimeField: View {
+    @Binding var hasDate: Bool
+    @Binding var precision: TargetDatePrecision
+    @Binding var date: Date
+    var identifier = "goalTargetTime"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("期望时间精度", selection: Binding(get: { hasDate ? precision.rawValue : "none" }, set: { value in
+                hasDate = value != "none"
+                if let selected = TargetDatePrecision(rawValue: value) { precision = selected }
+            })) {
+                Text("无").tag("none")
+                ForEach(TargetDatePrecision.allCases, id: \.self) { value in Text(value.title).tag(value.rawValue) }
+            }.accessibilityIdentifier(identifier + "Precision")
+            if hasDate { MacSettingsDateButton(date: $date, identifier: identifier + "Date", precision: precision) }
+            Text("期望时间用于规划，超过时间不会使目标失败。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+        }
     }
 }

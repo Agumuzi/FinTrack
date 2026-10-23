@@ -147,7 +147,7 @@ enum MacFinanceRecords {
     @discardableResult
     static func addGoal(
         title: String, targetText: String, deadline: Date?,
-        currency: String, includesCurrentAssets: Bool = true, in context: ModelContext
+        currency: String, includesCurrentAssets: Bool = true, targetDatePrecision: TargetDatePrecision? = nil, in context: ModelContext
     ) throws -> Goal {
         let title = try checkedTitle(title)
         let target = try MacTransactionCRUD.amount(targetText)
@@ -162,6 +162,12 @@ enum MacFinanceRecords {
             title: title, targetAmount: target, startDate: Date(),
             targetDate: deadline, includesCurrentAssets: includesCurrentAssets, creationNetWorth: current.netWorth
         )
+        goal.targetDatePrecisionRaw = deadline == nil ? nil : targetDatePrecision?.rawValue
+        if let deadline, let targetDatePrecision {
+            let raw = GoalTargetTime.capturedValue(deadline, precision: targetDatePrecision)
+            guard GoalTargetTime.components(raw, precision: targetDatePrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            goal.targetDateValueRaw = raw
+        }
         context.insert(goal)
         do { try context.save() }
         catch { context.rollback(); throw error }

@@ -31,6 +31,7 @@ struct MacRecordSection: View {
             _typeFilter = State(initialValue: navigationState.typeFilter)
         }
     }
+    @EnvironmentObject private var feedback: MacOperationFeedbackCenter
     @EnvironmentObject private var workspace: MacWorkspaceSession
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
@@ -42,6 +43,8 @@ struct MacRecordSection: View {
     @State private var activeRowsCache: [Transaction] = []
     @State private var visibleRowsCache: [Transaction] = []
     @State private var activeBookCurrencyCache: String?
+    @State private var filterCurrencyCodes: [String] = []
+    @State private var filterCategoryNames: [String: [String]] = [:]
     @State private var timelineIndex = MacRecordsTimelineIndex(rows: [])
     @State private var searchText = ""
     @State private var selectedTransactionID: UUID?
@@ -119,6 +122,8 @@ struct MacRecordSection: View {
     private func refreshLedgerState() {
         activeRowsCache = transactions.filter { $0.deletedAt == nil }
         activeBookCurrencyCache = activeBookCurrencyFromLedger
+        filterCurrencyCodes = Array(Set(activeRowsCache.map(\.originalCurrency))).sorted()
+        filterCategoryNames = Dictionary(grouping: activeRowsCache, by: \.type).mapValues { Array(Set($0.map(\.category))).sorted() }
         timelineIndex = MacRecordsTimelineIndex(rows: activeRowsCache)
         refreshVisibleRows()
     }
@@ -135,7 +140,7 @@ struct MacRecordSection: View {
             HStack(spacing: MacUI.space(0)) {
                 timelinePanel.frame(width: filterWidth)
                 Divider()
-                VStack(alignment: .leading, spacing: MacUI.space(16)) {
+                VStack(alignment: .leading, spacing: MacUI.space(12)) {
                     header
                     if activeBookCurrency == nil {
                         Label("账本含不同本位币，请在设置中核对后再汇总。", systemImage: "exclamationmark.triangle")
@@ -157,6 +162,7 @@ struct MacRecordSection: View {
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                             } else if geometry.size.width - filterWidth < 720 { compactTransactionTable }
                             else { transactionTable }
+                            if !visibleTransactions.isEmpty { tablePagination }
                         }
                         .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
                         .clipShape(RoundedRectangle(cornerRadius: 13))
@@ -189,7 +195,10 @@ struct MacRecordSection: View {
         .onChange(of: financeRules.count) { _, _ in refreshLedgerState() }
         .onChange(of: preferredBookCurrency) { _, _ in refreshLedgerState() }
         .onChange(of: searchText) { _, _ in refreshVisibleRows() }
-        .onChange(of: typeFilter) { _, _ in refreshVisibleRows() }
+        .onChange(of: typeFilter) { _, type in
+            if type != "All", categoryFilter != "All", !(filterCategoryNames[type] ?? []).contains(categoryFilter) { categoryFilter = "All" }
+            refreshVisibleRows()
+        }
         .onChange(of: dateFilterEnabled) { _, _ in refreshVisibleRows() }
         .onChange(of: dateFrom) { _, _ in refreshVisibleRows() }
         .onChange(of: dateThrough) { _, _ in refreshVisibleRows() }
@@ -231,10 +240,6 @@ struct MacRecordSection: View {
                     }.accessibilityIdentifier("confirmBatchDeletion").disabled(deletableSelection.isEmpty || (extraDeletionConfirmation && !deletionAcknowledged))
                 }
             }.appPadding(24).appDialog(width: 460)
-        }
-        .task {
-            do { try MacDataManagement.reconcileCategories(in: modelContext) }
-            catch { saveError = MacLocalization.error(error) }
         }
     }
 
@@ -297,28 +302,50 @@ struct MacRecordSection: View {
     }
     private var filterBar: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: MacUI.space(14)) { typePicker; categoryPicker; currencyPicker; Spacer(); clearFilters }
-            VStack(alignment: .leading, spacing: MacUI.space(10)) {
-                HStack { typePicker; Spacer(); clearFilters }
-                HStack { categoryPicker; currencyPicker }
+            HStack(spacing: MacUI.space(10)) { typePicker; categoryPicker; currencyPicker; Spacer(minLength: 8); clearFilters }
+            VStack(alignment: .leading, spacing: MacUI.space(8)) {
+                HStack(spacing: MacUI.space(10)) { typePicker; currencyPicker; Spacer(minLength: 0) }
+                HStack { categoryPicker; Spacer(); clearFilters }
             }
-        }
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("recordFilters")
     }
     private var typePicker: some View {
-        Picker("收支", selection: $typeFilter) {
-            Text("全部").tag("All"); Text("收入").tag("Income"); Text("支出").tag("Expense")
-        }.frame(width: MacUI.space(140)).accessibilityIdentifier("recordTypeFilter")
+        MacIconMenu(selection:$typeFilter,options:[
+            .init(title:"全部收支",value:"All",symbol:"arrow.up.arrow.down"),
+            .init(title:"收入",value:"Income",symbol:"arrow.down.left"),
+            .init(title:"支出",value:"Expense",symbol:"arrow.up.right")
+        ],identifier:"recordTypeFilter",accessibilityTitle:"收支",width:148)
     }
     private var categoryPicker: some View {
-        Picker("类别", selection: $categoryFilter) {
-            Text("全部类别").tag("All")
-            ForEach(Array(Set(activeTransactions.map(\.category))).sorted(), id: \.self) {
-                Text(MacOverviewStyle.category($0)).tag($0)
+        let separator = "\u{1f}"
+        var options: [MacIconMenuOption] = [.init(title:"全部类别",value:"All",symbol:"square.grid.2x2")]
+        // Scope drill-downs can intentionally select a name across both types.
+        if categoryFilter != "All", typeFilter == "All" {
+            options.append(.init(title:MacOverviewStyle.category(categoryFilter),value:"All" + separator + categoryFilter,symbol:"tag"))
+        }
+        let styles: [String:MacCategoryStyle] = MacSettingsStore.load("v2_category_styles",fallback:[:])
+        let types = TransactionType(rawValue:typeFilter).map { [$0] } ?? [.income,.expense]
+        for type in types {
+            let names = filterCategoryNames[type.rawValue] ?? []
+            if !names.isEmpty {
+                options.append(.init(title:type == .income ? "收入分类" : "支出分类",value:nil))
+                options += names.map { name in
+                    .init(title:MacOverviewStyle.category(name),value:type.rawValue + separator + name,
+                          symbol:MacCategoryCatalog.style(name:name,type:type.rawValue,in:styles).symbol)
+                }
             }
-        }.frame(maxWidth: MacUI.space(195)).accessibilityIdentifier("recordCategoryFilter")
+        }
+        return MacIconMenu(selection:Binding(get:{
+            categoryFilter == "All" ? "All" : typeFilter + separator + categoryFilter
+        },set:{ value in
+            if value == "All" { categoryFilter = "All" }
+            else if let boundary = value.firstIndex(of:"\u{1f}") {
+                typeFilter = String(value[..<boundary]); categoryFilter = String(value[value.index(after:boundary)...])
+            }
+        }),options:options,identifier:"recordCategoryFilter",accessibilityTitle:"类别",width:195)
     }
     private var currencyPicker: some View {
-        MacCurrencyMenu(selection:$currencyFilter,codes:Array(Set(activeTransactions.map(\.originalCurrency))).sorted(),identifier:"recordCurrencyFilter",prefixOptions:[("全部币种","All")])
+        MacCurrencyMenu(selection:$currencyFilter,codes:filterCurrencyCodes,identifier:"recordCurrencyFilter",prefixOptions:[("全部币种","All")])
     }
     private var clearFilters: some View {
         Button("重置") {
@@ -333,10 +360,21 @@ struct MacRecordSection: View {
                 HStack { tableCount; Spacer(); sortPicker }
                 HStack { batchMenu; detailsButton; Spacer(); exportButton }
             }
-        }.appPadding(12)
-            .safeAreaInset(edge: .bottom) {
-                if displayLimit < visibleTransactions.count { Button("显示更多（已显示 \(min(displayLimit, visibleTransactions.count))/\(visibleTransactions.count)）") { displayLimit += MacPreferences.defaults.object(forKey: "v2_page_size") as? Int ?? 50 }.accessibilityIdentifier("recordLoadMore").appPadding(.bottom, 8) }
-            }
+        }.appPadding(.horizontal, 12).appPadding(.vertical, 8)
+    }
+    private var tablePagination: some View {
+        VStack(spacing:0) {
+            Divider()
+            HStack {
+                Text("已显示 \(min(displayLimit, visibleTransactions.count)) / \(visibleTransactions.count) 笔")
+                    .appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("recordDisplayedCount")
+                Spacer()
+                if displayLimit < visibleTransactions.count {
+                    Button("显示更多") { displayLimit += MacPreferences.defaults.object(forKey: "v2_page_size") as? Int ?? 50 }
+                        .accessibilityIdentifier("recordLoadMore")
+                }
+            }.appPadding(.horizontal, 12).appPadding(.vertical, 8)
+        }
     }
     private var tableCount: some View {
         Text("\(visibleTransactions.count) 笔账目").appFont(.caption, weight: .medium, design: .default)
@@ -371,51 +409,55 @@ struct MacRecordSection: View {
         Table(Array(visibleTransactions.prefix(displayLimit)), selection: $batchSelection) {
             TableColumn("日期") { row in
                 Text(MacDateDisplay.string(row.date))
-                    .appFont(.caption, weight: .regular, design: .default).help(MacDateDisplay.string(row.date))
+                    .appFont(.body, weight: .regular, design: .default).help(MacDateDisplay.string(row.date))
             }.width(min: MacUI.space(85), ideal: MacUI.space(95), max: MacUI.space(110))
             TableColumn("类别") { row in
                 HStack(spacing: MacUI.space(6)) {
                     MacCategoryBadge(name: row.category, type: row.type, size: 22)
                     Text(MacOverviewStyle.category(row.category)).lineLimit(1).accessibilityIdentifier("recordRow-\(row.id.uuidString)")
                     if MacTransactionCRUD.isProtectedGeneratedPosting(row) {
-                        Image(systemName: "lock").appFont(.caption, weight: .regular).help("自动入账记录，请到对应财务页面核对")
+                        Image(systemName: "lock").appFont(.body, weight: .regular).help("自动入账记录，请到对应财务页面核对")
                     }
-                }.appFont(.caption, weight: .regular, design: .default)
-            }.width(min: MacUI.space(85), ideal: MacUI.space(110), max: MacUI.space(165))
+                }.appFont(.body, weight: .regular, design: .default)
+            }.width(min: MacUI.space(110), ideal: MacUI.space(150), max: MacUI.space(190))
             TableColumn("备注") { row in
-                Text(showsNotesPreview ? (row.note ?? "—") : "—").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(1).help(row.note ?? "无备注")
+                Text(showsNotesPreview ? (row.note ?? "—") : "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(1).help(row.note ?? "无备注")
             }.width(min: MacUI.space(90), ideal: MacUI.space(175))
-            TableColumn("原币") { row in Text(row.originalCurrency).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
+            TableColumn("原币") { row in Text(row.originalCurrency).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary) }
                 .width(MacUI.space(50))
-            TableColumn("收入") { row in tableAmount(row, type: .income) }.width(min: MacUI.space(90), ideal: MacUI.space(110))
-            TableColumn("支出") { row in tableAmount(row, type: .expense) }.width(min: MacUI.space(90), ideal: MacUI.space(110))
+            TableColumn("金额（\(activeBookCurrency ?? "本位币")）") { row in signedTableAmount(row) }
+                .width(min: MacUI.space(135), ideal: MacUI.space(155), max: MacUI.space(190))
         }.tableStyle(.inset(alternatesRowBackgrounds: true))
             .accessibilityIdentifier("recordsTable")
             .help("点击查看详情；按住 Command 或 Shift 选择多笔账目。金额为各笔已保存的本位币金额。")
     }
     private var compactTransactionTable: some View {
         Table(Array(visibleTransactions.prefix(displayLimit)), selection: $batchSelection) {
-            TableColumn("日期") { row in Text(MacDateDisplay.string(row.date)).appFont(.caption, weight: .regular, design: .default) }.width(MacUI.space(85))
+            TableColumn("日期") { row in Text(MacDateDisplay.string(row.date)).appFont(.body, weight: .regular, design: .default) }.width(MacUI.space(110))
             TableColumn("类别") { row in
-                Text(MacOverviewStyle.category(row.category)).appFont(.caption, weight: .regular, design: .default).lineLimit(1)
+                Text(MacOverviewStyle.category(row.category)).appFont(.body, weight: .regular, design: .default).lineLimit(1)
                     .accessibilityIdentifier("recordRow-\(row.id.uuidString)")
             }.width(min: MacUI.space(70), ideal: MacUI.space(90))
-            TableColumn("原币") { row in Text(row.originalCurrency).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.width(MacUI.space(45))
-            TableColumn("收支（\(activeBookCurrency ?? "本位币")）") { row in
-                Text((row.typedType == .income ? "+" : "−") + MacOverviewStyle.money(row.baseAmount)
-                     + (activeBookCurrency == nil ? " " + row.baseCurrencyCode : ""))
-                    .appFont(.caption, weight: .medium, design: .default).monospacedDigit()
-                    .foregroundStyle(row.typedType == .income ? MacOverviewStyle.income : MacOverviewStyle.expense)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }.width(min: MacUI.space(100), ideal: MacUI.space(130))
+            TableColumn("金额（\(activeBookCurrency ?? "本位币")）") { row in
+                VStack(alignment:.trailing,spacing:1) {
+                    signedTableAmount(row)
+                    if row.originalCurrency != row.baseCurrencyCode {
+                        Text("原币 " + row.originalCurrency).appFont(.caption).foregroundStyle(.secondary)
+                    }
+                }.frame(maxWidth:.infinity,alignment:.trailing)
+            }.width(min:MacUI.space(140),ideal:MacUI.space(170),max:MacUI.space(205))
         }.tableStyle(.inset(alternatesRowBackgrounds: true)).accessibilityIdentifier("recordsTable")
             .help("点击账目查看完整备注、原币金额与历史汇率；按住Command或Shift多选。")
     }
-    private func tableAmount(_ row: Transaction, type: TransactionType) -> some View {
-        Text(row.typedType == type ? MacOverviewStyle.money(row.baseAmount) + (activeBookCurrency == nil ? " " + row.baseCurrencyCode : "") : "—")
-            .appFont(.caption, weight: .medium, design: .default).monospacedDigit()
-            .foregroundStyle(row.typedType == type ? (type == .income ? MacOverviewStyle.income : MacOverviewStyle.expense) : .secondary)
+    private func signedTableAmount(_ row: Transaction) -> some View {
+        let income = row.typedType == .income
+        return Text((income ? "+" : "−") + MacOverviewStyle.money(row.baseAmount)
+                    + (activeBookCurrency == nil ? " " + row.baseCurrencyCode : ""))
+            .appFont(.body, weight: .medium).monospacedDigit().lineLimit(1).minimumScaleFactor(0.8)
+            .foregroundStyle(income ? MacOverviewStyle.income : MacOverviewStyle.expense)
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .accessibilityIdentifier("recordAmount-" + row.id.uuidString)
+            .accessibilityLabel((income ? "收入 " : "支出 ") + MacOverviewStyle.money(row.baseAmount) + " " + row.baseCurrencyCode)
     }
     private func detailPanel(_ row: Transaction) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(18)) {
@@ -539,8 +581,8 @@ struct MacRecordSection: View {
             Toggle("限定日期", isOn: $dateFilterEnabled).toggleStyle(.checkbox).appFont(.caption, weight: .regular)
                 .accessibilityIdentifier("recordDateEnabled")
             if dateFilterEnabled {
-                DatePicker("从", selection: $dateFrom, displayedComponents: .date).accessibilityIdentifier("recordFrom")
-                DatePicker("至", selection: $dateThrough, displayedComponents: .date).accessibilityIdentifier("recordThrough")
+                MacDateTimeField(title: "从", date: $dateFrom).accessibilityIdentifier("recordFrom")
+                MacDateTimeField(title: "至", date: $dateThrough).accessibilityIdentifier("recordThrough")
             }
         }.appPadding(18).frame(maxHeight: .infinity).background(MacOverviewStyle.filters)
         .onChange(of: dateFrom) { _, _ in updateRangeTitle() }
@@ -626,12 +668,21 @@ struct MacRecordSection: View {
     }
 
     private func exportVisibleTransactions() {
-        guard let url = CSVExporter.exportTransactionsCSV(transactions: visibleTransactions) else { return }
+        guard let url = CSVExporter.exportTransactionsCSV(transactions: visibleTransactions) else {
+            feedback.show(.failure,title:"导出失败",message:"无法生成 CSV 文件，请重试。")
+            return
+        }
+        defer { try? FileManager.default.removeItem(at:url) }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]; panel.nameFieldStringValue = url.lastPathComponent
         guard panel.runModal() == .OK, let destination = panel.url else { return }
-        do { try Data(contentsOf: url).write(to: destination, options: .atomic); saveError = nil }
-        catch { saveError = MacLocalization.error(error) }
+        do {
+            try Data(contentsOf: url).write(to: destination, options: .atomic); saveError = nil
+            feedback.show(.success,title:"导出成功",message:"已导出 \(visibleTransactions.count) 笔账目。\n\(destination.lastPathComponent)")
+        } catch {
+            saveError = MacLocalization.error(error)
+            feedback.show(.failure,title:"导出失败",message:MacLocalization.error(error))
+        }
     }
 
 }

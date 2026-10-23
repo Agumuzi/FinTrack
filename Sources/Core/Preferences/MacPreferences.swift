@@ -31,7 +31,18 @@ enum MacPreferences {
             store.set(e["FINTRACK_TEST_LANGUAGE"] ?? "en", forKey: "app_language")
         }
         if store.object(forKey: "base_currency") == nil { store.set("USD", forKey: "base_currency") }
+        #if FINTRACK_LOCAL_VALIDATION
+        MacLocalValidationPreferences.apply(to: store)
+        #endif
         prepareInitialState(in: store)
+        #if FINTRACK_LOCAL_VALIDATION
+        if e["FINTRACK_MENU_ONLY"] == "1" {
+            var entries = MacAppEntryConfiguration.load(from: store)
+            entries.showMainOnLaunch = false; entries.showMenuBar = true
+            entries.defaultPage = .rates
+            if let bytes = try? JSONEncoder().encode(entries) { store.set(bytes, forKey: MacAppEntryConfiguration.storageKey) }
+        }
+        #endif
         return store
     }()
 
