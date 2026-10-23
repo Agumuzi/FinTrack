@@ -22,6 +22,7 @@ final class MacUpdateService: ObservableObject {
     @Published private(set) var archive: URL?
     @Published private(set) var checkedAt: Date?
     private var trustedConfiguration: String?
+    private var downloadID: UUID?
     private static var configurationIdentity: String { (MacPreferences.defaults.string(forKey: "v2_update_url") ?? "") + "|" + (MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? "") }
     struct SignedManifest: Codable { var payload: Data; var signature: Data }
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知" }
@@ -72,16 +73,33 @@ final class MacUpdateService: ObservableObject {
     }
     func downloadRelease() async {
         guard !busy, let item = release, let url = Self.validatedURL(item.packageURL) else { return }
-        busy = true; defer { busy = false }; status = "正在下载并校验更新…"
+        busy = true; defer { busy = false }; archive = nil; status = "正在下载更新…"
+        let identity = trustedConfiguration
+        let operationID = UUID(); downloadID = operationID
+        defer { downloadID = nil }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates/" + UUID().uuidString)
         do {
-            let data = try await download(url, limit: 300 * 1024 * 1024, allowHTTPSRedirects: true)
-            guard trustedConfiguration == Self.configurationIdentity, release?.sha256 == item.sha256, release?.build == item.build else { throw MacSettingsFailure.invalid("更新源或版本已更改，请重新检查") }
-            guard MacNativeBackup.digest(data) == item.sha256 else { throw MacSettingsFailure.invalid("安装包校验不一致，已拒绝安装") }
-            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates/" + UUID().uuidString)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let file = folder.appendingPathComponent("FinTrack-update.zip"); try data.write(to: file, options: .atomic)
+            let file = folder.appendingPathComponent("FinTrack-update.zip")
+            let transfer = MacUpdateArchiveDownload(destination: file, limit: 300 * 1024 * 1024) { [weak self] percent in
+                Task { @MainActor [weak self] in
+                    guard let self, self.busy, self.downloadID == operationID, self.trustedConfiguration == identity,
+                          self.release?.sha256 == item.sha256 else { return }
+                    self.status = "正在下载更新… \(percent)%"
+                }
+            }
+            _ = try await transfer.download(url)
+            downloadID = nil
+            try Task.checkCancellation()
+            guard trustedConfiguration == Self.configurationIdentity, release?.sha256 == item.sha256, release?.build == item.build else { throw MacSettingsFailure.invalid("更新源或版本已更改，请重新检查") }
+            status = "正在校验更新包…"
+            try await MacUpdateArchiveDownload.verify(file, sha256: item.sha256)
+            guard trustedConfiguration == Self.configurationIdentity, release?.sha256 == item.sha256, release?.build == item.build else { throw MacSettingsFailure.invalid("更新源或版本已更改，请重新检查") }
             archive = file; status = "更新已下载并通过签名清单与 SHA256 校验，等待安装确认"
-        } catch { status = "下载失败：\(safe(error))" }
+        } catch {
+            try? FileManager.default.removeItem(at: folder)
+            status = "下载失败：\(safe(error))"
+        }
     }
     /// Prepare and validate the complete replacement before terminating the running app.
     func installAndRelaunch() throws {
@@ -171,7 +189,17 @@ final class MacUpdateService: ObservableObject {
         guard p.terminationStatus == 0 else { throw MacSettingsFailure.invalid("安装包验证失败，现有应用未修改") }
         return String(data: data, encoding: .utf8) ?? ""
     }
-    private func safe(_ error: Error) -> String { (error as? MacSettingsFailure)?.errorDescription ?? "网络或签名验证未通过" }
+    private func safe(_ error: Error) -> String {
+        if let failure = error as? MacSettingsFailure { return failure.errorDescription ?? "更新验证未通过" }
+        if let failure = error as? MacUpdateTransferError { return failure.localizedDescription }
+        if let failure = error as? URLError {
+            if failure.code == .timedOut { return "网络请求超时，请重试或从 GitHub Releases 手动下载" }
+            if failure.code == .notConnectedToInternet { return "当前无法连接网络，请检查网络后重试" }
+            if failure.code == .cancelled { return "下载已取消，可以重新下载" }
+            return "网络连接失败，请重试或从 GitHub Releases 手动下载"
+        }
+        return "无法完成更新，请检查下载目录或重试"
+    }
 }
 
 final class MacUpdateHTTPSRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {

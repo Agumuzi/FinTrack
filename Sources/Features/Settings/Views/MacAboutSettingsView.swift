@@ -35,7 +35,7 @@ struct MacAboutSettingsView: View {
                             else if MacSettingsVisual.preview { Text("上次检查：" + MacDateDisplay.string(Date()) + " 14:30").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
                         }
                         Spacer(minLength: 0)
-                        Button(updater.busy ? "检查中…" : "立即检查") { if MacSettingsVisual.preview { message = "演示界面：已刷新更新状态" } else { Task { await updater.check() } } }.disabled(updater.busy).accessibilityIdentifier("settingsCheckUpdates")
+                        Button(updater.busy ? "处理中…" : "立即检查") { if MacSettingsVisual.preview { message = "演示界面：已刷新更新状态" } else { Task { await updater.check() } } }.disabled(updater.busy).accessibilityIdentifier("settingsCheckUpdates")
                     }.appPadding(14).background(.blue.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
                     HStack(spacing: MacUI.space(12)) {
                         Image(systemName: "clock.arrow.circlepath").appIconFont(19, weight: .regular, design: .default).frame(width: MacUI.space(25))
