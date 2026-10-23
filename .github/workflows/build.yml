@@ -35,3 +35,5 @@ jobs:
           [[ " $fintrack_archs " == *" x86_64 "* ]]
           test -f "$app/Contents/Resources/Assets.car"
           test -f "$app/Contents/Resources/zh-Hans.lproj/Localizable.strings"
+          cmp LICENSE "$app/Contents/Resources/LICENSE.txt"
+          test -f "$app/Contents/Resources/ThirdPartyNotices.txt"

@@ -681,6 +681,7 @@ enum MacNativeBackup {
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
         for (name, bytes) in p.bankLogos { try bytes.write(to: staging.appendingPathComponent(name), options: .atomic) }
+        try MacBankLogos.deduplicate(in: staging)
         let hadAssets = fm.fileExists(atPath: target.path)
         if hadAssets { try fm.moveItem(at: target, to: previous) }
         do { try fm.moveItem(at: staging, to: target) }

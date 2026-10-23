@@ -110,7 +110,7 @@ struct MacTransactionEditor: View {
                         field("金额") {
                             HStack(spacing: MacUI.space(3)) {
                                 Text(type == .expense ? "−" : "+").foregroundStyle(.secondary)
-                                TextField("0.00", text: $amountText).textFieldStyle(.plain).focused($amountFocused)
+                                MacNumericInput(text: $amountText, identifier: "entryAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), large: true).frame(minHeight: 36)
                                     .appFont(.amount, weight: .medium, design: .default).appMinHeight(36)
                                     .accessibilityLabel("金额").accessibilityIdentifier("entryAmount")
                             }.appFont(.amount, weight: .medium, design: .default).appPadding(.horizontal, 14).appMinHeight(44)
@@ -130,7 +130,7 @@ struct MacTransactionEditor: View {
                                     .accessibilityLabel("分类").accessibilityIdentifier("entryCategory")
                                 Menu {
                                     ForEach(savedCategories, id: \.self) { item in
-                                        Button { category = item } label: { Text(MacCategoryCatalog.emoji(name: item, type: type.rawValue) + "  " + CategoryUsageHelper.localizedDisplayName(for: item)) }
+                                        Button { category = item } label: { Label { Text(CategoryUsageHelper.localizedDisplayName(for: item)) } icon: { Image(nsImage: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: item, type: type.rawValue), name: item)) } }
                                     }
                                 } label: { Image(systemName: "chevron.down").appFont(.body, weight: .semibold, design: .default).frame(width: MacUI.space(20)) }
                                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().disabled(savedCategories.isEmpty)

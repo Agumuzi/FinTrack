@@ -22,9 +22,9 @@ struct MacCategoryManagementView: View {
                 HStack {
                     Text(CategoryUsageHelper.localizedDisplayName(for: item.name))
                     Spacer()
-                    Button("Edit") { selected = item; name = item.name }
-                    Button("Delete", role: .destructive) { removing = item }
-                }.disabled(CategoryUsageHelper.isProtectedCategory(item))
+                    Button("Edit") { selected = item; name = MacOverviewStyle.category(item.name) }
+                    Button("Delete", role: .destructive) { removing = item }.disabled(CategoryUsageHelper.isProtectedCategory(item))
+                }
             }
             TextField("Category", text: $name).accessibilityIdentifier("managedCategoryName")
             if let error { Text(error).foregroundStyle(.red) }
@@ -55,8 +55,7 @@ struct MacCategoryManagementView: View {
         .confirmationDialog("Delete category?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button("Delete", role: .destructive) {
                 guard let removing else { return }
-                context.delete(removing)
-                do { try context.save(); self.removing = nil; selected = nil; name = "" }
+                do { try MacCategoryCatalog.remove(removing, in: context); self.removing = nil; selected = nil; name = "" }
                 catch { context.rollback(); self.error = MacLocalization.error(error) }
             }
         } message: { Text("Existing records keep their category name.") }

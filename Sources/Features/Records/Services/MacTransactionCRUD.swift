@@ -100,8 +100,12 @@ enum MacTransactionCRUD {
         }) {
             return matched.name
         }
-        context.insert(FinTrackMac.Category(name: category, type: type.rawValue))
-        return category
+        let canonical = CategoryUsageHelper.canonicalCategoryName(category, type: type.rawValue)
+        if let matched = existing.first(where: { $0.deletedAt == nil && $0.type == type.rawValue && $0.name.localizedCaseInsensitiveCompare(canonical) == .orderedSame }) {
+            return matched.name
+        }
+        context.insert(FinTrackMac.Category(name: canonical, type: type.rawValue))
+        return canonical
     }
 
     @discardableResult

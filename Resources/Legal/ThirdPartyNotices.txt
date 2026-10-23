@@ -1,0 +1,9 @@
+FinTrack 第三方组件与素材说明
+
+应用使用 Apple 的系统 SDK、系统字体和 SF Symbols，没有独立分发 Apple 字体或图标库。
+
+随附国旗图片来源于 Flagcdn / Flagpedia，原始地址见 Resources/Flags/sources.json。旗帜图片由来源方声明为公有领域，不代表官方合作或背书。
+
+平台组件、第三方商标和用户自行添加的图片不因 FinTrack 的 MIT 许可而被重新授权。
+
+完整说明：https://github.com/Agumuzi/FinTrack/blob/main/docs/THIRD_PARTY_NOTICES.md

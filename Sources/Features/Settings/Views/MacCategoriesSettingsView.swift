@@ -4,14 +4,28 @@ import SwiftData
 @MainActor
 enum MacCategoryCatalog {
     static let symbols = ["tag", "fork.knife", "cup.and.saucer", "birthday.cake", "takeoutbag.and.cup.and.straw", "cart", "bag", "house", "house.fill", "car", "car.fill", "heart", "heart.fill", "cross.case.fill", "book", "graduationcap.fill", "gift", "gift.fill", "airplane", "banknote", "banknote.fill", "chart.line.uptrend.xyaxis", "gamecontroller", "gamecontroller.fill", "palm.tree.fill", "suitcase.fill", "ellipsis", "tshirt.fill", "dollarsign.circle"]
-    static let colors = ["red", "orange", "yellow", "blue", "green", "purple", "pink", "terracotta"]
+    static var colors: [String] { MacPresentationOptions.palette }
+    private static var menuCache: [String: NSImage] = [:]
+    static func menuImage(style: MacCategoryStyle, name: String) -> NSImage {
+        let key = style.symbol + ":" + style.color
+        if let image = menuCache[key] { return image }
+        let image = NSImage(size: NSSize(width: 22, height: 22))
+        image.lockFocus()
+        if let symbol = NSImage(systemSymbolName: style.symbol, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 17, weight: .medium))?.withSymbolConfiguration(.init(paletteColors: [NSColor(MacAccent.color(style.color))])) { symbol.draw(in: NSRect(x: 1, y: 1, width: 20, height: 20)) }
+        image.unlockFocus(); image.isTemplate = false; image.setName(NSImage.Name(key))
+        if menuCache.count > 256 { menuCache.removeAll() }; menuCache[key] = image; return image
+    }
     static func key(name: String, type: String) -> String { type + ":" + name }
     static func style(name: String, type: String) -> MacCategoryStyle {
         let all: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
         return style(name: name, type: type, in: all)
     }
     static func style(name: String, type: String, in all: [String: MacCategoryStyle]) -> MacCategoryStyle {
-        all[key(name: name, type: type)] ?? MacCategoryStyle(symbol: defaultSymbol(name), color: type == "Income" ? "green" : "orange")
+        var value = all[key(name: name, type: type)] ?? MacCategoryStyle(symbol: defaultSymbol(name), color: type == "Income" ? "green" : "orange")
+        // v1.3 intentionally resets legacy emoji to the category default icon.
+        // Old bytes remain readable; choosing a new icon saves emoji == nil.
+        if value.emoji != nil { value.symbol = defaultSymbol(name); value.emoji = nil }
+        return value
     }
     static func emoji(name: String, type: String = "Expense") -> String {
         let value = style(name: name, type: type)
@@ -59,8 +73,8 @@ struct MacCategoryBadge: View {
     var body: some View {
         let _ = revision
         let style = suppliedStyle ?? MacCategoryCatalog.style(name: name, type: type)
-        Text(MacCategoryCatalog.emoji(style: style, name: name)).appIconFont(size * 0.6, weight: .regular, design: .default).frame(width: MacUI.space(size), height: MacUI.space(size))
-            .foregroundStyle(.primary).background(MacAccent.color(style.color).opacity(filled ? 0.14 : 0.1), in: RoundedRectangle(cornerRadius: 8))
+        Image(systemName: style.symbol).appIconFont(size * 0.53).foregroundStyle(MacAccent.color(style.color)).frame(width: MacUI.space(size), height: MacUI.space(size))
+            .background(MacAccent.color(style.color).opacity(filled ? 0.14 : 0.1), in: RoundedRectangle(cornerRadius: 8))
             .accessibilityHidden(true)
     }
 }
@@ -75,22 +89,25 @@ struct MacCategoriesSettingsView: View {
     @State private var usageRevision = 0
     @AppStorage("v2_budgets") private var budgetRevision = Data()
     @State private var type = "Expense"
+    @State private var sorting = "手动顺序"
     @State private var selectedID: UUID?
     @State private var name = ""
     @State private var symbol = "tag"
-    @State private var emoji = "🏷️"
     @State private var color = "orange"
     @State private var message: String?
     @State private var error: String?
     @AppStorage("v2_confirm_categories") private var extraCategoryConfirmation = true
     @State private var categoryAcknowledged = false
-    @State private var moreIcons = false
     @State private var rename = false
     @State private var remove = false
     private var selected: Category? { categories.first { $0.id == selectedID && $0.deletedAt == nil } }
     private var rows: [Category] {
         let _ = revision
         return categories.filter { $0.deletedAt == nil && $0.type == type }.sorted {
+            if sorting == "名称 A–Z" { return MacOverviewStyle.category($0.name).localizedStandardCompare(MacOverviewStyle.category($1.name)) == .orderedAscending }
+            if sorting == "名称 Z–A" { return MacOverviewStyle.category($0.name).localizedStandardCompare(MacOverviewStyle.category($1.name)) == .orderedDescending }
+            if sorting == "引用最多", let usageSnapshot { let a = usageSnapshot.count(for: $0), b = usageSnapshot.count(for: $1); if a != b { return a > b } }
+            if sorting == "引用最少", let usageSnapshot { let a = usageSnapshot.count(for: $0), b = usageSnapshot.count(for: $1); if a != b { return a < b } }
             let a = MacCategoryCatalog.style(name: $0.name, type: type, in: styles).order, b = MacCategoryCatalog.style(name: $1.name, type: type, in: styles).order
             return a == b ? $0.createdAt < $1.createdAt : a < b
         }
@@ -102,6 +119,7 @@ struct MacCategoriesSettingsView: View {
                 categoryTab("支出分类", value: "Expense", icon: "arrow.down", color: .red)
                 categoryTab("收入分类", value: "Income", icon: "arrow.up", color: .green)
             }.background(.gray.opacity(0.045), in: RoundedRectangle(cornerRadius: 9)).frame(maxWidth: MacUI.space(520))
+            HStack { Text("排序").foregroundStyle(.secondary); MacSettingsMenu(selection: $sorting, options: ["手动顺序", "名称 A–Z", "名称 Z–A", "引用最多", "引用最少"].map { ($0, $0) }).frame(width: 180); Spacer() }
             MacSettingsColumns(wide: wide) {
                 MacSettingsCard(title: type == "Expense" ? "支出分类" : "收入分类", icon: "tag", headerColor: .red, action: AnyView(Button("添加分类", systemImage: "plus") { select(nil) }.accessibilityIdentifier("settingsCategoryAdd")), compactHeader: true) {
                     HStack { Text("图标").frame(width: MacUI.space(40)); Text("名称"); Spacer(); Text("引用数量").frame(width: MacUI.space(70)); Text("操作").frame(width: MacUI.space(76)) }.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
@@ -126,16 +144,10 @@ struct MacCategoriesSettingsView: View {
                 }
             } right: {
                 VStack(spacing: MacUI.space(14)) {
-                    MacSettingsCard(title: selected.map { MacOverviewStyle.category($0.name) } ?? "新建分类", icon: emoji, headerColor: MacAccent.color(color), action: AnyView(Button("删除分类", systemImage: "trash", role: .destructive) { remove = true }.disabled(selected == nil || selected.map(CategoryUsageHelper.isProtectedCategory) == true).accessibilityIdentifier("settingsCategoryDelete")), compactHeader: true) {
+                    MacSettingsCard(title: selected.map { MacOverviewStyle.category($0.name) } ?? "新建分类", icon: symbol, headerColor: MacAccent.color(color), action: AnyView(Button("删除分类", systemImage: "trash", role: .destructive) { remove = true }.disabled(selected == nil || selected.map(CategoryUsageHelper.isProtectedCategory) == true).accessibilityIdentifier("settingsCategoryDelete")), compactHeader: true) {
                         MacSettingsRow(label: "名称", labelWidth: 60) { TextField("分类名称", text: $name).accessibilityIdentifier("managedCategoryName") }
-                        MacSettingsRow(label: "图标", labelWidth: 60) {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: MacUI.space(38)))], spacing: MacUI.space(8)) {
-                                ForEach(Array(MacCategoryEmoji.choices.prefix(6)), id: \.self) { icon in iconChoice(icon) }
-                                Button { moreIcons = true } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(31), height: MacUI.space(31)).background(.gray.opacity(0.045), in: Circle()) }.buttonStyle(.plain).help("更多 emoji").accessibilityIdentifier("categoryMoreEmoji")
-                            }
-                        }
-                        MacSettingsRow(label: "颜色", labelWidth: 60) { MacColorChoices(selection: $color) }
-                        if let selected, CategoryUsageHelper.isProtectedCategory(selected) { Text("系统结息和贷款分类受保护，名称不可更改。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
+                        MacSymbolColorPicker(icon: $symbol, color: $color, title: "分类", identifierPrefix: "categoryIcon")
+                        if let selected, CategoryUsageHelper.isProtectedCategory(selected) { Text("系统分类的显示名称和图标可以修改；内部结息/还款关联保持稳定。").appFont(.caption).foregroundStyle(.secondary) }
                         if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("categorySettingsError") }
                         if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(.green) }
                         HStack { Spacer(); Button("保存修改") { if let selected, name.trimmingCharacters(in: .whitespacesAndNewlines) != selected.name && name != MacOverviewStyle.category(selected.name) { rename = true } else { save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveManagedCategory") }
@@ -146,13 +158,6 @@ struct MacCategoriesSettingsView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $moreIcons) {
-            VStack(alignment: .leading, spacing: MacUI.space(20)) {
-                Text("选择分类 emoji").appFont(.dialogTitle, weight: .semibold)
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(48)), count: 7), spacing: MacUI.space(14)) { ForEach(MacCategoryEmoji.choices, id: \.self) { icon in iconChoice(icon) } }
-                HStack { Text("自定义 emoji"); TextField("输入一个 emoji", text: $emoji).accessibilityIdentifier("categoryCustomEmoji"); Button("完成") { moreIcons = false }.disabled(!MacCategoryEmoji.isValid(emoji)) }
-            }.appPadding(26)
         }
         .onAppear {
             refreshStyles(); select(rows.first)
@@ -190,19 +195,16 @@ struct MacCategoriesSettingsView: View {
         }
     }
     private func categoryTab(_ title: String, value: String, icon: String, color: Color) -> some View {
-        Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain)
-    }
-    private func iconChoice(_ icon: String) -> some View {
-        Button { emoji = icon } label: { Text(icon).appFont(.dialogTitle, weight: .regular, design: .default).frame(width: MacUI.space(33), height: MacUI.space(33)).background(emoji == icon ? MacAccent.color(color).opacity(0.12) : .gray.opacity(0.06), in: Circle()).appPadding(2).overlay(Circle().strokeBorder(emoji == icon ? MacAccent.color(color).opacity(0.5) : .clear)) }.buttonStyle(.plain).accessibilityLabel("分类 emoji " + icon).accessibilityIdentifier("categoryEmoji-" + icon).accessibilityValue(emoji == icon ? "已选中" : "未选中")
+        Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).contentShape(Rectangle()).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain)
     }
     private func select(_ row: Category?) {
         selectedID = row?.id; name = row.map { MacOverviewStyle.category($0.name) } ?? ""
         let style = row.map { MacCategoryCatalog.style(name: $0.name, type: $0.type) } ?? MacCategoryStyle()
-        symbol = style.symbol; emoji = row.map { MacCategoryCatalog.emoji(name: $0.name, type: $0.type) } ?? "🏷️"; color = style.color; error = nil; message = nil
+        symbol = style.symbol; color = style.color; error = nil; message = nil
     }
     private func save() {
         do {
-            guard MacCategoryEmoji.isValid(emoji) else { throw MacSettingsFailure.invalid("请选择或输入一个 emoji") }; var clean = try MacTransactionCRUD.validatedCategory(name)
+            var clean = try MacTransactionCRUD.validatedCategory(name)
             var order = selected.map { MacCategoryCatalog.style(name: $0.name, type: type).order } ?? ((rows.map { MacCategoryCatalog.style(name: $0.name, type: type).order }.max() ?? -1) + 1)
             if let selected {
                 let oldID = selected.id, oldName = selected.name
@@ -212,16 +214,18 @@ struct MacCategoriesSettingsView: View {
                     try MacDataManagement.rename(selected, to: clean, in: context)
                     selectedID = target?.id ?? oldID
                     clean = target?.name ?? selected.name
+                    if CategoryUsageHelper.isProtectedCategory(selected) { clean = oldName }
                 } else { clean = oldName }
             } else {
                 let row = CategoryUsageHelper.ensureCategoryExists(name: clean, type: type, in: context, existingCategories: categories)
                 try context.save(); selectedID = row?.id; clean = row?.name ?? clean
             }
-            try MacCategoryCatalog.saveStyle(.init(symbol: symbol, color: color, order: order, emoji: emoji), name: clean, type: type)
+            let alias = selected.map { MacCategoryCatalog.style(name: $0.name, type: type).displayName } ?? nil
+            try MacCategoryCatalog.saveStyle(.init(symbol: symbol, color: color, order: order, emoji: nil, displayName: alias), name: clean, type: type)
             // Coalesce save and budget notifications into the task below.
             // A style-only save does not change references.
             refreshStyles()
-            name = clean; error = nil; message = "分类已保存"
+            name = MacOverviewStyle.category(clean); error = nil; message = "分类已保存"
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
     }
     private func refreshStyles() {

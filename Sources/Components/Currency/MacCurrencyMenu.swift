@@ -46,6 +46,7 @@ struct MacIconMenuOption {
 
 /// Native keyboard/menu tracking and one visual style for icon-and-name dropdowns.
 struct MacIconMenu: View {
+    @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     @Binding var selection: String
     var options: [MacIconMenuOption]
     var identifier: String
@@ -53,7 +54,7 @@ struct MacIconMenu: View {
     var width: CGFloat = MacCurrencyMenuStyle.width
     var body: some View {
         PopupRepresentable(selection:$selection,options:options,width:width,accessibilityTitle:accessibilityTitle,identifier:identifier)
-            .frame(width:width,height:MacCurrencyMenuStyle.height)
+            .frame(width:width,height:MacInterfaceFonts.controlHeight(MacCurrencyMenuStyle.height))
     }
     static func fittedRect(_ size: NSSize, in slot: NSRect) -> NSRect {
         guard size.width > 0, size.height > 0 else { return slot }
@@ -68,6 +69,7 @@ struct MacIconMenu: View {
         var accessibilityTitle: String
         var identifier: String
         @Environment(\.isEnabled) private var enabled
+        @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
         @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
         final class Coordinator: NSObject {
             var choose: ((Int) -> Void)?
@@ -114,7 +116,7 @@ struct MacIconMenu: View {
             return popup
         }
         func updateNSView(_ popup:NSPopUpButton,context:Context) {
-            let signature = options.map { $0.title + "\0" + ($0.value ?? "__heading__") + "\0" + ($0.symbol ?? "") }
+            let signature = options.map { $0.title + "\0" + ($0.value ?? "__heading__") + "\0" + ($0.symbol ?? "") + "\0" + ($0.image?.name() ?? "") }
             if context.coordinator.optionSignature != signature || popup.menu == nil {
                 let menu = NSMenu(); menu.minimumWidth = width; menu.autoenablesItems = false
                 for option in options {
@@ -131,7 +133,7 @@ struct MacIconMenu: View {
             }
             if let index = options.firstIndex(where: { $0.value == selection }) { popup.selectItem(at:index) } else { popup.select(nil) }
             let size = MacUI.fontSize(.body,tier:MacFontSizeTier(rawValue:tier) ?? .standard)
-            let font = NSFont.systemFont(ofSize:size,weight:.semibold), menuFont = NSFont.systemFont(ofSize:size,weight:.regular)
+            let font = MacInterfaceFonts.font(size:size,weight:.semibold), menuFont = MacInterfaceFonts.font(size:size,weight:.regular)
             if popup.font != font { popup.font = font }
             if popup.menu?.font != menuFont { popup.menu?.font = menuFont }
             popup.isEnabled = enabled; popup.setAccessibilityIdentifier(identifier)

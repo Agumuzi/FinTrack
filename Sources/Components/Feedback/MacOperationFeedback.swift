@@ -6,8 +6,11 @@ import SwiftUI
 final class MacOperationFeedbackCenter: ObservableObject {
     enum Kind: Equatable {
         case success, warning, failure
-        var emoji: String {
-            switch self { case .success: "✅"; case .warning: "⚠️"; case .failure: "❌" }
+        var symbol: String {
+            switch self { case .success: "checkmark.circle.fill"; case .warning: "exclamationmark.triangle.fill"; case .failure: "xmark.circle.fill" }
+        }
+        var color: Color {
+            switch self { case .success: .green; case .warning: .orange; case .failure: .red }
         }
     }
     enum Location: Equatable { case workspace, csvPreview, nativePreview }
@@ -37,8 +40,10 @@ struct MacOperationFeedbackPresenter: ViewModifier {
                             .accessibilityLabel("关闭结果提示")
                             .accessibilityIdentifier("operationFeedbackBackdrop")
                         VStack(alignment:.leading,spacing:16) {
-                            Text(notice.kind.emoji + " " + notice.title)
-                                .appFont(.section,weight:.semibold)
+                            HStack(spacing: 9) {
+                                Image(systemName: notice.kind.symbol).appIconFont(20, weight: .semibold).foregroundStyle(notice.kind.color)
+                                Text(notice.title).appFont(.section,weight:.semibold)
+                            }.accessibilityElement(children: .combine)
                                 .accessibilityIdentifier("operationFeedbackTitle")
                             Text(notice.message).appFont(.body).textSelection(.enabled)
                                 .fixedSize(horizontal:false,vertical:true).lineLimit(8)

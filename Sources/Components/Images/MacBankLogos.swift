@@ -3,6 +3,7 @@ import SwiftUI
 import CryptoKit
 import ImageIO
 import UniformTypeIdentifiers
+import Darwin
 
 /// Appearance assets are independent from financial models, and never fetched online.
 enum MacBankLogos {
@@ -51,6 +52,30 @@ enum MacBankLogos {
     static func save(_ data: Data, bank: String) throws {
         try FileManager.default.createDirectory(at: directory(), withIntermediateDirectories: true)
         try data.write(to: customURL(bank), options: .atomic)
+        try deduplicate(in: directory())
+    }
+    struct SavedLogo: Identifiable { let id: String; let data: Data; var image: NSImage? { NSImage(data: data) } }
+    static func savedLogos() -> [SavedLogo] {
+        var seen = Set<String>()
+        return ((try? FileManager.default.contentsOfDirectory(at: directory(), includingPropertiesForKeys: nil)) ?? []).sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { url in
+            guard url.pathExtension == "png", let data = try? Data(contentsOf: url), data.count <= 512 * 1024 else { return nil }
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            guard seen.insert(hash).inserted else { return nil }
+            return SavedLogo(id: hash, data: data)
+        }
+    }
+    // Names stay user-defined. Equal image bytes share one filesystem inode;
+    // replacing one alias uses atomic write and never rewrites other aliases.
+    static func deduplicate(in folder: URL) throws {
+        var originals: [String: URL] = [:]
+        for url in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) where url.pathExtension == "png" {
+            let data = try Data(contentsOf: url)
+            let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            guard let original = originals[hash] else { originals[hash] = url; continue }
+            let temporary = folder.appendingPathComponent("Link-" + UUID().uuidString)
+            try FileManager.default.linkItem(at: original, to: temporary)
+            if rename(temporary.path, url.path) != 0 { try? FileManager.default.removeItem(at: temporary); throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        }
     }
     @MainActor
     static func select(for bank: String) throws -> CropInput? {

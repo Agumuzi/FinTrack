@@ -6,6 +6,8 @@ struct MacRecurringView: View {
     @Environment(\.modelContext) private var context
     @Query private var rules: [RecurringTransaction]
     @Query private var transactions: [Transaction]
+    @AppStorage("v13_recurring_single_list_width", store: MacPreferences.defaults) private var singleListWidth = 340.0
+    @AppStorage("v13_recurring_columns", store: MacPreferences.defaults) private var listColumns = 1
     @State private var search = ""
     @State private var type: RecurringTransactionType?
     @State private var status: MacRecurringData.Status?
@@ -30,6 +32,9 @@ struct MacRecurringView: View {
     @State private var error: String?
     @State private var message: String?
     @State private var now = Date()
+    @AppStorage("v13_recurring_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
+    private var listWidth: Double { listColumns == 2 ? doubleListWidth : singleListWidth }
+    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { if listColumns == 2 { doubleListWidth = $0 } else { singleListWidth = $0 } }) }
     private var active: [RecurringTransaction] { rules.filter { $0.deletedAt == nil } }
     private var visible: [RecurringTransaction] {
         MacRecurringData.filtered(active, search: search, type: type, status: status, category: category, currency: currency, sort: sort)
@@ -39,12 +44,14 @@ struct MacRecurringView: View {
     var body: some View {
         GeometryReader { geometry in
             let wide = geometry.size.width >= MacUI.space(950)
+            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: wide)
+            let maximum = max(300, Double(geometry.size.width - filterWidth - 340))
             HStack(spacing: MacUI.space(0)) {
-                filters.frame(width: MacUI.filterColumnWidth(available: geometry.size.width, wide: wide))
+                filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).frame(width: wide ? MacUI.space(340) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
-                    Divider()
+                    MacFinanceListDivider(width: widthBinding, maximum: maximum)
                     if let selected { presentedDetail(selected).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一个周期项目", systemImage: "clock.arrow.circlepath", description: Text("查看规则、计划和实际入账记录。")).frame(maxWidth: .infinity) }
                 }
@@ -117,7 +124,7 @@ struct MacRecurringView: View {
                 if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("recurringOpenDetails") }
             }
             TextField("搜索项目、类别或备注", text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("recurringSearch")
-            Picker("排序", selection: $sort) { ForEach(MacRecurringData.Sort.allCases) { Text($0.rawValue).tag($0) } }.labelsHidden().accessibilityIdentifier("recurringSort")
+            MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacRecurringData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "recurring")
             if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("financeActionError") }
             if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(MacOverviewStyle.income).accessibilityIdentifier("financeActionMessage") }
             if bookCurrency == nil { Text("账本包含不同本位币，请在设置中核对后再新增或编辑。").appFont(.caption, weight: .regular).foregroundStyle(.orange) }
@@ -125,7 +132,7 @@ struct MacRecurringView: View {
                 ContentUnavailableView(active.isEmpty ? "还没有周期项目" : "没有匹配的周期", systemImage: "repeat", description: Text(active.isEmpty ? "点击左上方 + 新增周期收支。" : "试试其他筛选条件。"))
                     .accessibilityIdentifier("recurringEmptyState").frame(maxHeight: .infinity)
             } else {
-                ScrollView { LazyVStack(spacing: MacUI.space(10)) {
+                ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                     ForEach(visible, id: \.id) { rule in
                         Button { selectedID = rule.id; if !wide { showsDetails = true } } label: { row(rule) }
                             .buttonStyle(.plain).accessibilityIdentifier("recurringRow-\(rule.title)")

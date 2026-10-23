@@ -20,8 +20,9 @@ enum MacFinanceNotes {
     private static var prefixes: [String] { [MacFinanceRecords.managedDepositTag, MacFinanceRecords.managedLoanTag, MacFinanceRecords.reviewedRecurringTag] }
     static func visible(_ note: String?) -> String {
         guard let note else { return "" }
-        for prefix in prefixes where note.hasPrefix(prefix) { return String(note.dropFirst(prefix.count)).trimmingCharacters(in: .whitespacesAndNewlines) }
-        return note
+        var value = note
+        for prefix in prefixes where value.hasPrefix(prefix) { value = String(value.dropFirst(prefix.count)); break }
+        return value.replacingOccurrences(of: #"\[FT(?:Dep|Rec|Loan):[^\]]+\]|\[FT(?:Estimated|Verified)\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     static func replacing(_ old: String?, with userNote: String) -> String? {
         let clean = userNote.trimmingCharacters(in: .whitespacesAndNewlines)

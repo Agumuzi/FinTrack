@@ -99,18 +99,16 @@ final class MacFXMonitor: ObservableObject {
     private func providers(for config: MacFXConfiguration) -> [MacFXProvider] {
         let all = providerList()
         switch config.sourcePolicy {
-        case "auto", "free": return all.filter { MacFXSourceScope.isSystem($0.id) }
+        case "auto": return all
+        case "free": return all.filter { MacFXSourceScope.isSystem($0.id) }
         default:
             return all.filter { $0.id == config.sourcePolicy } + all.filter { MacFXSourceScope.isSystem($0.id) }
         }
     }
     func sourceName(_ quote: MacFXEvidenceQuote) -> String { providerList().first { $0.id == quote.identity.sourceID }?.name ?? "旧来源缓存" }
     func historyProvider(_ pair: MacFXPair) -> MacFXProvider? {
-        let available = providers(for: configuration)
-        if let current = quote(pair) {
-            return available.first { $0.id == current.identity.sourceID && $0.revision == current.identity.sourceRevision && $0.supportsHistory }
-        }
-        return available.first { $0.supportsHistory }
+        // Chart history is a separate daily reference, never a live-price baseline.
+        providerList().first { MacFXSourceScope.isSystem($0.id) && $0.supportsHistory }
     }
     /// Shares source cooldown with live monitoring, but never accepts into its cache.
     func historyPoint(pair: MacFXPair, day: String, sourceID: String, revision: String, cycle: String) async throws -> MacFXHistoryPoint {

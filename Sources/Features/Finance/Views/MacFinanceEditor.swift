@@ -10,10 +10,12 @@ struct MacFinanceEditor: View {
     let panel: MacFinancePanel
     let currency: String
     var existing: MacFinanceRecord? = nil
+    var copyFrom: DepositRecord? = nil
     let onSaved: () -> Void
 
     @State private var name = ""
     @State private var logoRevision = 0
+    @State private var reusableLogos: [MacBankLogos.SavedLogo] = []
     @State private var cropInput: MacBankLogos.CropInput?
     @State private var amountText = ""
     @State private var rateText = "10"
@@ -28,6 +30,7 @@ struct MacFinanceEditor: View {
     @State private var recurrenceCategory = "Other"
     @State private var errorMessage: String?
     @State private var originalCurrency = ""
+    @State private var customCurrency = false
     @State private var principalFx = "1"
     @State private var interestFx = "1"
     @State private var downPaymentText = "0"
@@ -44,6 +47,16 @@ struct MacFinanceEditor: View {
     @State private var goalPrecision: TargetDatePrecision = .day
     @State private var goalPaused = false
     @State private var goalPresentation = MacGoalPresentation()
+    @State private var termValue = 12
+    @State private var termUnit = "month"
+    @State private var manualMaturity = false
+    @State private var advancedTime = false
+    private var title: String { (existing == nil ? "新建" : "编辑") + [MacFinancePanel.deposits: "存款", .loans: "贷款", .recurring: "周期", .goals: "目标"][panel, default: "记录"] }
+    private var currencyCodes: [String] { MacSettingsStore.load("v2_currencies", fallback: [String]()) }
+    private func updateMaturity() {
+        guard panel == .deposits, !manualMaturity else { return }
+        maturity = Calendar.current.date(byAdding: termUnit == "year" ? .year : termUnit == "day" ? .day : .month, value: termValue, to: start) ?? maturity
+    }
 
     private var storedOriginalCurrency: String? {
         switch existing {
@@ -57,14 +70,17 @@ struct MacFinanceEditor: View {
     var body: some View {
         MacFormShell(width: 560) {
             VStack(alignment: .leading, spacing: MacUI.space(8)) {
-            Text(existing == nil ? LocalizedStringKey("新建财务记录") : LocalizedStringKey("编辑财务记录"))
-                .appFont(.dialogTitle, weight: .semibold)
-                .accessibilityIdentifier("financeEditorTitle")
-            Text("本位币：\(currency)")
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(title).appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("financeEditorTitle")
+                Spacer()
+                Text("本位币：" + currency).appFont(.caption).foregroundStyle(.secondary)
+            }
+            if panel == .recurring {
+                MacEntryTypeSwitcher(type: Binding(get: { recurrenceType == .income ? .income : .expense }, set: { recurrenceType = $0 == .income ? .income : .expense }), prefix: "financeRecurring")
+            }
             }
         } fields: {
-            VStack(alignment: .leading, spacing: MacUI.space(16)) {
+            VStack(alignment: .leading, spacing: MacUI.space(12)) {
                 MacFormTextField(panel == .deposits ? LocalizedStringKey("银行名称") : LocalizedStringKey("名称"), text: $name)
                     .accessibilityIdentifier("financeEntryName")
                 if panel == .deposits {
@@ -81,82 +97,92 @@ struct MacFinanceEditor: View {
                             Text("同名银行自动使用此图标")
                         }.appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     }
-                }
-                MacFormTextField(panel == .goals ? "目标金额" : (panel == .loans ? "总金额" : "本金 / 金额"), text: $amountText)
-                    .accessibilityIdentifier("financeEntryAmount")
-                if panel != .goals {
-                    MacFormTextField("原币币种", text: $originalCurrency).accessibilityIdentifier("financeEntryCurrency")
-                    if originalCurrency.uppercased() != currency {
-                        MacFormTextField("兑本位币汇率", text: $principalFx).accessibilityIdentifier("financeEntryFX")
-                        if panel == .deposits {
-                            MacFormTextField("预期利息汇率", text: $interestFx)
-                        }
+                    if !reusableLogos.isEmpty {
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 8) {
+                                Text("已有图标").appFont(.caption).foregroundStyle(.secondary)
+                                ForEach(Array(reusableLogos.enumerated()), id: \.element.id) { index, asset in
+                                    Button {
+                                        do { try MacBankLogos.save(asset.data, bank: name); logoRevision += 1 } catch { errorMessage = MacLocalization.error(error) }
+                                    } label: { if let image = asset.image { Image(nsImage: image).resizable().scaledToFit().frame(width: 32, height: 32) } }.buttonStyle(.plain).help("使用已有银行图标 \(index + 1)").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                }
+                            }
+                        }.frame(height: 36)
                     }
                 }
+                HStack(alignment: .top, spacing: 14) {
+                    MacFinanceNumberField(title: panel == .goals ? "目标金额" : panel == .loans ? "总金额" : "本金 / 金额", text: $amountText, identifier: "financeEntryAmount")
+                    if panel != .goals {
+                        MacEntryField(title: "货币") {
+                            MacEditableCurrencyMenu(currency: $originalCurrency, custom: $customCurrency, codes: currencyCodes, identifier: "financeCurrencyMenu", textIdentifier: "financeEntryCurrency")
+                        }.frame(width: MacCurrencyMenuStyle.width)
+                    }
+                }
+                if panel != .goals, originalCurrency.uppercased() != currency {
+                    MacFinanceNumberField(title: "兑本位币汇率", text: $principalFx, identifier: "financeEntryFX")
+                    if panel == .deposits { MacFinanceNumberField(title: "预期利息汇率", text: $interestFx, identifier: "financeInterestFX") }
+                }
                 if panel == .loans {
-                    MacFormTextField("首付金额", text: $downPaymentText).accessibilityIdentifier("loanDownPayment")
-                    MacFormTextField("还款分类", text: $recurrenceCategory).accessibilityIdentifier("loanEditorCategory")
+                    HStack(alignment: .top) {
+                        MacFinanceNumberField(title: "首付金额", text: $downPaymentText, identifier: "loanDownPayment")
+                        MacFinanceCategoryField(category: $recurrenceCategory, type: "Expense", identifier: "loanEditorCategory")
+                    }
                 }
                 if panel == .deposits || panel == .loans {
-                    MacFormTextField("年利率 %", text: $rateText)
-                        .accessibilityIdentifier("financeEntryRate")
+                    MacFinanceNumberField(title: "年利率 %", text: $rateText, rate: true, identifier: "financeEntryRate")
                 }
                 if panel == .deposits {
                     Toggle("手动设置预期利息", isOn: $overridesInterest)
-                    if overridesInterest { MacFormTextField("预期利息", text: $expectedInterestText) }
-                    if existing == nil {
-                        Picker("续存来源", selection: $renewalSource) {
-                            Text("无").tag(nil as UUID?)
-                            ForEach(savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }, id: \.id) {
-                                Text($0.bankName).tag(Optional($0.id))
-                            }
+                    if overridesInterest { MacFinanceNumberField(title: "预期利息", text: $expectedInterestText, identifier: "financeExpectedInterest") }
+                    HStack(alignment: .top, spacing: 16) {
+                        if existing == nil {
+                            MacEntryField(title: "续存来源") { MacSettingsMenu(selection: $renewalSource, options: [("无", UUID?.none)] + savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }.map { ($0.bankName, Optional($0.id)) }) }
                         }
-                    }
-                    Picker("结息方式", selection: $depositMode) {
-                        ForEach(DepositInterestSettlementMode.allCases) { option in
-                            Text(LocalizedStringKey(option.rawValue)).tag(option)
-                        }
+                        Spacer(minLength: 0)
+                        MacEntryField(title: "结息方式") { MacSettingsMenu(selection: $depositMode, options: DepositInterestSettlementMode.allCases.map { (MacLocalization.value($0.rawValue), $0) }) }.frame(width: 180)
                     }
                     MacDateTimeField(title: "开始日期", date: $start, identifier: "financeStartDate")
-                    MacDateTimeField(title: "到期日期", date: $maturity, identifier: "financeMaturityDate")
-                } else if panel == .loans {
-                    Stepper("还款期数：\(months) 个月", value: $months, in: 1...600)
-                    Picker("还款方式", selection: $loanMethod) {
-                        ForEach(RepaymentMethod.allCases) { option in
-                            Text(LocalizedStringKey(option.rawValue)).tag(option)
+                    HStack {
+                        Toggle("直接设置到期日", isOn: $manualMaturity)
+                        Spacer()
+                        if !manualMaturity {
+                            Stepper("期限 \(termValue)", value: $termValue, in: 1...99).fixedSize()
+                            MacSettingsMenu(selection: $termUnit, options: [("日", "day"), ("月", "month"), ("年", "year")]).frame(width: 90)
                         }
+                    }
+                    if manualMaturity { MacDateTimeField(title: "到期日期", date: $maturity, identifier: "financeMaturityDate") }
+                    else { Text("到期：" + MacDateDisplay.string(maturity)).appFont(.caption).foregroundStyle(.secondary) }
+                } else if panel == .loans {
+                    HStack {
+                        Stepper("还款期数：\(months) 个月", value: $months, in: 1...600).fixedSize()
+                        Spacer(minLength: 16)
+                        MacSettingsMenu(selection: $loanMethod, options: RepaymentMethod.allCases.map { (MacLocalization.value($0.rawValue), $0) }).frame(width: 160)
                     }
                     MacDateTimeField(title: "首次还款日期", date: $start, identifier: "financeFirstPayment")
                 } else if panel == .recurring {
-                    Picker("收支类型", selection: $recurrenceType) {
-                        Text("支出").tag(RecurringTransactionType.expense)
-                        Text("收入").tag(RecurringTransactionType.income)
+                    MacFinanceCategoryField(category: $recurrenceCategory, type: recurrenceType == .income ? "Income" : "Expense", identifier: "recurringEditorCategory")
+                    HStack {
+                        Stepper("每 \(recurrenceInterval)", value: $recurrenceInterval, in: 1...365).accessibilityIdentifier("recurringEditorIntervalValue").fixedSize()
+                        Spacer(minLength: 16)
+                        MacSettingsMenu(selection: $recurrenceUnit, options: RecurringIntervalUnit.allCases.map { (MacLocalization.value($0.rawValue), $0) }).frame(width: 160)
                     }
-                    MacFormTextField("分类", text: $recurrenceCategory).accessibilityIdentifier("recurringEditorCategory")
-                    Stepper("每 \(recurrenceInterval)", value: $recurrenceInterval, in: 1...365).accessibilityIdentifier("recurringEditorIntervalValue")
-                    Picker("周期单位", selection: $recurrenceUnit) {
-                        ForEach(RecurringIntervalUnit.allCases) { option in
-                            Text(LocalizedStringKey(option.rawValue)).tag(option)
-                        }
-                    }
-                    MacDateTimeField(title: "下次执行", date: $start, includesTime: true, identifier: "financeNextDueDate")
+                    MacDateTimeField(title: "下次执行", date: $start, includesTime: advancedTime, identifier: "financeNextDueDate")
                         .accessibilityIdentifier("financeNextDue")
+                    Toggle("自定义执行时间", isOn: $advancedTime)
+                    if !advancedTime { Text("按系统时区 09:00 执行；未运行时在下次打开后补记。").appFont(.caption).foregroundStyle(.secondary) }
                     Toggle("设置结束时间", isOn: $hasDeadline)
                     if hasDeadline { MacDateTimeField(title: "结束时间", date: $maturity, includesTime: true, identifier: "financeEndDate") }
-                    Toggle("启用", isOn: $recurrenceActive).accessibilityIdentifier("recurringEditorActive")
                 } else {
-                    Toggle("包含当前资产", isOn: $includesAssets)
-                    MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $goalPrecision, date: $maturity, identifier: "financeGoal")
+                    MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $goalPrecision, date: $maturity, identifier: "financeGoal", includesAssets: $includesAssets)
                     if existing != nil { Toggle("暂停", isOn: $goalPaused).accessibilityIdentifier("financeGoalPaused") }
                     MacGoalIconPicker(presentation: $goalPresentation, identifierPrefix: "financeGoalIconOption")
                 }
                 if panel != .goals { MacFormTextField("备注", text: $notes).accessibilityIdentifier("financeEntryNote") }
                 if panel == .deposits || panel == .recurring {
-                    Toggle("提醒", isOn: $reminders)
-                    if reminders {
-                        Stepper("提前 \(reminderDays) 天提醒", value: $reminderDays, in: 0...365)
-                        DatePicker("提醒时间", selection: $reminderTime, displayedComponents: .hourAndMinute).appFormControl()
+                    if panel == .recurring {
+                        HStack { Toggle("启用", isOn: $recurrenceActive).accessibilityIdentifier("recurringEditorActive"); Spacer(); Toggle("提醒", isOn: $reminders) }
                     }
+                    MacReminderEditor(enabled: $reminders, days: $reminderDays, time: $reminderTime, showsToggle: panel != .recurring)
                 }
 
             if let errorMessage {
@@ -174,7 +200,7 @@ struct MacFinanceEditor: View {
             }
         }
         .sheet(item: $cropInput) { input in
-            MacBankLogoCropView(input: input) { logoRevision += 1; cropInput = nil }
+            MacBankLogoCropView(input: input) { logoRevision += 1; reusableLogos = MacBankLogos.savedLogos(); cropInput = nil }
         }
         .onAppear { load() }
         .onChange(of: originalCurrency) { _, value in
@@ -182,7 +208,18 @@ struct MacFinanceEditor: View {
             else if value.uppercased() != storedOriginalCurrency { principalFx = ""; interestFx = "" }
         }
         .onChange(of: expectedInterestText) { syncDepositRate() }
-        .onChange(of: start) { syncDepositRate() }
+        .onChange(of: start) { updateMaturity(); syncDepositRate() }
+        .onChange(of: termValue) { updateMaturity() }
+        .onChange(of: termUnit) { updateMaturity() }
+        .onChange(of: manualMaturity) { updateMaturity() }
+        .onChange(of: advancedTime) { _, value in if !value, panel == .recurring { start = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: start) ?? start } }
+        .onChange(of: recurrenceType) { _, value in
+            let type = value == .income ? "Income" : "Expense"
+            let rows = (try? context.fetch(FetchDescriptor<Category>())) ?? []
+            if !rows.contains(where: { $0.deletedAt == nil && $0.type == type && $0.name == recurrenceCategory }) {
+                recurrenceCategory = rows.first(where: { $0.deletedAt == nil && $0.type == type })?.name ?? "Other"
+            }
+        }
         .onChange(of: maturity) { syncDepositRate() }
         .onChange(of: depositMode) { syncDepositRate() }
         .onChange(of: amountText) { syncDepositRate() }
@@ -255,17 +292,31 @@ struct MacFinanceEditor: View {
     }
 
     private func load() {
+        reusableLogos = MacBankLogos.savedLogos()
         originalCurrency = currency
         if panel == .loans { recurrenceCategory = "Loan" }
         if case .goal(let goal) = existing {
             let all: [String: MacGoalPresentation] = MacSettingsStore.load("v2_goal_presentation", fallback: [:])
             goalPresentation = all[goal.id.uuidString] ?? .init()
         }
+        if existing == nil {
+            if panel == .recurring { start = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: start) ?? start }
+            if let r = copyFrom {
+                name = r.bankName; amountText = String(r.originalPrincipal); rateText = String(r.annualInterestRate)
+                originalCurrency = r.originalCurrency; principalFx = String(r.principalExchangeRateToBase); interestFx = String(r.interestExchangeRateToBase)
+                depositMode = r.typedInterestSettlementMode; overridesInterest = r.isInterestManuallyEdited; expectedInterestText = String(r.expectedInterest)
+                notes = MacFinanceNotes.visible(r.note); reminders = r.notificationsEnabled; reminderDays = r.reminderDaysBefore
+                let duration = max(1, Calendar.current.dateComponents([.day], from: r.startDate, to: r.maturityDate).day ?? 1)
+                maturity = Calendar.current.date(byAdding: .day, value: duration, to: start) ?? maturity
+                manualMaturity = true
+            } else { updateMaturity() }
+            return
+        }
         guard let existing else { return }
         switch existing {
         case .deposit(let r):
             name = r.bankName; amountText = String(r.originalPrincipal); rateText = String(r.annualInterestRate)
-            start = r.startDate; maturity = r.maturityDate; depositMode = r.typedInterestSettlementMode
+            start = r.startDate; maturity = r.maturityDate; depositMode = r.typedInterestSettlementMode; manualMaturity = true
             originalCurrency = r.originalCurrency; principalFx = String(r.principalExchangeRateToBase); interestFx = String(r.interestExchangeRateToBase)
             reminders = r.notificationsEnabled
             overridesInterest = r.isInterestManuallyEdited; expectedInterestText = String(r.expectedInterest)
@@ -281,6 +332,7 @@ struct MacFinanceEditor: View {
             reminderDays = r.reminderDaysBefore
             reminderTime = Calendar.current.date(bySettingHour: r.reminderHour, minute: r.reminderMinute, second: 0, of: Date()) ?? reminderTime
             name = r.title; amountText = String(r.originalAmount); start = r.nextExecutionDate
+            advancedTime = Calendar.current.component(.hour, from: start) != 9 || Calendar.current.component(.minute, from: start) != 0
             recurrenceType = r.typedType; recurrenceCategory = r.category; recurrenceInterval = r.intervalValue; recurrenceUnit = r.typedIntervalUnit
             originalCurrency = r.originalCurrency; principalFx = String(r.exchangeRateToBase)
             reminders = r.notificationsEnabled

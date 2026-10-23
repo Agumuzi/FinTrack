@@ -50,6 +50,7 @@ struct FinTrackMacRootView: View {
     @State private var showsAccount = false
     @Environment(\.modelContext) private var context
     @AppStorage("fintrack_auto_posting") private var automaticPosting = false
+    @AppStorage("v13_auto_deposit_posting") private var automaticDeposits = true
     @State private var automaticError: String?
     @Query private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
@@ -122,10 +123,10 @@ struct FinTrackMacRootView: View {
         .onChange(of: workspace.section) { _, section in MacPreferences.defaults.set(section.rawValue, forKey: "v2_last_page") }
         .task { await MacUpdateService.shared.runAutomaticChecks() }
         .preferredColorScheme(theme == "dark" ? .dark : (theme == "light" ? .light : nil))
-        .task(id: automaticPosting) {
-            guard automaticPosting, !MacPreferences.isTesting else { return }
+        .task(id: "\(automaticPosting)-\(automaticDeposits)") {
+            guard (automaticPosting || automaticDeposits), !MacPreferences.isTesting else { return }
             while !Task.isCancelled {
-                automaticError = await MacAutomaticPosting.run(in: context)
+                automaticError = await MacAutomaticPosting.run(in: context, includeRules: automaticPosting, includeDeposits: automaticDeposits, estimateDeposits: true)
                 try? await Task.sleep(for: .seconds(300))
             }
         }

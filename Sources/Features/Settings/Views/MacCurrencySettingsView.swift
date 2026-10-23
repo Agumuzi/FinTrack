@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import SwiftData
 import Charts
+import UniformTypeIdentifiers
 
 struct MacCurrencySettingsView: View {
     var wide: Bool
@@ -24,6 +25,9 @@ struct MacCurrencySettingsView: View {
     @State private var removingSource: MacFXSource?
     @State private var showRebase = false
     @State private var menuOptionsExpanded = false
+    @State private var draggedCurrency: String?
+    @State private var directoryDraft: [String] = []
+    private var directoryCodes: [String] { directoryDraft.isEmpty ? MacCurrencyDirectory.ordered(codes, base: baseCurrency) : MacCurrencyDirectory.ordered(directoryDraft, base: baseCurrency) }
     @State private var busy = false
     @State private var error: String?
     @State private var message: String?
@@ -74,6 +78,8 @@ struct MacCurrencySettingsView: View {
             quoteBase = baseCurrency
         }
         .onChange(of:query.settingsSectionRequest) { _,_ in consumeSectionRequest() }
+        .onChange(of: baseCurrency) { directoryDraft = []; draggedCurrency = nil }
+        .onDisappear { directoryDraft = []; draggedCurrency = nil }
         .onChange(of:section) { _,name in
             message = nil; error = nil
             if name == "菜单栏" { Task { await monitor.pageOpened() } }
@@ -139,7 +145,7 @@ struct MacCurrencySettingsView: View {
                 Button("添加") {
                     do {
                         let code = try MacCurrency.code(newCurrency)
-                        try MacSettingsStore.save(Array(Set(codes + [code])).sorted(),key:"v2_currencies")
+                        try MacSettingsStore.save(MacCurrencyDirectory.ordered(codes + [code], base: baseCurrency),key:"v2_currencies")
                         selected = code; newCurrency = ""; currencyAddError = nil; addingCurrency = false
                     } catch { currencyAddError = MacLocalization.error(error) }
                 }.buttonStyle(MacSettingsButtonStyle(primary:true,height:40)).disabled((try? MacCurrency.code(newCurrency)) == nil).accessibilityIdentifier("fxDirectoryConfirm")
@@ -151,17 +157,23 @@ struct MacCurrencySettingsView: View {
             HStack {
                 Text("用于软件各处的货币选择，菜单栏列表在“菜单栏”中单独管理。").appFont(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(codes.count) 个币种").appFont(.caption).foregroundStyle(.secondary)
+                Text("\(directoryCodes.count) 个币种").appFont(.caption).foregroundStyle(.secondary)
             }
             HStack {
                 Text("货币"); Spacer()
                 Text("状态").frame(width:80); Color.clear.frame(width:28,height:1)
             }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal,10).frame(minHeight:32)
             VStack(spacing:0) {
-                ForEach(codes,id:\.self) { code in currencyRow(code); if code != codes.last { Divider() } }
+                ForEach(directoryCodes,id:\.self) { code in
+                    currencyRow(code)
+                        .onDrop(of: [.text], delegate: MacDirectoryDrop(target: code, base: baseCurrency, dragged: $draggedCurrency, order: $directoryDraft, save: saveDirectory))
+                    if code != directoryCodes.last { Divider() }
+                }
+                Color.clear.frame(height: 18).contentShape(Rectangle()).onDrop(of: [.text], delegate: MacDirectoryDrop(target: nil, base: baseCurrency, dragged: $draggedCurrency, order: $directoryDraft, save: saveDirectory))
             }
         }.accessibilityElement(children:.contain).accessibilityIdentifier("fxCurrencyDirectoryCard")
     }
+    private func saveDirectory(_ order: [String]) { do { try MacSettingsStore.save(MacCurrencyDirectory.ordered(order, base: baseCurrency), key: "v2_currencies") } catch { self.error = MacLocalization.error(error) } }
     private var bookCurrencyCard: some View {
         MacSettingsCard(title:"账本本位币",icon:"books.vertical",subtitle:"与查询参考币种分别管理。") {
             HStack {
@@ -174,6 +186,8 @@ struct MacCurrencySettingsView: View {
     }
     private func currencyRow(_ code: String) -> some View {
         HStack(spacing:10) {
+            if code == baseCurrency { Image(systemName: "pin.fill").foregroundStyle(.secondary).frame(width: 16) }
+            else { Image(systemName: "line.3.horizontal").foregroundStyle(.secondary).frame(width: 16, height: 32).contentShape(Rectangle()).onDrag { directoryDraft = MacCurrencyDirectory.ordered(codes, base: baseCurrency); draggedCurrency = code; return NSItemProvider(object: ("FinTrackCurrency:" + code) as NSString) } }
             currencyChoice(code).frame(maxWidth:.infinity,alignment:.leading)
             currencyStatus(code).frame(width:80)
             currencyActions(code).frame(width:28)

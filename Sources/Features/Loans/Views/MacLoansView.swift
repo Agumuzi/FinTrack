@@ -8,6 +8,8 @@ struct MacLoansView: View {
     @Query private var loans: [LoanRule]
     @Query private var transactions: [Transaction]
     @Query private var rules: [RecurringTransaction]
+    @AppStorage("v13_loans_single_list_width", store: MacPreferences.defaults) private var singleListWidth = 340.0
+    @AppStorage("v13_loans_columns", store: MacPreferences.defaults) private var listColumns = 1
     @State private var search = ""
     @State private var status: MacLoansData.Status?
     @State private var category: String?
@@ -35,6 +37,9 @@ struct MacLoansView: View {
     @State private var error: String?
     @State private var message: String?
     @State private var now = Date()
+    @AppStorage("v13_loans_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
+    private var listWidth: Double { listColumns == 2 ? doubleListWidth : singleListWidth }
+    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { if listColumns == 2 { doubleListWidth = $0 } else { singleListWidth = $0 } }) }
     private var active: [LoanRule] { loans.filter { $0.deletedAt == nil } }
     private var audits: [UUID: MacLoansData.Audit] {
         Dictionary(uniqueKeysWithValues: active.map { ($0.id, MacLoansData.audit($0, transactions: transactions, rules: rules)) })
@@ -47,12 +52,14 @@ struct MacLoansView: View {
     var body: some View {
         GeometryReader { geometry in
             let wide = geometry.size.width >= MacUI.space(1000)
+            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: wide)
+            let maximum = max(300, Double(geometry.size.width - filterWidth - 340))
             HStack(spacing: MacUI.space(0)) {
-                filters.frame(width: MacUI.filterColumnWidth(available: geometry.size.width, wide: wide))
+                filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).frame(width: wide ? MacUI.space(310) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
-                    Divider()
+                    MacFinanceListDivider(width: widthBinding, maximum: maximum)
                     if let selected { presentedDetail(selected).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一笔贷款", systemImage: "banknote", description: Text("查看还款计划和实际记录。")).frame(maxWidth: .infinity) }
                 }
@@ -118,7 +125,7 @@ struct MacLoansView: View {
                 if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("loansOpenDetails") }
             }
             TextField("搜索贷款、类别或备注", text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("loansSearch")
-            Picker("排序", selection: $sort) { ForEach(MacLoansData.Sort.allCases) { Text($0.rawValue).tag($0) } }.labelsHidden().accessibilityIdentifier("loansSort")
+            MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacLoansData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "loans")
             if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("financeActionError") }
             if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(MacOverviewStyle.income).accessibilityIdentifier("financeActionMessage") }
             if bookCurrency == nil { Text("账本包含不同本位币，请先在设置中核对。").appFont(.caption, weight: .regular).foregroundStyle(.orange) }
@@ -126,7 +133,7 @@ struct MacLoansView: View {
                 ContentUnavailableView(active.isEmpty ? "还没有贷款" : "没有匹配的贷款", systemImage: "banknote", description: Text(active.isEmpty ? "点击左上方 + 新增贷款。" : "试试其他筛选条件。"))
                     .accessibilityIdentifier("loansEmptyState").frame(maxHeight: .infinity)
             } else {
-                ScrollView { LazyVStack(spacing: MacUI.space(10)) {
+                ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                     ForEach(visible, id: \.id) { loan in
                         Button { selectedID = loan.id; if !wide { showsDetails = true } } label: { row(loan) }
                             .buttonStyle(.plain)

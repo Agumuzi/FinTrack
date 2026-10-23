@@ -15,8 +15,8 @@ enum MacSettingsStore {
         defaults.set(try JSONEncoder().encode(value), forKey: key)
     }
     static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey,
-        "fintrack_auto_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size",
-        "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
+        "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size",
+        MacInterfaceFonts.preferenceKey, "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
         "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
         "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear", "v2_remind_recurring", "v2_remind_goals",
         "v2_remind_budgets", "v2_display_name", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
@@ -40,7 +40,7 @@ enum MacSettingsStore {
         // match their storage type. Conditional casts alone silently skip bad data.
         let binaryKeys: Set<String> = ["v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
             "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_goal_presentation", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
-        let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v2_navigation_collapsed",
+        let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed",
             "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
             "v2_remind_recurring", "v2_remind_goals", "v2_remind_budgets", "v2_update_auto", "v2_update_download"]
         let integerChoices: [String: Set<Int>] = ["v2_decimals": Set(0...4), "v2_week_start": [1, 2],
@@ -55,6 +55,8 @@ enum MacSettingsStore {
                    number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue {
                     valid = choices.contains { Double($0) == number.doubleValue }
                 } else { valid = false }
+            } else if key == MacInterfaceFonts.preferenceKey {
+                valid = (value as? String).map { $0.count <= 200 && !$0.contains("\n") } ?? false
             } else if key == "v2_font_tier" {
                 valid = (value as? String).map { MacFontSizeTier(rawValue: $0) != nil } ?? false
             } else if key == "v2_font_size" {
@@ -95,7 +97,7 @@ enum MacSettingsStore {
         }
         if let data = values["v2_category_styles"] as? Data {
             let rows = try JSONDecoder().decode([String: MacCategoryStyle].self, from: data)
-            for row in rows.values { guard row.emoji == nil || MacCategoryEmoji.isValid(row.emoji!), MacCategoryCatalog.symbols.contains(row.symbol), (MacCategoryCatalog.colors.contains(row.color) || row.color.range(of: #"^#[0-9A-Fa-f]{6}$"#, options: .regularExpression) != nil) else { throw MacSettingsFailure.invalid("分类显示设置无效") } }
+            for row in rows.values { guard (row.displayName?.count ?? 0) <= 100, row.emoji == nil || MacCategoryEmoji.isValid(row.emoji!), (MacCategoryCatalog.symbols + MacPresentationOptions.icons.map { $0.0 }).contains(row.symbol), (MacCategoryCatalog.colors.contains(row.color) || row.color.range(of: #"^#[0-9A-Fa-f]{6}$"#, options: .regularExpression) != nil) else { throw MacSettingsFailure.invalid("分类显示设置无效") } }
         }
         return values
     }
@@ -117,6 +119,7 @@ enum MacSettingsStore {
         migrateFontPreference()
         // A restored ledger never starts posting money without an explicit opt-in.
         defaults.set(false, forKey: "fintrack_auto_posting")
+        defaults.set(false, forKey: "v13_auto_deposit_posting")
     }
 
     /// Convert the former 80–150% continuous setting once, keeping old backups readable.
@@ -158,7 +161,7 @@ struct MacBudget: Codable, Identifiable, Hashable {
     // Optional fields keep budgets from older native backups readable.
     var icon: String? = nil
     var color: String? = nil
-    var displayIcon: String { icon ?? categoryName.map { MacCategoryCatalog.emoji(name: $0) } ?? "chart.pie.fill" }
+    var displayIcon: String { icon ?? categoryName.map { MacCategoryCatalog.style(name: $0, type: "Expense").symbol } ?? "chart.pie.fill" }
     var displayColor: String { color ?? "red" }
     func validate() throws {
         _ = try MacCurrency.code(currency)
@@ -197,6 +200,7 @@ struct MacCategoryStyle: Codable {
     var color = "orange"
     var order = 0
     var emoji: String? = nil
+    var displayName: String? = nil
 }
 
 enum MacDisplayPreferences {
