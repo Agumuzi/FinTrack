@@ -102,7 +102,7 @@ struct MacAppearanceSettingsView: View {
                         navigationChoice("仅图标", collapsed: true, icon: "rectangle.lefthalf.inset.filled", detail: "只显示图标，节省空间")
                     }
                 }
-                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; fontTierValue = MacFontSizeTier.standard.rawValue; collapsed = false }.accessibilityIdentifier("resetAppearance") }
+                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; fontTierValue = MacFontSizeTier.standard.rawValue; MacPreferences.defaults.removeObject(forKey: MacInterfaceFonts.preferenceKey); collapsed = false }.accessibilityIdentifier("resetAppearance") }
             }
         } right: {
             VStack(spacing: MacUI.space(14)) {
