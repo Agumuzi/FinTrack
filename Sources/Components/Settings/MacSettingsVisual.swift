@@ -125,7 +125,7 @@ struct MacSettingsSymbol: View {
     var body: some View {
         Group {
             if MacCategoryEmoji.isValid(symbol) {
-                Text(symbol).appIconFont(size, weight: .regular, design: .default)
+                Image(systemName: "tag").appIconFont(size, weight: .medium, design: .default)
             } else if symbol == "github.mark" {
                 Image(systemName: "link").appIconFont(size, weight: .medium, design: .default)
                     .accessibilityLabel("GitHub")
