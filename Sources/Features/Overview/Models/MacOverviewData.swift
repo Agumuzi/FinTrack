@@ -37,11 +37,23 @@ struct MacOverviewScope: Equatable {
         }
     }
     func matches(_ row: Transaction, currency: String, interval override: DateInterval? = nil) -> Bool {
-        guard isValid, row.deletedAt == nil, row.baseCurrencyCode == currency,
+        guard isValid else { return false }
+        return matches(row, currency: currency, resolvedInterval: override ?? interval())
+    }
+    /// Resolve the calendar interval once for the collection, rather than for
+    /// every model property read during SwiftUI layout.
+    func matching(_ rows: [Transaction], currency: String, interval override: DateInterval? = nil) -> [Transaction] {
+        guard isValid else { return [] }
+        let range = override ?? interval()
+        return rows.filter { matches($0, currency: currency, resolvedInterval: range) }
+    }
+    private func matches(_ row: Transaction, currency: String, resolvedInterval range: DateInterval?) -> Bool {
+        // Most historical rows are outside the selected period. Reject them
+        // before observing currency/category/type properties unnecessarily.
+        if let range, !(row.date >= range.start && row.date < range.end) { return false }
+        guard row.deletedAt == nil, row.baseCurrencyCode == currency,
               category == nil || row.category == category, type == nil || row.typedType == type else { return false }
-        guard let range = override ?? interval() else { return true }
-        // DateInterval.contains includes its end, whereas ledger periods do not.
-        return row.date >= range.start && row.date < range.end
+        return true
     }
     var title: String {
         let formatter = DateFormatter(); formatter.locale = Locale(identifier: "zh_Hans_CN")
@@ -82,7 +94,7 @@ enum MacOverviewData {
         return (0..<count).reversed().map { offset in
             let start = calendar.date(byAdding: .month, value: -offset, to: endMonth)!
             let range = calendar.dateInterval(of: .month, for: start)!
-            let selected = rows.filter { scope.matches($0, currency: currency, interval: range) }
+            let selected = scope.matching(rows, currency: currency, interval: range)
             let totals = MacTransactionCRUD.totals(transactions: selected, currency: currency)
             return Month(id: start, income: totals.income, expense: totals.expense)
         }

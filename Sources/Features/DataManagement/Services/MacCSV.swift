@@ -20,6 +20,7 @@ enum MacCSV {
         let currencies: [String]
         var standardBookCurrency: String? = nil
         var kind: MacCSVKind? = nil
+        var hasStableIDs = true
     }
 
     static func export(in context: ModelContext) throws -> URL {
@@ -73,6 +74,7 @@ enum MacCSV {
         let flatContent = content.hasPrefix("\u{FEFF}") ? String(content.dropFirst()) : content
         let source = nativeFlat ? "\"Section\",\"\(nativeKind.sectionTitle)\"\n" + flatContent : content
         var sections = try reader.readSections(contents: source)
+        var generatedIDs = false
         if sections.isEmpty {
             let raw = try reader.readSections(contents: "\"Section\",\"Transactions\"\n" + content)
             if raw["transactions"]?.headers.contains(where: { $0.lowercased() == "originalamount" }) == true {
@@ -85,6 +87,7 @@ enum MacCSV {
                 let required = Set(["date", "type", "category", "currency", "amount"])
                 guard required.isSubset(of: Set(table.headers)) else { throw Failure.invalid("缺少Date、Type、Category、Currency或Amount列") }
                 let book = try MacCurrency.code(bookCurrency)
+                generatedIDs = true
                 var rows: [CSVImportSectionTable.RawRow] = []
                 for row in table.rows {
                     guard let currency = row.values["currency"], !currency.isEmpty else { throw Failure.invalid("row \(row.rowIndex): Currency") }
@@ -136,7 +139,7 @@ enum MacCSV {
         if expectedKind != nil, currencies != [try MacCurrency.code(bookCurrency)] {
             throw Failure.invalid("独立数据文件的本位币必须与当前账本一致；原版历史文件请使用兼容入口并核对本位币")
         }
-        return Preview(sections: sections, count: count, currencies: currencies.sorted(), standardBookCurrency: expectedKind == nil ? nil : bookCurrency, kind: expectedKind)
+        return Preview(sections: sections, count: count, currencies: currencies.sorted(), standardBookCurrency: expectedKind == nil ? nil : bookCurrency, kind: expectedKind, hasStableIDs: !generatedIDs)
     }
 
     static func commit(_ preview: Preview, in context: ModelContext) throws -> FullDataImportCommitResult {
@@ -178,19 +181,30 @@ enum MacCSV {
         }
     }
 
-    static func parsedDate(_ value: String, field: String) throws -> Date {
+    // MacCSV is MainActor-isolated. These fixed POSIX/UTC parsers are never
+    // reconfigured after construction or shared with background actors.
+    private static let dayParser: DateFormatter = {
         let day = DateFormatter()
         day.locale = Locale(identifier: "en_US_POSIX"); day.timeZone = TimeZone(secondsFromGMT: 0)
         day.dateFormat = "yyyy-MM-dd"; day.isLenient = false
+        return day
+    }()
+    private static let isoParser = ISO8601DateFormatter()
+    private static let fractionalISOParser: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    static func parsedDate(_ value: String, field: String) throws -> Date {
+        let day = dayParser
         let datePart = String(value.prefix(10))
         guard datePart.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression) != nil,
               let date = day.date(from: datePart), day.string(from: date) == datePart else { throw Failure.invalid(field + " 日期无效") }
         if value == datePart { return date }
         guard value.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$", options: .regularExpression) != nil else { throw Failure.invalid(field + " 需要YYYY-MM-DD或带时区ISO 8601时间") }
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: value) { return date }
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: value) { return date }
+        if let date = isoParser.date(from: value) { return date }
+        if let date = fractionalISOParser.date(from: value) { return date }
         throw Failure.invalid(field)
     }
 
@@ -213,6 +227,13 @@ enum MacCSV {
             for row in table.rows {
                 let v = row.values
                 let detail = "\(table.sectionTitle), row \(row.rowIndex)"
+                if key == "goals", let precision = v["TargetDatePrecision"], !precision.isEmpty,
+                   TargetDatePrecision(rawValue: precision) == nil { throw Failure.invalid(detail + ": target date precision") }
+                if key == "goals", let raw = v["TargetDateValue"], !raw.isEmpty {
+                    guard let precision = v["TargetDatePrecision"].flatMap(TargetDatePrecision.init(rawValue:)),
+                          !(v["Deadline"] ?? "").isEmpty, GoalTargetTime.components(raw, precision: precision) != nil
+                    else { throw Failure.invalid(detail + ": target date calendar value") }
+                }
                 if key != "accounts" {
                     guard let id = UUID(uuidString: v["ID"] ?? "") else { throw Failure.invalid(detail + ": ID") }
                     guard seen.insert(id).inserted else { throw Failure.duplicateID(detail) }

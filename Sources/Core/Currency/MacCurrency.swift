@@ -91,14 +91,14 @@ enum MacCurrency {
 
     static func ledgerCurrency(in context: ModelContext, preferred: String) throws -> String {
         let requested = try code(preferred)
-        let resolution = resolveLedgerCurrency(
-            transactions: try context.fetch(FetchDescriptor<Transaction>()),
-            deposits: try context.fetch(FetchDescriptor<DepositRecord>()),
-            loans: try context.fetch(FetchDescriptor<LoanRule>()),
-            recurring: try context.fetch(FetchDescriptor<RecurringTransaction>()),
-            preferred: requested
-        )
-        guard resolution.matchesPreference else { throw Failure.mixedBooks }
+        // Posting still rejects any active mismatching book; existence queries need at most one row.
+        var transactions = FetchDescriptor<Transaction>(predicate: #Predicate { $0.deletedAt == nil && $0.baseCurrencyCode != requested })
+        var deposits = FetchDescriptor<DepositRecord>(predicate: #Predicate { $0.deletedAt == nil && $0.baseCurrencyCode != requested })
+        var loans = FetchDescriptor<LoanRule>(predicate: #Predicate { $0.deletedAt == nil && $0.baseCurrencyCode != requested })
+        var recurring = FetchDescriptor<RecurringTransaction>(predicate: #Predicate { $0.deletedAt == nil && $0.baseCurrencyCode != requested })
+        transactions.fetchLimit = 1; deposits.fetchLimit = 1; loans.fetchLimit = 1; recurring.fetchLimit = 1
+        guard try context.fetch(transactions).isEmpty, try context.fetch(deposits).isEmpty,
+              try context.fetch(loans).isEmpty, try context.fetch(recurring).isEmpty else { throw Failure.mixedBooks }
         return requested
     }
 

@@ -91,7 +91,10 @@ struct MacSettingsView: View {
                     ScrollView {
                         VStack(alignment:.leading,spacing:MacUI.space(20)) {
                             pageHeader(compactMenu:compactMenu)
-                            content(wide:wide)
+                            // Compact settings navigation also needs a stacked
+                            // account page: its preview and source controls have
+                            // larger natural widths than the small editor cards.
+                            content(wide: wide && (page != .account || !compactMenu))
                         }.appPadding(22).frame(maxWidth:MacUI.space(1320),alignment:.topLeading).frame(maxWidth:.infinity,alignment:.topLeading)
                     }.accessibilityIdentifier("settingsScroll").id(page.id)
                 }
@@ -182,6 +185,19 @@ struct MacSettingsView: View {
         case .about: MacAboutSettingsView(wide: wide)
         }
     }
+    private var accountLanguageCard: some View {
+        MacSettingsCard(title: "语言与日期", icon: "globe", headerColor: .blue, compactHeader: true) {
+            MacSettingsRow(label: "界面语言", labelWidth: 100) { MacLanguageChoice() }
+            MacSettingsRow(label: "一周开始于", labelWidth: 100) {
+                MacSettingsMenu(selection: $weekStart, options: [("星期一",2), ("星期日",1)]).accessibilityIdentifier("accountWeekStartMenu")
+            }
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("accountLanguageCard")
+    }
+    private var accountAppearanceCard: some View {
+        MacSettingsCard(title: "外观", icon: "paintpalette", headerColor: .blue, compactHeader: true) {
+            MacThemeChoices(theme: $theme)
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("accountAppearanceCard")
+    }
     private func account(wide: Bool) -> some View {
         VStack(spacing: MacUI.space(15)) {
             HStack(spacing: MacUI.space(18)) {
@@ -197,12 +213,9 @@ struct MacSettingsView: View {
                 MacImageImportControl(data: $avatar, title: "更换头像", cropTitle: "裁切头像", label: "头像", circularPreview: true, identifier: "settingsAvatar")
             }.appPadding(22).background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             MacSettingsColumns(wide: wide) {
-                MacSettingsCard(title: "语言与日期", icon: "globe", headerColor: .blue, compactHeader: true) {
-                    MacSettingsRow(label: "界面语言", labelWidth: 100) { MacLanguageChoice() }
-                    MacSettingsRow(label: "一周开始于", labelWidth: 100) { MacSettingsMenu(selection: $weekStart, options: [("星期一",2), ("星期日",1)]).accessibilityIdentifier("accountWeekStartMenu") }
-                }
+                accountLanguageCard
             } right: {
-                MacSettingsCard(title: "外观", icon: "paintpalette", headerColor: .blue, compactHeader: true) { MacThemeChoices(theme: $theme) }
+                accountAppearanceCard
             }
             MacSettingsCard(title: "货币与汇率", icon: "banknote", headerColor: .blue, compactHeader: true) {
                 if wide {

@@ -31,27 +31,42 @@ enum MacCurrencyGlyph {
             }
         }
         guard maxX >= minX, maxY >= minY, let cropped = cg.cropping(to:CGRect(x:minX,y:minY,width:maxX-minX+1,height:maxY-minY+1)) else { return canvas }
-        let image = NSImage(cgImage:cropped,size:NSSize(width:24,height:17))
+        let logicalSize = MacIconMenu.fittedRect(NSSize(width:cropped.width,height:cropped.height),in:NSRect(x:0,y:0,width:24,height:17)).size
+        let image = NSImage(cgImage:cropped,size:logicalSize)
         cached[code] = image; return image
     }
 }
 
-struct MacCurrencyMenu: View {
+struct MacIconMenuOption {
+    var title: String
+    var value: String?
+    var symbol: String? = nil
+    var image: NSImage? = nil
+}
+
+/// Native keyboard/menu tracking and one visual style for icon-and-name dropdowns.
+struct MacIconMenu: View {
     @Binding var selection: String
-    var codes: [String]
+    var options: [MacIconMenuOption]
     var identifier: String
-    var prefixOptions: [(String,String)] = []
-    var suffixOptions: [(String,String)] = []
+    var accessibilityTitle: String
+    var width: CGFloat = MacCurrencyMenuStyle.width
     var body: some View {
-        CurrencyPopup(selection:$selection,codes:codes,identifier:identifier,prefixOptions:prefixOptions,suffixOptions:suffixOptions)
-            .frame(width:MacCurrencyMenuStyle.width,height:MacCurrencyMenuStyle.height)
+        PopupRepresentable(selection:$selection,options:options,width:width,accessibilityTitle:accessibilityTitle,identifier:identifier)
+            .frame(width:width,height:MacCurrencyMenuStyle.height)
     }
-    private struct CurrencyPopup: NSViewRepresentable {
+    static func fittedRect(_ size: NSSize, in slot: NSRect) -> NSRect {
+        guard size.width > 0, size.height > 0 else { return slot }
+        let scale = min(slot.width / size.width, slot.height / size.height)
+        let fitted = NSSize(width:size.width * scale,height:size.height * scale)
+        return NSRect(x:slot.midX-fitted.width/2,y:slot.midY-fitted.height/2,width:fitted.width,height:fitted.height)
+    }
+    private struct PopupRepresentable: NSViewRepresentable {
         @Binding var selection: String
-        var codes: [String]
+        var options: [MacIconMenuOption]
+        var width: CGFloat
+        var accessibilityTitle: String
         var identifier: String
-        var prefixOptions: [(String,String)]
-        var suffixOptions: [(String,String)]
         @Environment(\.isEnabled) private var enabled
         @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
         final class Coordinator: NSObject {
@@ -72,9 +87,15 @@ struct MacCurrencyMenu: View {
                 let flagRect = NSRect(x:12,y:(bounds.height-17)/2,width:24,height:17)
                 NSGraphicsContext.saveGraphicsState()
                 NSBezierPath(roundedRect:flagRect,xRadius:3,yRadius:3).addClip()
-                selectedItem?.image?.draw(in:flagRect)
+                if let image = selectedItem?.image {
+                    let glyph = image.isTemplate
+                        ? image.withSymbolConfiguration(.init(paletteColors:[isEnabled ? NSColor.labelColor : NSColor.disabledControlTextColor])) ?? image
+                        : image
+                    glyph.draw(in: MacIconMenu.fittedRect(glyph.size, in: flagRect))
+                }
                 NSGraphicsContext.restoreGraphicsState()
-                let attributes:[NSAttributedString.Key:Any] = [.font:font ?? NSFont.systemFont(ofSize:16,weight:.semibold),.foregroundColor:isEnabled ? NSColor.labelColor : NSColor.disabledControlTextColor]
+                let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+                let attributes:[NSAttributedString.Key:Any] = [.paragraphStyle:paragraph,.font:font ?? NSFont.systemFont(ofSize:16,weight:.semibold),.foregroundColor:isEnabled ? NSColor.labelColor : NSColor.disabledControlTextColor]
                 let text = titleOfSelectedItem ?? "请选择"
                 let size = (text as NSString).size(withAttributes:attributes)
                 (text as NSString).draw(in:NSRect(x:44,y:(bounds.height-size.height)/2,width:bounds.width-76,height:size.height),withAttributes:attributes)
@@ -93,30 +114,49 @@ struct MacCurrencyMenu: View {
             return popup
         }
         func updateNSView(_ popup:NSPopUpButton,context:Context) {
-            var seen:Set<String> = []
-            let extra = !selection.isEmpty && !(prefixOptions + suffixOptions).contains { $0.1 == selection } ? [selection] : []
-            let values = (codes + extra).filter { !$0.isEmpty && seen.insert($0).inserted }
-            let options = prefixOptions + values.map { ($0,$0) } + suffixOptions
-            let signature = options.map { $0.0 + "\0" + $0.1 }
+            let signature = options.map { $0.title + "\0" + ($0.value ?? "__heading__") + "\0" + ($0.symbol ?? "") }
             if context.coordinator.optionSignature != signature || popup.menu == nil {
-                let menu = NSMenu(); menu.minimumWidth = MacCurrencyMenuStyle.width; menu.autoenablesItems = false
-                for (title,value) in options {
-                    let item = NSMenuItem(title:title,action:nil,keyEquivalent:"")
-                    let image = values.contains(value) ? MacCurrencyGlyph.image(String(value.split(separator:"/").first ?? "")).copy() as? NSImage : NSImage(systemSymbolName:"globe",accessibilityDescription:nil)
-                    image?.size = NSSize(width:24,height:17); item.image = image; menu.addItem(item)
+                let menu = NSMenu(); menu.minimumWidth = width; menu.autoenablesItems = false
+                for option in options {
+                    let item = NSMenuItem(title:option.title,action:nil,keyEquivalent:"")
+                    item.isEnabled = option.value != nil
+                    if let source = option.image ?? option.symbol.flatMap({ NSImage(systemSymbolName:$0,accessibilityDescription:nil) }),
+                       let image = source.copy() as? NSImage {
+                        image.size = MacIconMenu.fittedRect(image.size, in:NSRect(x:0,y:0,width:24,height:17)).size
+                        item.image = image
+                    }
+                    menu.addItem(item)
                 }
                 popup.menu = menu; context.coordinator.optionSignature = signature
             }
-            if let index = options.firstIndex(where: { $0.1 == selection }) { popup.selectItem(at:index) } else { popup.select(nil) }
+            if let index = options.firstIndex(where: { $0.value == selection }) { popup.selectItem(at:index) } else { popup.select(nil) }
             let size = MacUI.fontSize(.body,tier:MacFontSizeTier(rawValue:tier) ?? .standard)
             let font = NSFont.systemFont(ofSize:size,weight:.semibold), menuFont = NSFont.systemFont(ofSize:size,weight:.regular)
             if popup.font != font { popup.font = font }
             if popup.menu?.font != menuFont { popup.menu?.font = menuFont }
             popup.isEnabled = enabled; popup.setAccessibilityIdentifier(identifier)
-            popup.setAccessibilityLabel("货币"); popup.setAccessibilityValue(options.first { $0.1 == selection }?.0 ?? selection)
+            popup.setAccessibilityLabel(accessibilityTitle); popup.setAccessibilityValue(options.first { $0.value == selection }?.title ?? selection)
             popup.target = context.coordinator; popup.action = #selector(Coordinator.selected(_:)); popup.needsDisplay = true
-            context.coordinator.choose = { index in if options.indices.contains(index) { selection = options[index].1 } }
+            context.coordinator.choose = { index in if options.indices.contains(index), let value = options[index].value { selection = value } }
         }
+    }
+}
+
+
+struct MacCurrencyMenu: View {
+    @Binding var selection: String
+    var codes: [String]
+    var identifier: String
+    var prefixOptions: [(String,String)] = []
+    var suffixOptions: [(String,String)] = []
+    var body: some View {
+        var seen:Set<String> = []
+        let extra = !selection.isEmpty && !(prefixOptions + suffixOptions).contains { $0.1 == selection } ? [selection] : []
+        let values = (codes + extra).filter { !$0.isEmpty && seen.insert($0).inserted }
+        let options = prefixOptions.map { MacIconMenuOption(title:$0.0,value:$0.1,symbol:"globe") }
+            + values.map { MacIconMenuOption(title:$0,value:$0,image:MacCurrencyGlyph.image(String($0.split(separator:"/").first ?? ""))) }
+            + suffixOptions.map { MacIconMenuOption(title:$0.0,value:$0.1,symbol:"globe") }
+        return MacIconMenu(selection:$selection,options:options,identifier:identifier,accessibilityTitle:"货币")
     }
 }
 

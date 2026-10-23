@@ -11,25 +11,25 @@ struct MacFinanceReviewView: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(16)) {
-            Text("Review stored schedule").appFont(.dialogTitle, weight: .semibold)
-            Text("Past cash entries are not inferred from dates, amounts or notes. Choose the first occurrence that has not been recorded in your ledger.")
+            Text("核对已有计划").appFont(.dialogTitle, weight: .semibold)
+            Text("请对照账本，选择首个尚未记账的期次。日期、金额和备注不作为历史收付款的证明。")
             switch record {
             case .loan(let loan):
-                Stepper("First unrecorded installment: \(index)", value: $index, in: 1...max(loan.termMonths, 1))
-                Text("The original repayment schedule will create recurring ledger expenses. This does not initiate bank transfers.")
+                Stepper("首个未记账期次：\(index)", value: $index, in: 1...max(loan.termMonths, 1))
+                Text("原还款计划会生成周期记账支出，不会发起银行转账。")
             case .recurring:
-                DatePicker("Next due", selection: $date)
+                MacDateTimeField(title: "下次执行", date: $date, includesTime: true)
             case .deposit(let deposit):
-                if deposit.typedInterestSettlementMode == .monthly { DatePicker("First unrecorded interest date", selection: $date, displayedComponents: .date) }
-                Text("Previously settled deposits stay settled. No historic interest receipt is guessed or recreated.")
+                if deposit.typedInterestSettlementMode == .monthly { MacDateTimeField(title: "首个未记账结息日期", date: $date) }
+                Text("已结清存款保持原状态，不推测或补造历史利息收据。")
             case .goal: EmptyView()
             }
-            Toggle("I have checked the next unrecorded date against my ledger", isOn: $confirmed)
+            Toggle("我已对照账本核对首个未记账日期", isOn: $confirmed)
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
-                Button("Use reviewed schedule") {
+                Button("取消") { dismiss() }
+                Button("使用已核对计划") {
                     do {
                         switch record {
                         case .loan(let r): try MacFinanceReview.loan(r, firstUnrecordedIndex: index, confirmed: confirmed, in: context)
@@ -62,17 +62,17 @@ struct MacLoanScheduleView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(12)) {
             Text(loan.title).appFont(.dialogTitle, weight: .semibold)
-            Text("Loan schedule").appFont(.section, weight: .semibold)
+            Text("贷款计划").appFont(.section, weight: .semibold)
             Text("\(loan.currency) · \(loan.method.rawValue)")
             Table(loan.amortizationSchedule.map { Row(payment: $0) }) {
-                TableColumn("Period") { Text(String($0.payment.index)) }
-                TableColumn("Date") { Text(MacDateDisplay.string($0.payment.date)) }
-                TableColumn("Principal") { Text($0.payment.principal.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("Interest") { Text($0.payment.interest.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("Total") { Text($0.payment.total.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("Remaining") { Text($0.payment.remainingBalance.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn("期次") { Text(String($0.payment.index)) }
+                TableColumn("日期") { Text(MacDateDisplay.string($0.payment.date)) }
+                TableColumn("本金") { Text($0.payment.principal.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn("利息") { Text($0.payment.interest.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn("合计") { Text($0.payment.total.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn("剩余本金") { Text($0.payment.remainingBalance.formatted(.number.precision(.fractionLength(2)))) }
             }.frame(height: MacUI.space(380)).accessibilityIdentifier("loanScheduleTable")
-            HStack { Spacer(); Button("Close") { dismiss() } }
+            HStack { Spacer(); Button("关闭") { dismiss() } }
         }.appPadding(24).appDialog(width: 780)
     }
 }

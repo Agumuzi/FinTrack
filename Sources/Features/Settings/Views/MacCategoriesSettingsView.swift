@@ -8,27 +8,38 @@ enum MacCategoryCatalog {
     static func key(name: String, type: String) -> String { type + ":" + name }
     static func style(name: String, type: String) -> MacCategoryStyle {
         let all: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
-        return all[key(name: name, type: type)] ?? MacCategoryStyle(symbol: defaultSymbol(name), color: type == "Income" ? "green" : "orange")
+        return style(name: name, type: type, in: all)
+    }
+    static func style(name: String, type: String, in all: [String: MacCategoryStyle]) -> MacCategoryStyle {
+        all[key(name: name, type: type)] ?? MacCategoryStyle(symbol: defaultSymbol(name), color: type == "Income" ? "green" : "orange")
     }
     static func emoji(name: String, type: String = "Expense") -> String {
         let value = style(name: name, type: type)
-        return value.emoji.flatMap { MacCategoryEmoji.isValid($0) ? $0 : nil } ?? MacCategoryEmoji.fallback(symbol: value.symbol, name: name)
+        return emoji(style: value, name: name)
+    }
+    static func emoji(style value: MacCategoryStyle, name: String) -> String {
+        value.emoji.flatMap { MacCategoryEmoji.isValid($0) ? $0 : nil } ?? MacCategoryEmoji.fallback(symbol: value.symbol, name: name)
     }
     static func defaultSymbol(_ name: String) -> String {
         switch name { case "Dining", "餐饮": "fork.knife"; case "Shopping", "购物": "cart"; case "Housing", "住房": "house"; case "Salary", "工资": "banknote"; case "交通": "car"; default: "tag" }
     }
     static func usage(_ row: Category, in context: ModelContext) throws -> Int {
-        let transactions = try context.fetch(FetchDescriptor<Transaction>()).filter { $0.type == row.type && $0.category == row.name }.count
-        let rules = try context.fetch(FetchDescriptor<RecurringTransaction>()).filter { $0.typedType.storageValue == row.type && $0.category == row.name }.count
-        let loans = row.type == "Expense" ? try context.fetch(FetchDescriptor<LoanRule>()).filter { $0.category == row.name }.count : 0
-        let budgets: [MacBudget] = MacSettingsStore.load("v2_budgets", fallback: [])
-        return transactions + rules + loans + budgets.filter { $0.categoryID == row.id || ($0.categoryID == nil && $0.categoryName == row.name && row.type == "Expense") }.count
+        try MacCategoryUsageSnapshot.load(in: context).count(for: row)
     }
     static func remove(_ row: Category, in context: ModelContext) throws {
         guard !CategoryUsageHelper.isProtectedCategory(row) else { throw MacSettingsFailure.invalid("系统结息与贷款分类受保护") }
         guard try usage(row, in: context) == 0 else { throw MacSettingsFailure.invalid("此分类仍被账目、规则或预算引用，请先重命名或合并分类") }
         context.delete(row)
         do { try context.save() } catch { context.rollback(); throw error }
+    }
+    static func reorder(_ rows: [Category], type: String) throws {
+        var all: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
+        for (index, row) in rows.enumerated() {
+            var value = style(name: row.name, type: type, in: all)
+            value.order = index
+            all[key(name: row.name, type: type)] = value
+        }
+        try MacSettingsStore.save(all, key: "v2_category_styles")
     }
     static func saveStyle(_ style: MacCategoryStyle, name: String, type: String) throws {
         guard style.emoji == nil || MacCategoryEmoji.isValid(style.emoji!) else { throw MacSettingsFailure.invalid("请选择或输入一个 emoji") }
@@ -43,11 +54,12 @@ struct MacCategoryBadge: View {
     var type = "Expense"
     var size: CGFloat = 32
     var filled = true
+    var suppliedStyle: MacCategoryStyle? = nil
     @AppStorage("v2_category_styles") private var revision = Data()
     var body: some View {
         let _ = revision
-        let style = MacCategoryCatalog.style(name: name, type: type)
-        Text(MacCategoryCatalog.emoji(name: name, type: type)).appIconFont(size * 0.6, weight: .regular, design: .default).frame(width: MacUI.space(size), height: MacUI.space(size))
+        let style = suppliedStyle ?? MacCategoryCatalog.style(name: name, type: type)
+        Text(MacCategoryCatalog.emoji(style: style, name: name)).appIconFont(size * 0.6, weight: .regular, design: .default).frame(width: MacUI.space(size), height: MacUI.space(size))
             .foregroundStyle(.primary).background(MacAccent.color(style.color).opacity(filled ? 0.14 : 0.1), in: RoundedRectangle(cornerRadius: 8))
             .accessibilityHidden(true)
     }
@@ -58,6 +70,10 @@ struct MacCategoriesSettingsView: View {
     @Environment(\.modelContext) private var context
     @Query private var categories: [Category]
     @AppStorage("v2_category_styles") private var revision = Data()
+    @State private var usageSnapshot: MacCategoryUsageSnapshot?
+    @State private var styles: [String: MacCategoryStyle] = [:]
+    @State private var usageRevision = 0
+    @AppStorage("v2_budgets") private var budgetRevision = Data()
     @State private var type = "Expense"
     @State private var selectedID: UUID?
     @State private var name = ""
@@ -75,11 +91,12 @@ struct MacCategoriesSettingsView: View {
     private var rows: [Category] {
         let _ = revision
         return categories.filter { $0.deletedAt == nil && $0.type == type }.sorted {
-            let a = MacCategoryCatalog.style(name: $0.name, type: type).order, b = MacCategoryCatalog.style(name: $1.name, type: type).order
+            let a = MacCategoryCatalog.style(name: $0.name, type: type, in: styles).order, b = MacCategoryCatalog.style(name: $1.name, type: type, in: styles).order
             return a == b ? $0.createdAt < $1.createdAt : a < b
         }
     }
     var body: some View {
+        let rows = self.rows
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
             HStack(spacing: MacUI.space(0)) {
                 categoryTab("支出分类", value: "Expense", icon: "arrow.down", color: .red)
@@ -93,14 +110,15 @@ struct MacCategoriesSettingsView: View {
                             HStack(spacing: MacUI.space(9)) {
                                 Button { select(row) } label: {
                                     HStack(spacing: MacUI.space(13)) {
-                                        MacCategoryBadge(name: row.name, type: row.type, size: 34)
+                                        MacCategoryBadge(name: row.name, type: row.type, size: 34, suppliedStyle: MacCategoryCatalog.style(name: row.name, type: row.type, in: styles))
                                         Text(MacOverviewStyle.category(row.name)).appFont(.body, weight: .medium, design: .default)
                                         Spacer(minLength: 0)
-                                        Text((try? MacCategoryCatalog.usage(row, in: context)).map { String($0) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(55))
+                                        Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(55))
                                     }.contentShape(Rectangle())
                                 }.buttonStyle(.plain).accessibilityIdentifier("settingsCategoryRow-" + row.name)
                                 Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                 Menu { Button("编辑") { select(row) }; Button("上移") { move(row, by: -1) }.disabled(index == 0); Button("下移") { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(24)) }.menuStyle(.borderlessButton).fixedSize()
+                                    .accessibilityLabel("分类操作：" + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
                             }.appPadding(.horizontal, 9).appMinHeight(51).background(selectedID == row.id ? MacSettingsVisual.accent.opacity(0.04) : .clear)
                             Divider()
                         }
@@ -123,7 +141,7 @@ struct MacCategoriesSettingsView: View {
                         HStack { Spacer(); Button("保存修改") { if let selected, name.trimmingCharacters(in: .whitespacesAndNewlines) != selected.name && name != MacOverviewStyle.category(selected.name) { rename = true } else { save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveManagedCategory") }
                     }
                     MacSettingsCard(title: "分类使用", icon: "doc.text", subtitle: "本分类用于记账、周期规则与预算。", headerColor: .gray) {
-                        if let selected { LabeledContent("历史引用", value: (try? MacCategoryCatalog.usage(selected, in: context)).map { "\($0) 次" } ?? "待核对") }
+                        if let selected { LabeledContent("历史引用", value: usageSnapshot.map { "\($0.count(for: selected)) 次" } ?? "待核对") }
                         Text("重命名会同步更新已有引用；被使用的分类不可直接删除。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                     }
                 }
@@ -137,9 +155,18 @@ struct MacCategoriesSettingsView: View {
             }.appPadding(26)
         }
         .onAppear {
-            do { try MacDataManagement.reconcileCategories(in: context); select(rows.first) }
-            catch { self.error = MacLocalization.error(error) }
+            refreshStyles(); select(rows.first)
         }
+        .task(id: usageRevision) { refreshUsage() }
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { notification in
+            if let saved = notification.object as? ModelContext, saved.container !== context.container { return }
+            usageRevision &+= 1
+        }
+        .onReceive(NotificationCenter.default.publisher(for: MacSettingsStore.restoreCompleted)) { _ in
+            refreshStyles(); usageRevision &+= 1
+        }
+        .onChange(of: budgetRevision) { usageRevision &+= 1 }
+        .onChange(of: revision) { refreshStyles() }
         .onChange(of: type) { select(rows.first) }
         .alert("更新分类及全部引用？", isPresented: $rename) {
             Button("取消", role: .cancel) {}
@@ -184,19 +211,30 @@ struct MacCategoriesSettingsView: View {
                     if let target { order = MacCategoryCatalog.style(name: target.name, type: type).order }
                     try MacDataManagement.rename(selected, to: clean, in: context)
                     selectedID = target?.id ?? oldID
+                    clean = target?.name ?? selected.name
                 } else { clean = oldName }
             } else {
                 let row = CategoryUsageHelper.ensureCategoryExists(name: clean, type: type, in: context, existingCategories: categories)
                 try context.save(); selectedID = row?.id; clean = row?.name ?? clean
             }
             try MacCategoryCatalog.saveStyle(.init(symbol: symbol, color: color, order: order, emoji: emoji), name: clean, type: type)
+            // Coalesce save and budget notifications into the task below.
+            // A style-only save does not change references.
+            refreshStyles()
             name = clean; error = nil; message = "分类已保存"
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
+    }
+    private func refreshStyles() {
+        styles = MacSettingsStore.load("v2_category_styles", fallback: [:])
+    }
+    private func refreshUsage() {
+        do { usageSnapshot = try MacCategoryUsageSnapshot.load(in: context) }
+        catch { usageSnapshot = nil; self.error = MacLocalization.error(error) }
     }
     private func move(_ row: Category, by offset: Int) {
         var list = rows; guard let index = list.firstIndex(where: { $0.id == row.id }), list.indices.contains(index + offset) else { return }
         list.swapAt(index, index + offset)
-        do { for (index, item) in list.enumerated() { var style = MacCategoryCatalog.style(name: item.name, type: type); style.order = index; try MacCategoryCatalog.saveStyle(style, name: item.name, type: type) } }
+        do { try MacCategoryCatalog.reorder(list, type: type); refreshStyles() }
         catch { self.error = MacLocalization.error(error) }
     }
 }

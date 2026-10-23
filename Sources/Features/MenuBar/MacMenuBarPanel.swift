@@ -84,28 +84,3 @@ struct MacMenuBarPanel: View {
         }
     }
 }
-
-struct MacStandaloneFXWorkspace: View {
-    @ObservedObject var runtime: MacApplicationRuntime
-    @State private var page = "rates"
-    @AppStorage("color_theme_mode", store: MacPreferences.defaults) private var theme = "system"
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Picker("页面", selection: $page) { Text("汇率列表").tag("rates"); Text("汇率换算").tag("converter"); Text("货币与汇率").tag("settings") }
-                    .pickerStyle(.segmented).frame(maxWidth: 520).accessibilityIdentifier("standaloneFXPage")
-                Spacer()
-            }
-            switch page {
-            case "converter": MacFXConverterView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query)
-            case "settings": ScrollView { VStack(spacing: 16) { MacAppEntrySettingsCard(); MacFXPreferencesView() } }
-            default: MacFXRatesView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query)
-            }
-        }.frame(minWidth: 640, minHeight: 460)
-            .tint(MacUI.accent)
-            .background(MacOverviewStyle.canvas)
-            .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
-            .onAppear { if runtime.showsSettings { page = "settings" } }
-            .onChange(of: runtime.settingsRequest) { _, _ in page = "settings" }
-    }
-}

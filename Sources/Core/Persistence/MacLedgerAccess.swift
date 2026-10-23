@@ -12,6 +12,12 @@ final class MacLedgerAccess: ObservableObject {
     private(set) var containerOpenCount = 0
     var container: ModelContainer? { if case .ready(let c, _) = state { return c }; return nil }
 
+    func retry() {
+        guard case .failed = state else { return }
+        state = .notLoaded
+        load()
+    }
+
     func load(createIfMissing: Bool = false) {
         if case .ready = state { return }
         if case .failed = state { return }
@@ -29,8 +35,16 @@ final class MacLedgerAccess: ObservableObject {
         else {
             let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             let store = support.appendingPathComponent("FinTrackMac", isDirectory: true).appendingPathComponent("FinTrack.sqlite")
-            guard createIfMissing || FileManager.default.fileExists(atPath: store.path) else { state = .unconfigured; return }
+            // First use opens the built-in empty ledger. Existing-store failures stay failed;
+            // this path never removes, replaces, or retries with a different database.
             url = store
+        }
+        // Missing main file plus SQLite sidecars can be an incomplete recovery,
+        // not a fresh installation. Preserve every byte and ask for recovery.
+        if let url, !FileManager.default.fileExists(atPath:url.path),
+           ["-wal", "-shm"].contains(where:{ FileManager.default.fileExists(atPath:url.path + $0) }) {
+            state = .failed("检测到账本辅助文件，但主数据库缺失。请保留原目录并从完整备份恢复，未创建新账本。")
+            return
         }
         let schema = Schema([Account.self, Transaction.self, Category.self, Goal.self, FinancialProfile.self, RecurringTransaction.self, DepositRecord.self, LoanRule.self])
         let config = url.map { ModelConfiguration(schema: schema, url: $0, cloudKitDatabase: .none) }
@@ -48,6 +62,8 @@ final class MacLedgerAccess: ObservableObject {
                     try context.save()
                 }
             }
+            // Once per container open; imports and native restores repair inside their own transaction.
+            try MacDataManagement.reconcileCategories(in: container.mainContext)
             state = .ready(container, lease)
         } catch { state = .failed(String(describing: error)) }
     }
@@ -57,6 +73,7 @@ struct MacLedgerWorkspaceGate: View {
     @ObservedObject private var access = MacLedgerAccess.shared
     @ObservedObject private var runtime = MacApplicationRuntime.shared
     @ObservedObject private var monitor = MacFXApplication.shared.monitor
+    @State private var recoveryHelp = false
     var body: some View {
         Group {
             switch access.state {
@@ -65,21 +82,34 @@ struct MacLedgerWorkspaceGate: View {
             case .failed(let error):
                 VStack(alignment: .leading, spacing: 12) {
                     Text("账本暂时无法打开").appFont(.section, weight: .semibold).accessibilityIdentifier("ledgerUnavailable")
-                    Text("未用空账本替换原数据。汇率查询和换算仍可使用。").appFont(.body, weight: .regular)
-                    Text(error).appFont(.caption, weight: .regular).textSelection(.enabled)
-                    MacStandaloneFXWorkspace(runtime: runtime)
+                    Text("原账本保持原样。可重试打开，或先保留文件再安排恢复；菜单栏汇率仍可使用。").appFont(.body, weight: .regular)
+                    DisclosureGroup("查看错误详情") {
+                        Text(error).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }.accessibilityIdentifier("ledgerFailureDetails")
+                    HStack {
+                        Button("重试打开账本") { access.retry() }.accessibilityIdentifier("retryLedger")
+                        Button("安全恢复说明") { recoveryHelp.toggle() }.accessibilityIdentifier("ledgerRecoveryHelp")
+                    }
+                    if recoveryHelp { Text("先退出应用，保留原账本目录及 SQLite、WAL、SHM 文件的完整副本。不要删除原库或以空库覆盖。若重试仍失败，应在隔离副本验证恢复方案后再处理原库。").appFont(.body, weight: .regular).textSelection(.enabled) }
+                    MacAppEntrySettingsCard()
                 }.padding(20)
             case .unconfigured, .notLoaded:
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         VStack(alignment: .leading, spacing: 5) {
                             Text("FinTrack").appFont(.pageTitle, weight: .bold)
-                            Text("可以直接查询汇率与换算，也可以开始记账。").appFont(.body, weight: .regular).foregroundStyle(.secondary).accessibilityIdentifier("ledgerNotConfigured")
+                            Text("创建账本，或从备份导入已有数据。汇率查询与换算可通过菜单栏使用。").appFont(.body, weight: .regular).foregroundStyle(.secondary).accessibilityIdentifier("ledgerNotConfigured")
                         }
                         Spacer()
                         Button("开始记账") { access.load(createIfMissing: true) }.buttonStyle(MacSettingsButtonStyle(primary: true, height: 40)).accessibilityIdentifier("beginBookkeeping")
                     }
-                    MacStandaloneFXWorkspace(runtime: runtime)
+                    Button("导入或恢复备份…") {
+                        MacPreferences.defaults.set("backup", forKey: "v2_settings_page")
+                        FinTrackMacApp.workspace.section = .settings
+                        access.load(createIfMissing: true)
+                    }.accessibilityIdentifier("beginImportBookkeeping")
+                    Text("导入将在创建账本后进入备份预览；恢复仍需确认并保存安全副本。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                    MacAppEntrySettingsCard()
                 }.padding(20)
             }
         }

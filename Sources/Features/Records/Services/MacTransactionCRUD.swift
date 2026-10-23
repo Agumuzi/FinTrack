@@ -58,6 +58,13 @@ enum MacTransactionCRUD {
         return try cleanCurrency(currencies.first ?? preferredCurrency)
     }
 
+    /// Editing text is independent of display preferences. Untouched legacy values round-trip exactly.
+    static func amountEditingText(_ value: Double) -> String { String(value) }
+    static func editedAmount(_ text: String, original: Double) throws -> Double {
+        if text == amountEditingText(original), original.isFinite, original > 0, original <= 1_000_000_000_000 { return original }
+        return try amount(text)
+    }
+
     static func amount(_ text: String) throws -> Double {
         let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: ",", with: ".")

@@ -40,15 +40,15 @@ struct MacFinancialProfileEditor: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
-            Text("Initial assets and debt").appFont(.dialogTitle, weight: .semibold)
+            Text("初始资产与负债").appFont(.dialogTitle, weight: .semibold)
             Text(currency).foregroundStyle(.secondary)
-            TextField("Initial assets", text: $assets).accessibilityIdentifier("profileAssets")
-            TextField("Initial debt", text: $debt).accessibilityIdentifier("profileDebt")
+            TextField("初始资产", text: $assets).accessibilityIdentifier("profileAssets")
+            TextField("初始负债", text: $debt).accessibilityIdentifier("profileDebt")
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Save") {
+                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("保存") {
                     do {
                         try MacFinancialSettings.saveProfile(assets: assets, debt: debt, currency: currency, in: context)
                         dismiss()

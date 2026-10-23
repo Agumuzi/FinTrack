@@ -16,7 +16,9 @@ private struct OverviewCard<Content: View>: View {
 
 struct MacOverviewView: View {
     let bookCurrency: String?
-    @EnvironmentObject private var workspace: MacWorkspaceSession
+    // This page only sends navigation actions. Observing section changes also
+    // rebuilt the outgoing page before SwiftUI removed it from the hierarchy.
+    let workspace: MacWorkspaceSession
     @Environment(\.modelContext) private var context
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
@@ -26,7 +28,6 @@ struct MacOverviewView: View {
     @Query(sort: \FinancialProfile.createdAt) private var profiles: [FinancialProfile]
     @State private var scope = MacOverviewScope()
     @State private var trendMonths = MacPreferences.defaults.object(forKey: "v2_chart_months") as? Int ?? 6
-    @State private var hoveredMonth: MacOverviewData.Month?
     @State private var showsGoals = false
     @State private var showsAssets = false
     @State private var showsProfileEditor = false
@@ -38,27 +39,25 @@ struct MacOverviewView: View {
     private var currency: String { bookCurrency ?? "—" }
     private var periodRows: [Transaction] {
         guard bookCurrency != nil else { return [] }
-        return transactions.filter { scope.matches($0, currency: currency) }
+        return scope.matching(transactions, currency: currency)
     }
     private var totals: (income: Double, expense: Double, net: Double) {
         MacTransactionCRUD.totals(transactions: periodRows, currency: currency)
     }
     private var previous: (income: Double, expense: Double, net: Double)? {
         guard let range = scope.previousInterval(), bookCurrency != nil else { return nil }
-        return MacTransactionCRUD.totals(transactions: transactions.filter { scope.matches($0, currency: currency, interval: range) }, currency: currency)
+        return MacTransactionCRUD.totals(transactions: scope.matching(transactions, currency: currency, interval: range), currency: currency)
     }
     private var categoryRows: [MacOverviewData.Bucket] {
         var allCategories = scope; allCategories.category = nil
-        return MacOverviewData.categories(transactions.filter { allCategories.matches($0, currency: currency) }, type: scope.type ?? .expense)
+        return MacOverviewData.categories(allCategories.matching(transactions, currency: currency), type: scope.type ?? .expense)
     }
     private var categoryScopeRows: [Transaction] {
         var filter = scope; filter.type = nil
-        return transactions.filter { filter.matches($0, currency: currency) }
+        return filter.matching(transactions, currency: currency)
     }
     private var expenses: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .expense) }
     private var incomes: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .income) }
-    private var expenseCategoryTotal: Double { expenses.reduce(0) { $0 + $1.amount } }
-    private var incomeCategoryTotal: Double { incomes.reduce(0) { $0 + $1.amount } }
     private var trend: [MacOverviewData.Month] { MacOverviewData.months(transactions, scope: scope, currency: currency, count: trendMonths) }
     private var profile: FinancialProfile? { profiles.first { $0.deletedAt == nil } }
     private var snapshot: FinancialProfileSnapshot {
@@ -73,6 +72,11 @@ struct MacOverviewView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let categoryScopeRows = self.categoryScopeRows
+            let incomes = MacOverviewData.categories(categoryScopeRows, type: .income)
+            let expenses = MacOverviewData.categories(categoryScopeRows, type: .expense)
+            let incomeCategoryTotal = incomes.reduce(0) { $0 + $1.amount }
+            let expenseCategoryTotal = expenses.reduce(0) { $0 + $1.amount }
             let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(950))
             HStack(spacing: MacUI.space(0)) {
                 filterPanel.frame(width: filterWidth); Divider()
@@ -83,7 +87,7 @@ struct MacOverviewView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: MacUI.space(15)) {
                         header
-                        MacInAppReminders()
+                        MacInAppReminders(workspace: workspace)
                         if bookCurrency == nil {
                             Label("账本包含不同本位币，请先在设置中核对后再汇总。", systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange).accessibilityIdentifier("overviewMixedCurrency")
@@ -179,7 +183,8 @@ struct MacOverviewView: View {
         }.appPadding(18).frame(maxHeight: .infinity).background(MacOverviewStyle.filters)
     }
     private var filterControls: some View {
-        VStack(alignment: .leading, spacing: MacUI.space(18)) {
+        let categoryRows = self.categoryRows
+        return VStack(alignment: .leading, spacing: MacUI.space(18)) {
             Text("时间范围").appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: MacUI.space(7)) {
                 ForEach(MacOverviewScope.Period.allCases) { period in
@@ -211,8 +216,8 @@ struct MacOverviewView: View {
                         .accessibilityLabel("下一期间").accessibilityIdentifier("overviewNextPeriod")
                 }.buttonStyle(.plain).appPadding(10).background(MacOverviewStyle.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 9))
             } else if scope.period == .custom {
-                DatePicker("开始", selection: $scope.from, displayedComponents: .date).accessibilityIdentifier("overviewFrom")
-                DatePicker("结束", selection: $scope.through, displayedComponents: .date).accessibilityIdentifier("overviewThrough")
+                MacDateTimeField(title: "开始", date: $scope.from).accessibilityIdentifier("overviewFrom")
+                MacDateTimeField(title: "结束", date: $scope.through).accessibilityIdentifier("overviewThrough")
             }
             Divider()
             Text("收支类型").appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
@@ -250,6 +255,8 @@ struct MacOverviewView: View {
     }
 
     private func metrics(contentWidth: CGFloat) -> some View {
+        // One read-only result per render, with no persistent cache or invalidation policy.
+        let totals = self.totals, previous = self.previous, snapshot = self.snapshot
         let tier = MacUI.fontTier
         let font = NSFont.monospacedDigitSystemFont(ofSize: MacUI.fontSize(.amount, tier: tier), weight: .semibold)
         let currencyFont = NSFont.systemFont(ofSize: MacUI.fontSize(.caption, tier: tier), weight: .medium)
@@ -317,72 +324,19 @@ struct MacOverviewView: View {
     }
 
     private var trendCard: some View {
-        OverviewCard(help: "点击查看趋势期间的账目；类别和收支筛选同步生效", height: 250) {
-            VStack(alignment: .leading, spacing: MacUI.space(16)) {
-                HStack {
-                    Text("收支趋势").appFont(.body, weight: .semibold, design: .default); Spacer()
-                    Picker("趋势范围", selection: $trendMonths) {
-                        Text("近 6 个月").tag(6); Text("近 12 个月").tag(12)
-                    }.labelsHidden().frame(width: MacUI.space(113)).accessibilityIdentifier("overviewTrendRange")
-                    Button { var records = scope; records.period = .custom; records.from = trend.first?.id ?? scope.reference; records.through = Calendar.current.dateInterval(of: .month, for: scope.reference)!.end.addingTimeInterval(-1); workspace.showRecords(records) } label: { Image(systemName: "arrow.up.right") }
-                        .buttonStyle(.plain).help("查看趋势账目")
-                }
-                Chart(trend) { month in
-                    BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.income))
-                        .position(by: .value("类型", "收入")).foregroundStyle(by: .value("类型", "收入"))
-                        .cornerRadius(3)
-                    BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.expense))
-                        .position(by: .value("类型", "支出")).foregroundStyle(by: .value("类型", "支出"))
-                        .cornerRadius(3)
-                }
-                .chartForegroundStyleScale(["收入": MacOverviewStyle.income, "支出": MacOverviewStyle.expense])
-                .chartXAxis { AxisMarks(values: .stride(by: .month)) { _ in AxisValueLabel(format: .dateTime.month(.defaultDigits), centered: true) } }
-                .chartYAxis { AxisMarks(position: .leading) { _ in AxisGridLine(); AxisValueLabel() } }
-                .chartLegend(position: .top, alignment: .trailing)
-                .chartOverlay { proxy in
-                    GeometryReader { geometry in
-                        Rectangle().fill(.clear).contentShape(Rectangle())
-                            .onContinuousHover { phase in
-                                switch phase {
-                                case .active(let point):
-                                    guard let anchor = proxy.plotFrame else { return }
-                                    let frame = geometry[anchor]
-                                    guard frame.contains(point), let date: Date = proxy.value(atX: point.x - frame.minX) else { hoveredMonth = nil; return }
-                                    hoveredMonth = trend.first { Calendar.current.isDate($0.id, equalTo: date, toGranularity: .month) }
-                                case .ended: hoveredMonth = nil
-                                }
-                            }
-                            .onTapGesture {
-                                guard let month = hoveredMonth, let range = Calendar.current.dateInterval(of: .month, for: month.id) else { return }
-                                var records = scope; records.period = .custom; records.from = range.start; records.through = range.end.addingTimeInterval(-1)
-                                workspace.showRecords(records)
-                            }
-                    }
-                }
-                .overlay(alignment: .topLeading) {
-                    if let month = hoveredMonth {
-                        VStack(alignment: .leading, spacing: MacUI.space(5)) {
-                            Text(month.id, format: .dateTime.year().month()).fontWeight(.semibold)
-                            Text("收入  \(MacOverviewStyle.money(month.income)) \(currency)")
-                            Text("支出  \(MacOverviewStyle.money(month.expense)) \(currency)")
-                        }.appFont(.caption, weight: .regular, design: .default).monospacedDigit().appPadding(9)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9))
-                            .allowsHitTesting(false)
-                    }
-                }
-                .appMinHeight(140).accessibilityIdentifier("overviewTrendChart")
-                Text("至\(scope.reference.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_Hans_CN")))) · 同类别筛选 · \(currency)").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
-            }
-        }
+        MacOverviewTrendCard(scope: scope, currency: currency, trendMonths: $trendMonths,
+                             trend: trend, showRecords: { workspace.showRecords($0) })
     }
     private var goalCard: some View {
-        Button { showsGoals = true } label: {
+        let snapshot = self.snapshot
+        return Button { showsGoals = true } label: {
             OverviewCard(help: "查看、新建、编辑或暂停财务目标", height: 250) {
                 VStack(alignment: .leading, spacing: MacUI.space(13)) {
                     HStack { Text("财务目标").appFont(.body, weight: .semibold, design: .default); Spacer(); Image(systemName: "arrow.up.right").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                     if let goal = currentGoal {
+                        let presentation = goalPresentation(goal)
                         HStack(spacing: MacUI.space(9)) {
-                            MacSettingsIcon(symbol: goalPresentation(goal).icon, color: MacAccent.color(goalPresentation(goal).color), size: 30)
+                            MacSettingsIcon(symbol: presentation.icon, color: MacAccent.color(presentation.color), size: 30)
                             Text(goal.title).appFont(.body, weight: .regular, design: .default).lineLimit(1)
                         }
                         Text("\(MacOverviewStyle.money(goal.targetAmount)) \(currency)").appFont(.amount, weight: .semibold, design: .default).monospacedDigit().fixedSize(horizontal: false, vertical: true)
@@ -391,7 +345,7 @@ struct MacOverviewView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: MacUI.space(6)) { Text("当前净资产").foregroundStyle(.secondary); Text(bookCurrency == nil ? "待核对币种" : "\(MacOverviewStyle.money(snapshot.netWorth)) \(currency)").monospacedDigit() }
                             Spacer()
-                            VStack(alignment: .leading, spacing: MacUI.space(6)) { Text("目标日期").foregroundStyle(.secondary); Text(goal.deadline.map { MacDateDisplay.string($0) } ?? "未设置") }
+                            VStack(alignment: .leading, spacing: MacUI.space(6)) { Text("期望时间").foregroundStyle(.secondary); Text(MacGoalTargetDate.label(goal)) }
                         }.appFont(.caption, weight: .regular, design: .default)
                         Text(goal.isPaused ? "已暂停" : (goal.includesCurrentAssets ? "净资产目标 · 当前状态" : "新增资产目标 · 当前状态")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                     } else {
@@ -653,7 +607,8 @@ struct MacOverviewView: View {
         }.frame(maxWidth: .infinity)
     }
     private var assetDetails: some View {
-        VStack(alignment: .leading, spacing: MacUI.space(13)) {
+        let snapshot = self.snapshot
+        return VStack(alignment: .leading, spacing: MacUI.space(13)) {
             Text("当前资产与负债").appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("overviewAssetDetails")
             Text("时点：\(MacDateDisplay.string(Date())) · \(currency)").foregroundStyle(.secondary)
             LabeledContent("可用资产", value: MacOverviewStyle.money(snapshot.availableAssets))
@@ -838,4 +793,75 @@ private struct MacOverviewMetricDetails: View {
             }
         }
     }
+}
+
+/// Pointer movement updates only the chart, not ledger queries and all cards.
+private struct MacOverviewTrendCard: View {
+    let scope: MacOverviewScope
+    let currency: String
+    @Binding var trendMonths: Int
+    let trend: [MacOverviewData.Month]
+    let showRecords: (MacOverviewScope) -> Void
+    @State private var hoveredMonth: MacOverviewData.Month?
+
+    var body: some View {
+        OverviewCard(help: "点击查看趋势期间的账目；类别和收支筛选同步生效", height: 250) {
+            VStack(alignment: .leading, spacing: MacUI.space(16)) {
+                HStack {
+                    Text("收支趋势").appFont(.body, weight: .semibold, design: .default); Spacer()
+                    Picker("趋势范围", selection: $trendMonths) {
+                        Text("近 6 个月").tag(6); Text("近 12 个月").tag(12)
+                    }.labelsHidden().frame(width: MacUI.space(113)).accessibilityIdentifier("overviewTrendRange")
+                    Button { var records = scope; records.period = .custom; records.from = trend.first?.id ?? scope.reference; records.through = Calendar.current.dateInterval(of: .month, for: scope.reference)!.end.addingTimeInterval(-1); showRecords(records) } label: { Image(systemName: "arrow.up.right") }
+                        .buttonStyle(.plain).help("查看趋势账目")
+                }
+                Chart(trend) { month in
+                    BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.income))
+                        .position(by: .value("类型", "收入")).foregroundStyle(by: .value("类型", "收入"))
+                        .cornerRadius(3)
+                    BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.expense))
+                        .position(by: .value("类型", "支出")).foregroundStyle(by: .value("类型", "支出"))
+                        .cornerRadius(3)
+                }
+                .chartForegroundStyleScale(["收入": MacOverviewStyle.income, "支出": MacOverviewStyle.expense])
+                .chartXAxis { AxisMarks(values: .stride(by: .month)) { _ in AxisValueLabel(format: .dateTime.month(.defaultDigits), centered: true) } }
+                .chartYAxis { AxisMarks(position: .leading) { _ in AxisGridLine(); AxisValueLabel() } }
+                .chartLegend(position: .top, alignment: .trailing)
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle().fill(.clear).contentShape(Rectangle())
+                            .onContinuousHover { phase in
+                                switch phase {
+                                case .active(let point):
+                                    guard let anchor = proxy.plotFrame else { return }
+                                    let frame = geometry[anchor]
+                                    guard frame.contains(point), let date: Date = proxy.value(atX: point.x - frame.minX) else { hoveredMonth = nil; return }
+                                    hoveredMonth = trend.first { Calendar.current.isDate($0.id, equalTo: date, toGranularity: .month) }
+                                case .ended: hoveredMonth = nil
+                                }
+                            }
+                            .onTapGesture {
+                                guard let month = hoveredMonth, let range = Calendar.current.dateInterval(of: .month, for: month.id) else { return }
+                                var records = scope; records.period = .custom; records.from = range.start; records.through = range.end.addingTimeInterval(-1)
+                                showRecords(records)
+                            }
+                    }
+                }
+                .overlay(alignment: .topLeading) {
+                    if let month = hoveredMonth {
+                        VStack(alignment: .leading, spacing: MacUI.space(5)) {
+                            Text(month.id, format: .dateTime.year().month()).fontWeight(.semibold)
+                            Text("收入  \(MacOverviewStyle.money(month.income)) \(currency)")
+                            Text("支出  \(MacOverviewStyle.money(month.expense)) \(currency)")
+                        }.appFont(.caption, weight: .regular, design: .default).monospacedDigit().appPadding(9)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9))
+                            .allowsHitTesting(false)
+                    }
+                }
+                .appMinHeight(140).accessibilityIdentifier("overviewTrendChart")
+                Text("至\(scope.reference.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_Hans_CN")))) · 同类别筛选 · \(currency)").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
+            }
+        }
+    }
+
 }

@@ -15,6 +15,8 @@ struct MacBackupRecord: Codable, Identifiable {
 struct MacBackupSettingsView: View {
     var wide: Bool
     @Environment(\.modelContext) private var context
+    @EnvironmentObject private var feedback: MacOperationFeedbackCenter
+    @State private var pendingFeedback: MacOperationFeedbackCenter.Notice?
     @AppStorage("base_currency") private var baseCurrency = "USD"
     @AppStorage("fintrack_initial_setup_complete") private var setup = false
     @AppStorage("v2_backup_history") private var historyBytes = Data()
@@ -98,7 +100,7 @@ struct MacBackupSettingsView: View {
             Button("取消", role: .cancel) {}
             Button("移到废纸篓", role: .destructive) { deleteBackups() }
         } message: { Text("只处理选中的备份文件，不修改账本；文件可从访达废纸篓恢复。") }
-        .sheet(item: $nativeReview) { item in
+        .sheet(item: $nativeReview, onDismiss: presentPendingFeedback) { item in
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
                 Text("恢复预览").appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("nativeRestorePreviewTitle")
                 Text(item.filename).appFont(.section, weight: .semibold)
@@ -120,15 +122,17 @@ struct MacBackupSettingsView: View {
                     Button("保存安全副本并恢复…", role: .destructive) { restore(item) }.disabled(restoreText != "恢复账本").accessibilityIdentifier("commitNativeRestore")
                 }
             }.appPadding(28).appDialog(width: 570)
+                .modifier(MacOperationFeedbackPresenter(center:feedback,location:.nativePreview))
         }
-        .sheet(item: $csvReview) { item in
+        .sheet(item: $csvReview, onDismiss: presentPendingFeedback) { item in
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
                 Text("检查 CSV 导入").appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("csvImportReviewTitle")
                 Text(item.filename)
                 Text("数据类型：\(item.preview.kind?.title ?? "旧版完整数据")")
                 Text("记录数量：\(item.preview.count)")
                 Text("本位币：\(item.preview.currencies.joined(separator: ", "))")
-                Text("原币金额、历史汇率与已保存收据保持原有导入规则。已有 ID 将跳过，不覆盖。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                Text(item.preview.hasStableIDs ? "原币金额、历史汇率与已保存收据保持原有导入规则。已有 ID 将跳过，不覆盖。" : "此旧式文件没有稳定 ID，每次重新选择文件都会作为新账目导入。请先核对是否导入过，避免重复记账；不按同日同额自动合并。")
+                    .appFont(.caption, weight: .regular).foregroundStyle(item.preview.hasStableIDs ? Color.secondary : .orange).accessibilityIdentifier("csvIdentityNotice")
                 ScrollView {
                     VStack(alignment: .leading, spacing: MacUI.space(8)) {
                         ForEach(Array(item.preview.sections.keys.sorted()), id: \.self) { key in
@@ -152,12 +156,25 @@ struct MacBackupSettingsView: View {
                             }
                             let result = try MacCSV.commit(item.preview, in: context)
                             if wasEmpty && item.preview.currencies.count == 1 { baseCurrency = item.preview.currencies[0] }
-                            message = "已导入 \(result.totalRecordCount) 条记录"; error = nil; setup = true; csvReview = nil
-                        } catch { self.error = MacLocalization.error(error) }
+                            message = "已导入 \(result.totalRecordCount) 条记录"; error = nil; setup = true
+                            pendingFeedback = .init(kind:result.totalRecordCount == 0 ? .warning : .success,
+                                title:result.totalRecordCount == 0 ? "没有新增记录" : "导入成功",
+                                message:"\(item.filename)\n已导入 \(result.totalRecordCount) 条记录。" + (result.totalRecordCount == 0 ? "请核对是否已导入过此文件。" : ""))
+                            csvReview = nil
+                        } catch { reportFailure("导入失败",error,location:.csvPreview) }
                     }.accessibilityIdentifier("commitCSVImport")
                 }
             }.appPadding(26).appDialog(width: 540)
+                .modifier(MacOperationFeedbackPresenter(center:feedback,location:.csvPreview))
         }
+    }
+    private func presentPendingFeedback() {
+        if let pendingFeedback { feedback.notice = pendingFeedback; self.pendingFeedback = nil }
+    }
+    private func reportFailure(_ title:String,_ failure:Error,location:MacOperationFeedbackCenter.Location = .workspace) {
+        let detail = MacLocalization.error(failure)
+        error = detail
+        feedback.show(.failure,title:title,message:detail,location:location)
     }
     private func csvRowSummary(_ row: [String: String]) -> String {
         let title = row["Title"] ?? row["BankName"] ?? row["Category"] ?? ""
@@ -173,7 +190,8 @@ struct MacBackupSettingsView: View {
             guard let url = savePanel(name: csvKind.templateName, type: .commaSeparatedText) else { return }
             try template.write(to: url, atomically: true, encoding: .utf8)
             message = "\(csvKind.title)空白模板已保存，文件内已包含 AI 指令与字段规范。"; error = nil
-        } catch { self.error = MacLocalization.error(error) }
+            feedback.show(.success,title:"导出成功",message:"已保存模板：\(url.lastPathComponent)")
+        } catch { reportFailure("导出失败",error) }
     }
     private func exportTypedCSV() {
         do {
@@ -181,7 +199,8 @@ struct MacBackupSettingsView: View {
             let text = try MacCSV.export(in: context, kind: csvKind, transactionRange: range)
             guard let url = savePanel(name: csvKind.exportName, type: .commaSeparatedText) else { return }
             try text.write(to: url, atomically: true, encoding: .utf8); message = "\(csvKind.title) CSV 已保存"; error = nil
-        } catch { self.error = MacLocalization.error(error) }
+            feedback.show(.success,title:"导出成功",message:"已保存：\(url.lastPathComponent)")
+        } catch { reportFailure("导出失败",error) }
     }
     private func exportLegacyCSV() {
         do {
@@ -189,7 +208,8 @@ struct MacBackupSettingsView: View {
             defer { try? FileManager.default.removeItem(at: temp) }
             guard let url = savePanel(name: temp.lastPathComponent, type: .commaSeparatedText) else { return }
             try Data(contentsOf: temp).write(to: url, options: .atomic); message = "旧版完整 CSV 已保存"; error = nil
-        } catch { self.error = MacLocalization.error(error) }
+            feedback.show(.success,title:"导出成功",message:"已保存：\(url.lastPathComponent)")
+        } catch { reportFailure("导出失败",error) }
     }
     private func savePanel(name: String, type: UTType) -> URL? {
         let panel = NSSavePanel(); panel.allowedContentTypes = [type]; panel.nameFieldStringValue = name
@@ -225,12 +245,13 @@ struct MacBackupSettingsView: View {
             guard let url = savePanel(name: "FinTrack_backup_" + formatter.string(from: Date()) + ".fintrack", type: backupType) else { return }
             backupFolder = url.deletingLastPathComponent().path
             try saveBackup(data, at: url); message = "完整备份已保存并校验"; error = nil
-        } catch { self.error = MacLocalization.error(error) }
+            feedback.show(.success,title:"备份成功",message:"\(url.lastPathComponent)\n完整备份已保存并校验。")
+        } catch { reportFailure("备份失败",error) }
     }
     private func previewNative() {
         guard let url = openPanel(type: backupType) else { return }
         do { let data = try read(url); nativeReview = NativeReview(data: data, payload: try MacNativeBackup.preview(data), filename: url.lastPathComponent); restoreText = ""; includeUpdateTrust = false; error = nil }
-        catch { self.error = "无法恢复：\(MacLocalization.error(error))" }
+        catch { reportFailure("无法恢复",error) }
     }
     private func restore(_ item: NativeReview) {
         do {
@@ -238,8 +259,10 @@ struct MacBackupSettingsView: View {
             guard let url = savePanel(name: "FinTrack-恢复前-\(UUID().uuidString.prefix(8)).fintrack", type: backupType) else { return }
             try saveBackup(safety, at: url)
             try MacNativeBackup.restore(item.data, in: context, restoreUpdateTrust: includeUpdateTrust)
-            nativeReview = nil; message = "账本已恢复；恢复前的安全副本已保留"; error = nil
-        } catch { self.error = MacLocalization.error(error) }
+            message = "账本已恢复；恢复前的安全副本已保留"; error = nil
+            pendingFeedback = .init(kind:.success,title:"恢复成功",message:message ?? "账本已恢复")
+            nativeReview = nil
+        } catch { reportFailure("恢复失败",error,location:.nativePreview) }
     }
     @ViewBuilder
     private func updateTrustReview(_ item: NativeReview) -> some View {
@@ -291,6 +314,6 @@ struct MacBackupSettingsView: View {
             let data = try read(url)
             guard data.count <= 50_000_000, let text = String(data: data, encoding: .utf8) else { throw MacSettingsFailure.invalid("请选择不超过 50,000,000 字节的 UTF-8 CSV") }
             csvReview = CSVReview(preview: try MacCSV.preview(text, bookCurrency: try MacCurrency.ledgerCurrency(in: context, preferred: baseCurrency), kind: legacy ? nil : csvKind), filename: url.lastPathComponent); error = nil
-        } catch { self.error = MacLocalization.error(error) }
+        } catch { reportFailure("导入失败",error) }
     }
 }

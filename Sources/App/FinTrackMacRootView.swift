@@ -36,18 +36,17 @@ final class MacWorkspaceSession: ObservableObject {
 }
 
 struct FinTrackMacRootView: View {
+    @StateObject private var operationFeedback = MacOperationFeedbackCenter()
     @FocusState private var accountPanelFocused: Bool
     @EnvironmentObject private var workspace: MacWorkspaceSession
     @State private var previewCurrency = "RUB"
     @AppStorage("app_language") private var language = "zh-Hans"
     @AppStorage("color_theme_mode") private var theme = "system"
-    @AppStorage("fintrack_initial_setup_complete") private var setupComplete = false
     @AppStorage("v2_navigation_collapsed") private var navigationCollapsed = false
     @AppStorage("base_currency") private var preferredCurrency = "USD"
     @AppStorage("v2_density") private var interfaceDensity = "comfortable"
     @AppStorage("v2_accent") private var interfaceAccent = "terracotta"
     @AppStorage("v2_display_name") private var displayName = "我的账本"
-    @State private var showingWelcome = false
     @State private var showsAccount = false
     @Environment(\.modelContext) private var context
     @AppStorage("fintrack_auto_posting") private var automaticPosting = false
@@ -72,7 +71,7 @@ struct FinTrackMacRootView: View {
                 Group {
                     switch workspace.section {
                     case .overview:
-                        MacOverviewView(bookCurrency: currency)
+                        MacOverviewView(bookCurrency: currency, workspace: workspace)
                     case .records:
                         MacRecordSection(scope: workspace.recordScope, navigationState: workspace.recordsNavigationState)
                             .id(String(describing: workspace.recordScope))
@@ -99,6 +98,8 @@ struct FinTrackMacRootView: View {
         .ignoresSafeArea(.container, edges: .top)
         .frame(minWidth: 800, minHeight: 600)
         .background(MacOverviewStyle.navigation)
+        .environmentObject(operationFeedback)
+        .modifier(MacOperationFeedbackPresenter(center:operationFeedback))
         .overlay {
             if showsAccount {
                 ZStack(alignment: .bottomLeading) {
@@ -132,7 +133,9 @@ struct FinTrackMacRootView: View {
             if let automaticError { Text(automaticError).appFont(.caption, weight: .regular).foregroundStyle(.red).appPadding(10).background(.regularMaterial) }
         }
         .onExitCommand { showsAccount = false }
-        .onAppear { showingWelcome = !MacPreferences.isTesting && !setupComplete; if MacSettingsVisual.preview { NSApp.activate(ignoringOtherApps: true) } }
+        .onAppear {
+            if MacSettingsVisual.preview { NSApp.activate(ignoringOtherApps: true) }
+        }
         .sheet(isPresented: $workspace.showsQuickRecord) {
             if let currency { MacTransactionEditor(bookCurrency: currency, existing: nil) }
             else {
@@ -141,17 +144,6 @@ struct FinTrackMacRootView: View {
                     Button("关闭") { workspace.showsQuickRecord = false }
                 }.appPadding(28)
             }
-        }
-        .sheet(isPresented: $showingWelcome) {
-            VStack(alignment: .leading, spacing: MacUI.space(16)) {
-                Text("欢迎使用 FinTrack").appFont(.dialogTitle, weight: .semibold)
-                Text("使用独立的本地账本。已有数据可以通过设置恢复原生备份或导入 CSV。")
-                HStack {
-                    Button("导入已有备份") { setupComplete = true; workspace.section = .settings; showingWelcome = false }
-                    Spacer()
-                    Button("开始使用") { setupComplete = true; showingWelcome = false }
-                }
-            }.appPadding(24).appDialog(width: 560)
         }
     }
 

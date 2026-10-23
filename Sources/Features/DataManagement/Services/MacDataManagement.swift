@@ -76,12 +76,23 @@ enum MacDataManagement {
     }
 
     /// Original category rename/merge updates transaction, recurring and loan names.
-    static func rename(_ category: Category, to name: String, in context: ModelContext) throws {
+    static func rename(_ category: Category, to name: String, in context: ModelContext,
+                       save: ((ModelContext) throws -> Void)? = nil,
+                       recordTiming: ((String, TimeInterval) -> Void)? = nil) throws {
+        let metadataStart = recordTiming.map { _ in ProcessInfo.processInfo.systemUptime }
+        func measure<T>(_ phase: String, _ work: () throws -> T) rethrows -> T {
+            guard let recordTiming else { return try work() }
+            let start = ProcessInfo.processInfo.systemUptime
+            defer { recordTiming(phase, ProcessInfo.processInfo.systemUptime - start) }
+            return try work()
+        }
         guard !CategoryUsageHelper.isProtectedCategory(category) else {
             throw Failure.protectedCategory
         }
         let name = try MacTransactionCRUD.validatedCategory(CategoryUsageHelper.canonicalCategoryName(name, type: category.type))
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再重命名分类") }
         let old = category.name
+        let categoryType = category.type
         let target = try context.fetch(FetchDescriptor<Category>()).first {
             $0.id != category.id && $0.type == category.type && $0.deletedAt == nil && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame
         }
@@ -99,22 +110,41 @@ enum MacDataManagement {
             }
         }
         let budgetBytes = try JSONEncoder().encode(budgets)
+        var styles: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
+        let oldKey = MacCategoryCatalog.key(name: old, type: categoryType)
+        let newKey = MacCategoryCatalog.key(name: finalName, type: categoryType)
+        if oldKey != newKey {
+            if target == nil, let oldStyle = styles[oldKey] { styles[newKey] = oldStyle }
+            styles.removeValue(forKey: oldKey)
+        }
+        let styleBytes = try JSONEncoder().encode(styles)
+        if let metadataStart { recordTiming?("validation-budget-style", ProcessInfo.processInfo.systemUptime - metadataStart) }
         do {
-            for row in try context.fetch(FetchDescriptor<Transaction>()) where row.type == category.type && row.category == old {
-                row.category = finalName; row.updatedAt = Date()
+            let transactions = try measure("transaction-fetch") {
+                try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.type == categoryType && $0.category == old }))
             }
-            for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) where row.typedType.storageValue == category.type && row.category == old {
-                row.category = finalName; row.updatedAt = Date()
+            measure("transaction-update") {
+                for row in transactions { row.category = finalName; row.updatedAt = Date() }
             }
-            if category.type == "Expense" {
-                for row in try context.fetch(FetchDescriptor<LoanRule>()) where row.category == old {
+            try measure("rules-loans-catalog") {
+                for row in try context.fetch(FetchDescriptor<RecurringTransaction>(predicate: #Predicate { $0.category == old })) where row.typedType.storageValue == categoryType {
                     row.category = finalName; row.updatedAt = Date()
                 }
+                if category.type == "Expense" {
+                    for row in try context.fetch(FetchDescriptor<LoanRule>(predicate: #Predicate { $0.category == old })) {
+                        row.category = finalName; row.updatedAt = Date()
+                    }
+                }
+                if target != nil { context.delete(category) }
+                else { category.name = finalName; category.updatedAt = Date() }
             }
-            if target != nil { context.delete(category) }
-            else { category.name = finalName; category.updatedAt = Date() }
-            try context.save()
-            MacPreferences.defaults.set(budgetBytes, forKey: "v2_budgets")
+            try measure("database-save") {
+                if let save { try save(context) } else { try context.save() }
+            }
+            measure("preferences-commit") {
+                MacPreferences.defaults.set(budgetBytes, forKey: "v2_budgets")
+                MacPreferences.defaults.set(styleBytes, forKey: "v2_category_styles")
+            }
         } catch { context.rollback(); throw error }
     }
 }

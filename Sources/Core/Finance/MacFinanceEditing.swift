@@ -40,10 +40,16 @@ enum MacFinanceEditing {
                        book: String, source: String, principalRate: Double?, interestRate: Double?,
                        totalAmount: Double? = nil, downPayment: Double = 0,
                        notificationsEnabled: Bool? = nil, goalIncludesAssets: Bool? = nil, goalDeadline: Date? = nil,
-                       goalPaused: Bool? = nil, reminder: MacReminderSettings? = nil,
+                       goalPaused: Bool? = nil, goalPrecision: TargetDatePrecision? = nil, reminder: MacReminderSettings? = nil,
                        recurringSettings: MacRecurringSettings? = nil, userNote: String? = nil,
                        expectedInterestOverride: Double? = nil, in context: ModelContext) throws {
         try reminder?.validate()
+        var capturedGoalValue: String?
+        if case .goal = target, let goalDeadline, let goalPrecision {
+            let raw = GoalTargetTime.capturedValue(goalDeadline, precision: goalPrecision)
+            guard GoalTargetTime.components(raw, precision: goalPrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            capturedGoalValue = raw
+        }
         if let end = recurringSettings?.endDate, end < start { throw MacFinanceRecords.Failure.invalidDateRange }
         _ = try MacCurrency.ledgerCurrency(in: context, preferred: book)
         let name = try MacTransactionCRUD.validatedCategory(name)
@@ -121,7 +127,13 @@ enum MacFinanceEditing {
             if let userNote { r.note = MacFinanceNotes.replacing(r.note, with: userNote) }
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
         case .goal(let r):
+            let oldDeadline = r.deadline
             r.title = name; r.targetAmount = amount; r.deadline = goalDeadline
+            if goalDeadline == nil { r.targetDatePrecisionRaw = nil; r.targetDateValueRaw = nil }
+            else if let goalPrecision {
+                r.targetDatePrecisionRaw = goalPrecision.rawValue
+                r.targetDateValueRaw = capturedGoalValue
+            } else if oldDeadline != goalDeadline { r.targetDateValueRaw = nil }
             if let goalIncludesAssets { r.includesCurrentAssets = goalIncludesAssets }
             if let goalPaused { r.isPaused = goalPaused }
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
