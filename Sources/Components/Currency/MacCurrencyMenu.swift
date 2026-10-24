@@ -52,9 +52,10 @@ struct MacIconMenu: View {
     var identifier: String
     var accessibilityTitle: String
     var width: CGFloat = MacCurrencyMenuStyle.width
+    var compact = false
     var body: some View {
-        PopupRepresentable(selection:$selection,options:options,width:width,accessibilityTitle:accessibilityTitle,identifier:identifier)
-            .frame(width:width,height:MacInterfaceFonts.controlHeight(MacCurrencyMenuStyle.height))
+        PopupRepresentable(selection:$selection,options:options,width:width,accessibilityTitle:accessibilityTitle,identifier:identifier,compact:compact)
+            .frame(width:compact ? 30 : width,height:MacInterfaceFonts.controlHeight(MacCurrencyMenuStyle.height))
     }
     static func fittedRect(_ size: NSSize, in slot: NSRect) -> NSRect {
         guard size.width > 0, size.height > 0 else { return slot }
@@ -68,6 +69,7 @@ struct MacIconMenu: View {
         var width: CGFloat
         var accessibilityTitle: String
         var identifier: String
+        var compact: Bool
         @Environment(\.isEnabled) private var enabled
         @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
         @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
@@ -81,8 +83,13 @@ struct MacIconMenu: View {
             }
         }
         final class Popup: NSPopUpButton {
+            var compact = false
             override var alignmentRectInsets:NSEdgeInsets { .init(top:0,left:0,bottom:0,right:0) }
             override func draw(_ dirtyRect:NSRect) {
+                if compact {
+                    NSImage(systemSymbolName:"chevron.down",accessibilityDescription:nil)?.withSymbolConfiguration(.init(paletteColors:[.secondaryLabelColor]))?.draw(in:NSRect(x:(bounds.width-12)/2,y:(bounds.height-12)/2,width:12,height:12))
+                    return
+                }
                 let border = NSBezierPath(roundedRect:bounds.insetBy(dx:0.5,dy:0.5),xRadius:9,yRadius:9)
                 NSColor.controlBackgroundColor.setFill(); border.fill()
                 NSColor.gray.withAlphaComponent(0.25).setStroke(); border.lineWidth = 1; border.stroke()
@@ -116,6 +123,7 @@ struct MacIconMenu: View {
             return popup
         }
         func updateNSView(_ popup:NSPopUpButton,context:Context) {
+            (popup as? Popup)?.compact = compact
             let signature = options.map { $0.title + "\0" + ($0.value ?? "__heading__") + "\0" + ($0.symbol ?? "") + "\0" + ($0.image?.name() ?? "") }
             if context.coordinator.optionSignature != signature || popup.menu == nil {
                 let menu = NSMenu(); menu.minimumWidth = width; menu.autoenablesItems = false

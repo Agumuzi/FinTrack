@@ -20,6 +20,7 @@ enum MacLoansData {
         let warning: String?
         var principalPaid: Double? // From verified original amortization components.
         var interestPaid: Double?
+        var schedule: [LoanAmortizationEngine.Payment] = []
     }
     static func method(_ value: RepaymentMethod) -> String {
         switch value { case .equalPayment: "等额本息"; case .equalPrincipal: "等额本金"; case .interestOnly: "先息后本" }
@@ -40,23 +41,26 @@ enum MacLoansData {
               loan.exchangeRateToBase.isFinite, loan.exchangeRateToBase > 0,
               loan.basePrincipal == FinancialPrecision.roundAmountForStorage(loan.principal * loan.exchangeRateToBase),
               loan.currency != loan.baseCurrencyCode || loan.exchangeRateToBase == 1 else { return unknown("贷款参数或记账快照需要核对。") }
-        let schedule = loan.amortizationSchedule
+        let schedule = MacLoanRepayment.resolvedSchedule(loan, transactions: transactions)
         guard schedule.count == loan.termMonths, schedule.allSatisfy({ $0.total.isFinite && $0.total >= 0 }) else { return unknown("还款计划需要核对。") }
         do {
             let paid = try MacLoanRepayment.verifiedPaidIndices(loan, schedule: schedule, transactions: transactions, book: loan.baseCurrencyCode)
-            guard paid == Set(schedule.prefix(paid.count).map(\.index)) else { return unknown("还款记录不连续，请核对缺失期次。") }
+            guard paid == Set(schedule.filter { $0.total > 0 }.prefix(paid.count).map(\.index)) else { return unknown("还款记录不连续，请核对缺失期次。") }
             let payments = schedule.filter { paid.contains($0.index) }
             let markers = Set(payments.map { MacLoanRepayment.marker(loanID: loan.id, payment: $0) })
             let receipts = transactions.filter { row in markers.contains(where: { (row.note ?? "").hasSuffix($0) }) }.sorted { $0.date > $1.date }
             let principal = FinancialPrecision.roundAmountForStorage(payments.reduce(0) { $0 + $1.principal })
-            return Audit(reliable: true, receipts: receipts, paid: paid, next: schedule.first { !paid.contains($0.index) },
-                         outstanding: payments.last?.remainingBalance ?? loan.principal, warning: nil,
-                         principalPaid: principal, interestPaid: FinancialPrecision.roundAmountForStorage(payments.reduce(0) { $0 + $1.interest }))
+            let completed = paid.count == schedule.filter { $0.total > 0 }.count
+            let mismatch = completed && abs(principal - loan.principal) >= 0.005
+            let warning = mismatch ? "历史还款存在分币差额；已入账金额保持原值，请核对银行实际结清金额。" : nil
+            return Audit(reliable: true, receipts: receipts, paid: paid, next: schedule.first { $0.total > 0 && !paid.contains($0.index) },
+                         outstanding: payments.last?.remainingBalance ?? loan.principal, warning: warning,
+                         principalPaid: principal, interestPaid: FinancialPrecision.roundAmountForStorage(payments.reduce(0) { $0 + $1.interest }), schedule: schedule)
         } catch { return unknown("关联收据损坏、重复、已删除或与计划不符；实际进度暂不展示，请到账目中核对。") }
     }
     static func status(_ audit: Audit, now: Date = Date(), calendar: Calendar = .current) -> Status {
         guard audit.reliable else { return .review }
-        guard let next = audit.next else { return .settled }
+        guard let next = audit.next else { return audit.warning == nil ? .settled : .review }
         let today = calendar.startOfDay(for: now), due = calendar.startOfDay(for: next.date)
         if due < today { return .overdue }
         if due <= calendar.date(byAdding: .day, value: 7, to: today)! { return .soon }

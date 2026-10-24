@@ -64,7 +64,11 @@ struct MacColorLibraryChooser: View {
             Text("选择颜色").appFont(.dialogTitle, weight: .semibold)
         } fields: {
             VStack(alignment: .leading, spacing: 18) {
-                Capsule().fill(MacAccent.color(draft)).frame(height: 32)
+                HStack(spacing: 12) {
+                    Circle().fill(MacAccent.color(draft)).frame(width: 42, height: 42)
+                    Text(draft.hasPrefix("#") ? draft.uppercased() : MacAccent.hex(MacAccent.color(draft))).appFont(.body, weight: .semibold)
+                    Spacer()
+                }
                 MacColorSwatches(selection: $draft, identifierPrefix: identifierPrefix)
                 Divider()
                 Text("自定义颜色").appFont(.body, weight: .medium)
@@ -72,7 +76,6 @@ struct MacColorLibraryChooser: View {
                     TextField("#RRGGBB", text: $custom).textFieldStyle(.roundedBorder).accessibilityIdentifier(identifierPrefix + "Hex")
                     Button("应用") { if MacPresentationOptions.validColor(custom) { draft = custom.uppercased() } }.disabled(custom.range(of: #"^#[0-9A-Fa-f]{6}$"#, options: .regularExpression) == nil)
                 }
-                Text("预设颜色或自定义颜色均可保存，已有颜色保持原值。").appFont(.caption).foregroundStyle(.secondary)
             }
         } footer: {
             HStack { Button("取消") { dismiss() }.keyboardShortcut(.cancelAction); Spacer(); Button("使用颜色") { selection = draft; dismiss() }.keyboardShortcut(.defaultAction).accessibilityIdentifier(identifierPrefix + "Confirm") }

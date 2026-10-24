@@ -336,7 +336,7 @@ struct MacOverviewView: View {
                             MacSettingsIcon(symbol: presentation.icon, color: MacAccent.color(presentation.color), size: 30)
                             Text(goal.title).appFont(.body, weight: .regular, design: .default).lineLimit(1)
                         }
-                        Text("\(MacOverviewStyle.money(goal.targetAmount)) \(currency)").appFont(.amount, weight: .semibold, design: .default).monospacedDigit().fixedSize(horizontal: false, vertical: true)
+                        Text("\(MacOverviewStyle.money(goal.targetAmount)) \(currency)").appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
                         let progress = goal.clampedProgressValue(currentNetWorth: snapshot.netWorth, baselineNetWorth: Goal.baselineNetWorth(from: profile))
                         HStack { ProgressView(value: bookCurrency == nil ? 0 : progress).tint(MacOverviewStyle.accent); Text(bookCurrency == nil ? "—" : "\(goal.displayPercent(currentNetWorth: snapshot.netWorth, baselineNetWorth: Goal.baselineNetWorth(from: profile)))%").appFont(.caption, weight: .regular).monospacedDigit() }
                         HStack {
@@ -611,7 +611,8 @@ struct MacOverviewView: View {
             LabeledContent("可用资产", value: MacOverviewStyle.money(snapshot.availableAssets))
             LabeledContent("存款本金", value: MacOverviewStyle.money(snapshot.frozenDepositPrincipal))
             LabeledContent("手工负债", value: MacOverviewStyle.money(snapshot.manualDebtBalance))
-            LabeledContent("贷款余额（计划口径）", value: MacOverviewStyle.money(snapshot.loanBalance))
+            LabeledContent("贷款余额", value: MacOverviewStyle.money(snapshot.loanBalance))
+            Text("贷款按核验收据扣减本金；未核验的贷款暂保留完整本金。").appFont(.caption).foregroundStyle(.secondary)
             Divider()
             LabeledContent("净资产", value: MacOverviewStyle.money(snapshot.netWorth)).appFont(.section, weight: .semibold)
             Text("净资产 = 可用资产 + 存款本金 − 手工负债 − 贷款余额。历史时点余额不可用；期间筛选不改变当前资产。实际还款请在贷款模块核对。")

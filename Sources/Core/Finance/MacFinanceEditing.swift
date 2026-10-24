@@ -62,7 +62,7 @@ enum MacFinanceEditing {
             guard start < maturity else { throw MacFinanceRecords.Failure.invalidDateRange }
             let terms = try MacDepositTerms.calculate(principal: amount, annualRate: annualRate, start: start, maturity: maturity, mode: depositMode, expectedOverride: expectedInterestOverride)
             let changed = r.originalPrincipal != amount || r.originalCurrency != snapshot.originalCurrency ||
-                r.annualInterestRate != terms.annualRate || r.expectedInterest != terms.expectedInterest || r.isInterestManuallyEdited != terms.manuallyEdited || r.startDate != start || r.maturityDate != maturity || r.typedInterestSettlementMode != depositMode ||
+                (!terms.manuallyEdited && r.annualInterestRate != annualRate) || (terms.manuallyEdited && r.expectedInterest != terms.expectedInterest) || r.isInterestManuallyEdited != terms.manuallyEdited || r.startDate != start || r.maturityDate != maturity || r.typedInterestSettlementMode != depositMode ||
                 r.principalExchangeRateToBase != snapshot.rate || (interestRate != nil && r.interestExchangeRateToBase != interestRate)
             if changed {
                 guard !r.hasCreditedInterest, r.lastInterestPayoutDate == nil, r.sourceDepositID == nil,
@@ -77,7 +77,7 @@ enum MacFinanceEditing {
                 r.principal = amount; r.originalPrincipal = amount; r.originalCurrency = snapshot.originalCurrency
                 r.basePrincipal = snapshot.baseAmount; r.principalExchangeRateToBase = snapshot.rate
                 r.currency = snapshot.originalCurrency; r.baseCurrencyCode = book
-                r.annualInterestRate = FinancialPrecision.roundInterestRateForStorage(terms.annualRate)
+                r.annualInterestRate = terms.annualRate
                 r.startDate = start; r.maturityDate = maturity; r.typedInterestSettlementMode = depositMode
                 r.expectedInterest = interest; r.baseExpectedInterest = expected.baseAmount
                 r.interestExchangeRateToBase = expected.rate; r.isInterestManuallyEdited = terms.manuallyEdited
@@ -106,11 +106,11 @@ enum MacFinanceEditing {
             if changed {
                 r.principal = amount; r.basePrincipal = snapshot.baseAmount; r.currency = snapshot.originalCurrency
                 r.baseCurrencyCode = book; r.exchangeRateToBase = snapshot.rate
-                r.totalAmount = totalAmount ?? amount; r.downPaymentAmount = downPayment
-                r.downPaymentPercent = r.totalAmount > 0 ? FinancialPrecision.roundAmountForDisplay(downPayment / r.totalAmount * 100) : 0
                 r.annualRate = FinancialPrecision.roundInterestRateForStorage(annualRate)
                 r.startDate = start; r.termMonths = months; r.method = method
             }
+            r.totalAmount = totalAmount ?? amount; r.downPaymentAmount = downPayment
+            r.downPaymentPercent = r.totalAmount > 0 ? FinancialPrecision.roundAmountForDisplay(downPayment / r.totalAmount * 100) : 0
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
         case .recurring(let r):
             guard (1...365).contains(interval) else { throw MacFinanceRecords.Failure.invalidRecurrence }

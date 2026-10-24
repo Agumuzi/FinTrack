@@ -73,6 +73,30 @@ struct MacAppearanceSettingsView: View {
                     }
                 }
                 MacInterfaceFontSettings()
+                if !wide { fontSizeCard }
+                MacSettingsCard(title: "侧边栏外观", icon: "sidebar.left", subtitle: "调整左侧导航栏的显示方式。", headerColor: .red) {
+                    HStack(spacing: MacUI.space(10)) {
+                        navigationChoice("默认宽度", collapsed: false, icon: "sidebar.left", detail: "显示图标和文字")
+                        navigationChoice("仅图标", collapsed: true, icon: "rectangle.lefthalf.inset.filled", detail: "只显示图标，节省空间")
+                    }
+                }
+                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; fontTierValue = MacFontSizeTier.standard.rawValue; MacPreferences.defaults.removeObject(forKey: MacInterfaceFonts.preferenceKey); collapsed = false }.accessibilityIdentifier("resetAppearance") }
+            }
+        } right: {
+            VStack(spacing: MacUI.space(14)) {
+                MacSettingsCard(title: "界面预览", icon: "eye", headerColor: .blue) {
+                    MacAppearancePreview(accent: MacAccent.color(accent), collapsed: collapsed, density: density)
+                        .frame(height: MacUI.fontTier == .large ? 480 : 420)
+                }
+                    .accessibilityElement(children: .contain).accessibilityIdentifier("appearanceLivePreview")
+                if wide { fontSizeCard }
+                MacSettingsCard(title: "语言设置", icon: "globe", subtitle: "应用界面语言。") {
+                    MacLanguageChoice()
+                }
+            }
+        }
+    }
+    private var fontSizeCard: some View {
                 MacSettingsCard(title: "字体大小", icon: "textformat.size", subtitle: "正文与说明分别调整字号，页面间距和控件尺寸保持稳定。", headerColor: .red) {
                     HStack(spacing: MacUI.space(8)) {
                         ForEach(MacFontSizeTier.allCases) { tier in
@@ -96,36 +120,6 @@ struct MacAppearanceSettingsView: View {
                     }
 
                 }
-                MacSettingsCard(title: "侧边栏外观", icon: "sidebar.left", subtitle: "调整左侧导航栏的显示方式。", headerColor: .red) {
-                    HStack(spacing: MacUI.space(10)) {
-                        navigationChoice("默认宽度", collapsed: false, icon: "sidebar.left", detail: "显示图标和文字")
-                        navigationChoice("仅图标", collapsed: true, icon: "rectangle.lefthalf.inset.filled", detail: "只显示图标，节省空间")
-                    }
-                }
-                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; fontTierValue = MacFontSizeTier.standard.rawValue; MacPreferences.defaults.removeObject(forKey: MacInterfaceFonts.preferenceKey); collapsed = false }.accessibilityIdentifier("resetAppearance") }
-            }
-        } right: {
-            VStack(spacing: MacUI.space(14)) {
-                GeometryReader { geometry in
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 12) {
-                                    MacSettingsIcon(symbol: "eye", color: .blue, size: 36)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("界面预览").appFont(.section, weight: .semibold)
-                                        Text("以下为当前设置下的交互预览。").appFont(.caption).foregroundStyle(.secondary)
-                                    }
-                                }
-                                MacAppearancePreview(accent: MacAccent.color(accent), collapsed: collapsed, density: density)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }.padding(20).frame(width: geometry.size.width, height: geometry.size.height)
-                    }.aspectRatio(1, contentMode: .fit)
-                    .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
-                    .accessibilityElement(children: .contain).accessibilityIdentifier("appearanceLivePreview")
-                MacSettingsCard(title: "语言设置", icon: "globe", subtitle: "应用界面语言。") {
-                    MacLanguageChoice()
-                }
-            }
-        }
     }
     private func densityChoice(_ title: String, value: String, icon: String) -> some View {
         Button { density = value } label: {

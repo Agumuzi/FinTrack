@@ -12,6 +12,9 @@ struct MacCurrencyRebaseView: View {
     @State private var plan: MacCurrencyRebase.Plan?
     @State private var busy = false
     @State private var error: String?
+    @State private var requestID = UUID()
+    @State private var preparation: Task<Void, Never>?
+    private func invalidate() { requestID = UUID(); preparation?.cancel(); preparation = nil; busy = false; plan = nil }
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             Text("Change book currency").appFont(.dialogTitle, weight: .semibold)
@@ -25,7 +28,7 @@ struct MacCurrencyRebaseView: View {
                     ForEach(sources.filter { $0 != currency.uppercased() }, id: \.self) { source in
                         HStack {
                             Text("1 " + source + " =").frame(width: 80)
-                            TextField("汇率", text: Binding(get: { manual[source] ?? "" }, set: { manual[source] = $0; plan = nil }))
+                            TextField("汇率", text: Binding(get: { manual[source] ?? "" }, set: { manual[source] = $0; invalidate() }))
                             Text(currency.uppercased()).foregroundStyle(.secondary)
                         }
                     }
@@ -37,14 +40,17 @@ struct MacCurrencyRebaseView: View {
                 Button("Cancel") { dismiss() }
                 Spacer()
                 Button("Prepare conversion") {
-                    busy = true; error = nil
-                    Task { @MainActor in
-                        defer { busy = false }
+                    invalidate(); busy = true; error = nil
+                    let token = requestID, target = currency, original = reference, inputs = manual
+                    preparation = Task { @MainActor in
+                        defer { if requestID == token { busy = false; preparation = nil } }
                         do {
                             var rates: [String: Double] = [:]
-                            for (source, value) in manual where !value.isEmpty { rates[source] = try MacCurrency.rate(value) }
-                            plan = try await MacCurrencyRebase.prepare(in: context, to: currency, referenceCurrency: reference, manualRates: rates)
-                        } catch { self.error = MacLocalization.error(error) }
+                            for (source, value) in inputs where !value.isEmpty { rates[source] = try MacCurrency.rate(value) }
+                            let prepared = try await MacCurrencyRebase.prepare(in: context, to: target, referenceCurrency: original, manualRates: rates)
+                            guard !Task.isCancelled, token == requestID else { return }
+                            plan = prepared
+                        } catch { if !Task.isCancelled && token == requestID { self.error = MacLocalization.error(error) } }
                     }
                 }.disabled(busy || currency.uppercased() == reference || (try? MacCurrency.code(currency)) == nil)
                 .accessibilityIdentifier("prepareCurrencyRebase")
@@ -55,9 +61,10 @@ struct MacCurrencyRebaseView: View {
                 }.disabled(plan == nil || busy).accessibilityIdentifier("applyCurrencyRebase")
             }
         }.appPadding(24).appDialog(width: 590)
-        .onChange(of: currency) { _, _ in plan = nil }
+        .onDisappear { invalidate() }
+        .onChange(of: currency) { _, _ in invalidate() }
         .onChange(of: reference) { _, value in
-            plan = nil
+            invalidate()
             if let code = try? MacCurrency.code(value), !sources.contains(code) { sources.append(code); sources.sort() }
         }
         .onAppear {

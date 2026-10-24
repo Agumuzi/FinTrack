@@ -260,7 +260,7 @@ enum MacCSV {
                           let source = v["OriginalCurrency"], let book = v["BaseCurrency"]
                     else { throw Failure.invalid(detail + ": transaction snapshot") }
                     if key == "transactions" {
-                        do { try MacBankSettlement.validateSavedSnapshot(amount:original,actual:base,source:source,base:book,rate:rate) }
+                        do { try MacBankSettlement.validateSavedSnapshot(amount:original,actual:base,source:source,base:book,rate:rate,allowLegacyPrecision:true) }
                         catch { throw Failure.invalid(detail + ": inconsistent exchange snapshot") }
                     } else {
                         let expected = try MacCurrency.snapshot(amount:original,original:source,base:book,rate:rate)
@@ -274,8 +274,43 @@ enum MacCSV {
                 }
                 if key == "loans" {
                     guard let term = Int(v["TermMonths"] ?? ""), (1...600).contains(term),
-                          RepaymentMethod(rawValue: v["Method"] ?? "") != nil
+                          RepaymentMethod(rawValue: v["Method"] ?? "") != nil,
+                          let principal = Double(v["Principal"] ?? ""), principal > 0,
+                          let annual = Double(v["AnnualRate"] ?? ""), (0...100).contains(annual),
+                          let total = Double(v["TotalAmount"] ?? ""), total > 0,
+                          let down = Double(v["DownPaymentAmount"] ?? ""), down >= 0,
+                          let percent = Double(v["DownPaymentPercent"] ?? ""), (0...100).contains(percent),
+                          abs(total - down - principal) < 0.005,
+                          let base = Double(v["BasePrincipal"] ?? ""), base > 0,
+                          let rate = Double(v["ExchangeRateToBase"] ?? ""), rate > 0, rate <= 1e9,
+                          let source = v["Currency"], let book = v["BaseCurrency"]
                     else { throw Failure.invalid(detail + ": loan schedule") }
+                    do { try MacBankSettlement.validateSavedSnapshot(amount:principal,actual:base,source:source,base:book,rate:rate,allowLegacyPrecision:true) }
+                    catch { throw Failure.invalid(detail + ": inconsistent loan snapshot") }
+                }
+                if key == "deposits" {
+                    guard let principal = Double(v["Principal"] ?? ""), principal > 0,
+                          let original = Double(v["OriginalPrincipal"] ?? ""), original == principal,
+                          let base = Double(v["BasePrincipal"] ?? ""), base > 0,
+                          let annual = Double(v["AnnualInterestRate"] ?? ""), (0...100).contains(annual),
+                          let interest = Double(v["ExpectedInterest"] ?? ""), interest >= 0,
+                          let baseInterest = Double(v["BaseExpectedInterest"] ?? ""), baseInterest >= 0,
+                          let principalRate = Double(v["PrincipalExchangeRateToBase"] ?? ""), principalRate > 0, principalRate <= 1e9,
+                          let interestRate = Double(v["InterestExchangeRateToBase"] ?? ""), interestRate > 0, interestRate <= 1e9,
+                          let source = v["OriginalCurrency"], source == v["Currency"], let book = v["BaseCurrency"],
+                          DepositInterestSettlementMode(rawValue: v["InterestSettlementMode"] ?? "") != nil,
+                          try parsedDate(v["StartDate"] ?? "", field: detail) < parsedDate(v["MaturityDate"] ?? "", field: detail)
+                    else { throw Failure.invalid(detail + ": deposit terms") }
+                    do {
+                        try MacBankSettlement.validateSavedSnapshot(amount:principal,actual:base,source:source,base:book,rate:principalRate,allowLegacyPrecision:true)
+                        try MacBankSettlement.validateSavedSnapshot(amount:interest,actual:baseInterest,source:source,base:book,rate:interestRate,allowLegacyPrecision:true)
+                    } catch { throw Failure.invalid(detail + ": inconsistent deposit snapshot") }
+                }
+                if key == "goals", (Double(v["TargetAmount"] ?? "") ?? 0) <= 0 {
+                    throw Failure.invalid(detail + ": target amount must be positive")
+                }
+                if key == "financialprofile", (Double(v["InitialAssets"] ?? "") ?? -1) < 0 {
+                    throw Failure.invalid(detail + ": initial assets must be nonnegative")
                 }
             }
         }

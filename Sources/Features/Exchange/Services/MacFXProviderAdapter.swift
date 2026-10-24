@@ -49,11 +49,11 @@ final class MacFXProviderAdapter {
     private func payload(key: String, cycle: String, operation: @escaping () async throws -> Data) async throws -> Data {
         // Concurrent chart/live cycles must not evict one another's in-flight batch.
         let batchKey = cycle + "/" + key
-        if let task = payloads[batchKey] { return try await task.value }
+        if let task = payloads[batchKey] { return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() } }
         networkRequestCount += 1
         let task = Task { try await operation() }; payloads[batchKey] = task; payloadOrder.append(batchKey)
         while payloadOrder.count > 128 { payloads.removeValue(forKey: payloadOrder.removeFirst()) }
-        return try await task.value
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
     private func tag(_ requested: MacFXRequestDate) -> String {
         if case .day(let tag) = requested { return tag }; return "latest"
@@ -101,7 +101,12 @@ final class MacFXProviderAdapter {
             var best:(Data,String)?
             // Mirrors can be at different publication days. A successful HTTP
             // response is not accepted until its date and requested rate validate.
-            for template in ["https://{date}.currency-api.pages.dev/v1/currencies/{baseLower}.min.json","https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date}/v1/currencies/{baseLower}.min.json"] {
+            let pages = "https://{date}.currency-api.pages.dev/v1/currencies/{baseLower}.min.json"
+            let cdn = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date}/v1/currencies/{baseLower}.min.json"
+            // Dated CDN releases avoid a rejected Pages request for every chart
+            // point. Both mirrors still validate the exact publication day.
+            for template in day == "latest" ? [pages, cdn] : [cdn, pages] {
+                try Task.checkCancellation()
                 do {
                     let value = try await MacFXService.requestData(MacFXSource(name:"系统数据源",urlTemplate:template),from:pair.base,to:pair.quote,date:Date(),keyOverride:"",dateTagOverride:day)
                     guard let root = try JSONSerialization.jsonObject(with:value) as? [String:Any], let actual = root["date"] as? String, MacFXDates.day(actual) != nil,
@@ -109,7 +114,7 @@ final class MacFXProviderAdapter {
                           let rates = root[base] as? [String:Any], self.number(rates[quote]) != nil else { throw MacFXNetworkFailure.invalid }
                     if best == nil || actual > best!.1 { best = (value,actual) }
                     if day != "latest" || actual == MacFXDates.tag(Date(),calendar:MacFXDates.utc) { break }
-                } catch { last = error }
+                } catch { try Task.checkCancellation(); last = error }
             }
             guard let best else { throw last }; return best.0
         }

@@ -409,3 +409,32 @@ struct MacAdaptiveEqualCardLayout: Layout {
         }
     }
 }
+
+/// Fits short detail cards beside one another, with equal heights within a row.
+/// A narrow column stacks cards at their own natural heights.
+struct MacFinanceCardRow: Layout {
+    var spacing: CGFloat = 14
+    var minimumWidth: CGFloat = 540
+    var firstFraction: CGFloat = 0.5
+    private func sizes(_ width: CGFloat, subviews: Subviews) -> [CGSize] {
+        let horizontal = width >= minimumWidth && subviews.count == 2
+        return subviews.enumerated().map { index, view in
+            let w = horizontal ? (width - spacing) * (index == 0 ? firstFraction : 1 - firstFraction) : width
+            return CGSize(width: w, height: view.sizeThatFits(.init(width: w, height: nil)).height)
+        }
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? minimumWidth, values = sizes(width, subviews: subviews)
+        return CGSize(width: width, height: width >= minimumWidth && values.count == 2 ? values.map(\.height).max() ?? 0 : values.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(0, values.count - 1)))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let values = sizes(bounds.width, subviews: subviews), horizontal = bounds.width >= minimumWidth && subviews.count == 2
+        let height = values.map(\.height).max() ?? 0
+        var x = bounds.minX, y = bounds.minY
+        for (index, view) in subviews.enumerated() {
+            let size = values[index]
+            view.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .init(width: size.width, height: horizontal ? height : size.height))
+            if horizontal { x += size.width + spacing } else { y += size.height + spacing }
+        }
+    }
+}

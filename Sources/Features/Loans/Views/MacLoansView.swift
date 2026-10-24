@@ -38,8 +38,9 @@ struct MacLoansView: View {
     @State private var message: String?
     @State private var now = Date()
     @AppStorage("v13_loans_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
-    private var listWidth: Double { listColumns == 2 ? doubleListWidth : singleListWidth }
-    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { if listColumns == 2 { doubleListWidth = $0 } else { singleListWidth = $0 } }) }
+    @State private var transientWidth: Double?
+    private var listWidth: Double { transientWidth ?? (listColumns == 2 ? doubleListWidth : singleListWidth) }
+    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { transientWidth = $0 }) }
     private var active: [LoanRule] { loans.filter { $0.deletedAt == nil } }
     private var audits: [UUID: MacLoansData.Audit] {
         Dictionary(uniqueKeysWithValues: active.map { ($0.id, MacLoansData.audit($0, transactions: transactions, rules: rules)) })
@@ -59,7 +60,9 @@ struct MacLoansView: View {
                 Divider()
                 list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
-                    MacFinanceListDivider(width: widthBinding, maximum: maximum)
+                    MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
+                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }; transientWidth = nil
+                    }
                     if let selected { presentedDetail(selected).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一笔贷款", systemImage: "banknote", description: Text("查看还款计划和实际记录。")).frame(maxWidth: .infinity) }
                 }
@@ -74,6 +77,7 @@ struct MacLoansView: View {
             }
         }
         .onAppear { selectedID = visible.first?.id }
+        .onChange(of: listColumns) { _, _ in transientWidth = nil }
         .onChange(of: visible.map(\.id)) { _, ids in
             if !ids.contains(selectedID ?? UUID()) { selectedID = ids.first; showsDetails = false }
         }
@@ -148,6 +152,7 @@ struct MacLoansView: View {
     }
     private func row(_ loan: LoanRule) -> some View {
         let audit = audits[loan.id] ?? MacLoansData.audit(loan, transactions: transactions, rules: rules)
+        let payments = audit.schedule.isEmpty ? loan.amortizationSchedule : audit.schedule
         return VStack(alignment: .leading, spacing: MacUI.space(10)) {
             HStack(alignment: .top, spacing: MacUI.space(10)) {
                 Image(systemName: "banknote").appFont(.section, weight: .semibold).foregroundStyle(MacOverviewStyle.accent)
@@ -159,8 +164,8 @@ struct MacLoansView: View {
             HStack { Text("贷款本金").appFont(.caption, weight: .regular).foregroundStyle(.secondary); Spacer(); badge(audit) }
             if let outstanding = audit.outstanding {
                 Text("剩余本金 \(money(outstanding, loan))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                ProgressView(value: Double(audit.paid.count), total: Double(max(1, loan.termMonths))).help("按已核验收据计算的期数进度")
-                Text("已还 \(audit.paid.count)/\(loan.termMonths) 期 · 剩余 \(loan.termMonths - audit.paid.count) 期").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                ProgressView(value: Double(audit.paid.count), total: Double(max(1, payments.filter { $0.total > 0 }.count))).help("按已核验收据计算的期数进度")
+                Text("已还 \(audit.paid.count)/\(payments.filter { $0.total > 0 }.count) 期" + (payments.contains { $0.total == 0 } ? " · 零金额期次无需付款" : " · 剩余 \(loan.termMonths - audit.paid.count) 期")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
             } else { Text("实际已还与剩余本金待核对").appFont(.caption, weight: .regular).foregroundStyle(.orange) }
             if let end = loan.amortizationSchedule.last?.date { Text("计划到期 \(MacDateDisplay.string(end))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
         }.appPadding(14).frame(maxWidth: .infinity, alignment: .leading)
@@ -183,7 +188,7 @@ struct MacLoansView: View {
     }
     private func detail(_ loan: LoanRule) -> some View {
         let audit = audits[loan.id] ?? MacLoansData.audit(loan, transactions: transactions, rules: rules)
-        let payments = loan.amortizationSchedule
+        let payments = audit.schedule.isEmpty ? loan.amortizationSchedule : audit.schedule
         return ScrollView {
             VStack(alignment: .leading, spacing: MacUI.space(16)) {
                 HStack { Text(loan.title).appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("loansDetailTitle"); Spacer(); badge(audit) }
@@ -195,7 +200,7 @@ struct MacLoansView: View {
                     Spacer()
                 }
                 card {
-                    Text(money(loan.principal, loan)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().accessibilityIdentifier("loansPrincipal").id("principal-\(loan.id)-\(loan.principal)")
+                    Text(money(loan.principal, loan)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).accessibilityIdentifier("loansPrincipal").id("principal-\(loan.id)-\(loan.principal)")
                     Text("贷款本金 · \(MacOverviewStyle.category(loan.category))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     Divider()
                     HStack(alignment: .top) {
@@ -210,10 +215,11 @@ struct MacLoansView: View {
                     Text("实际还款进度").appFont(.section, weight: .semibold)
                     if let outstanding = audit.outstanding {
                         Text("剩余本金 \(money(outstanding, loan))").appFont(.section, weight: .semibold).monospacedDigit().accessibilityIdentifier("loansOutstanding").id("remaining-\(loan.id)-\(outstanding)")
-                        ProgressView(value: Double(audit.paid.count), total: Double(max(1, loan.termMonths)))
-                        Text("已还 \(audit.paid.count)/\(loan.termMonths) 期 · 剩余 \(loan.termMonths - audit.paid.count) 期").appFont(.caption, weight: .regular).accessibilityIdentifier("loansProgress").id("progress-\(loan.id)-\(audit.paid.count)")
+                        ProgressView(value: Double(audit.paid.count), total: Double(max(1, payments.filter { $0.total > 0 }.count)))
+                        Text("已还 \(audit.paid.count)/\(payments.filter { $0.total > 0 }.count) 期" + (payments.contains { $0.total == 0 } ? " · 零金额期次无需付款" : " · 剩余 \(loan.termMonths - audit.paid.count) 期")).appFont(.caption, weight: .regular).accessibilityIdentifier("loansProgress").id("progress-\(loan.id)-\(audit.paid.count)")
                         HStack { metric("已还本金", money(audit.principalPaid ?? 0, loan)); Spacer(); metric("已付利息", money(audit.interestPaid ?? 0, loan)) }
-                        Text("依据已核验的账本记录；未入账的付款不包含在内。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                        if let warning = audit.warning { Text(warning).appFont(.caption).foregroundStyle(.orange) }
+                        else { Text("依据已核验的账本记录。").appFont(.caption).foregroundStyle(.secondary) }
                     } else {
                         Text("实际进度待核对").appFont(.section, weight: .semibold).accessibilityIdentifier("loansUnverified")
                         Text(audit.warning ?? "请核对历史还款。").appFont(.caption, weight: .regular).foregroundStyle(.orange)
@@ -235,12 +241,13 @@ struct MacLoansView: View {
                         }.buttonStyle(.plain).help("查看实际账目和保存的汇率快照").accessibilityIdentifier("loansReceipt-\(entry.id)")
                     }
                 }
-                card {
-                    Text("记账快照").appFont(.section, weight: .semibold)
-                    Text("初始本金 \(MacOverviewStyle.money(loan.basePrincipal)) \(loan.baseCurrencyCode)").monospacedDigit()
-                    Text("初始汇率 \(loan.exchangeRateToBase.formatted())；实际还款使用每笔收据保存的汇率。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                if loan.currency != loan.baseCurrencyCode {
+                    card {
+                        HStack { Text("初始本金 \(MacOverviewStyle.money(loan.basePrincipal)) \(loan.baseCurrencyCode)").monospacedDigit(); Spacer(); Text("汇率 \(loan.exchangeRateToBase.formatted())").foregroundStyle(.secondary) }.appFont(.caption)
+                        Text("实际还款使用每笔收据保存的汇率。").appFont(.caption).foregroundStyle(.secondary)
+                    }
                 }
-                card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(loan.note).isEmpty ? "暂无备注" : MacFinanceNotes.visible(loan.note)).appFont(.body, weight: .regular).textSelection(.enabled) }
+                if !MacFinanceNotes.visible(loan.note).isEmpty { card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(loan.note)).textSelection(.enabled) } }
             }.appPadding(20)
         }.accessibilityIdentifier("loansDetailScroll").id(loan.id)
     }
@@ -255,7 +262,7 @@ struct MacLoansView: View {
                     Button("记录本期已付款…") { prepare(loan) }.accessibilityIdentifier("loansRecordPayment").disabled(bookCurrency == nil)
                     Text("请核对真实付款；此操作只记账，不发起银行扣款。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                 } else { Text("尚未到计划日期 · 未入账").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
-            } else if audit.reliable { Text("全部期次已有核验收据").appFont(.body, weight: .regular).foregroundStyle(MacOverviewStyle.income) }
+            } else if audit.reliable { Text(audit.warning == nil ? "全部应付期次已核验" : "历史差额待核对").appFont(.body, weight: .regular).foregroundStyle(MacOverviewStyle.income) }
             else {
                 Text(audit.warning ?? "请核对已有账目。").appFont(.caption, weight: .regular).foregroundStyle(.orange)
                 if !MacLoanRepayment.isManaged(loan) || rules.contains(where: { ($0.projectIdentifier ?? "").hasPrefix("loan_generated:\(loan.id.uuidString):") }) {
@@ -267,7 +274,7 @@ struct MacLoansView: View {
         }
     }
     private func composition(_ loan: LoanRule, audit: MacLoansData.Audit) -> some View {
-        let payments = Array(loan.amortizationSchedule.filter { !audit.reliable || !audit.paid.contains($0.index) }.prefix(12))
+        let payments = Array((audit.schedule.isEmpty ? loan.amortizationSchedule : audit.schedule).filter { !audit.reliable || !audit.paid.contains($0.index) }.prefix(12))
         return Group {
             if payments.isEmpty { Text("没有剩余还款计划").appFont(.caption, weight: .regular).foregroundStyle(.secondary).appMinHeight(100) }
             else {
@@ -380,14 +387,14 @@ struct MacLoansScheduleView: View {
             Text(loan.title).appFont(.dialogTitle, weight: .semibold)
             Text("还款计划 · \(loan.currency) · \(MacLoansData.method(loan.method))").appFont(.section, weight: .semibold)
             Text("计划不代表实际已付。只有核验收据完整时才展示已入账标记。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-            Table(loan.amortizationSchedule.map { Row(payment: $0) }) {
+            Table((audit.schedule.isEmpty ? loan.amortizationSchedule : audit.schedule).map { Row(payment: $0) }) {
                 TableColumn("期次") { Text(String($0.payment.index)) }.width(MacUI.space(40))
                 TableColumn("日期") { Text(MacDateDisplay.string($0.payment.date)) }.width(MacUI.space(100))
                 TableColumn("本金") { Text(MacOverviewStyle.money($0.payment.principal)) }
                 TableColumn("利息") { Text(MacOverviewStyle.money($0.payment.interest)) }
                 TableColumn("合计") { Text(MacOverviewStyle.money($0.payment.total)) }
                 TableColumn("计划剩余本金") { Text(MacOverviewStyle.money($0.payment.remainingBalance)) }
-                TableColumn("记录状态") { row in Text(!audit.reliable ? "待核对" : (audit.paid.contains(row.id) ? "已核验入账" : "未入账")) }
+                TableColumn("记录状态") { row in Text(!audit.reliable ? "待核对" : (audit.paid.contains(row.id) ? "已核验入账" : row.payment.total == 0 ? "无需付款" : "未入账")) }
             }.frame(height: MacUI.space(380)).accessibilityIdentifier("loanScheduleTable")
             HStack { Spacer(); Button("关闭") { dismiss() }.accessibilityIdentifier("loansCloseSchedule") }
         }.appPadding(24).appDialog(width: 850)

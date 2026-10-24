@@ -44,7 +44,7 @@ enum MacFinanceReview {
     }
     static func loan(_ loan: LoanRule, firstUnrecordedIndex: Int, confirmed: Bool, in context: ModelContext) throws {
         guard confirmed else { throw Failure.confirmation }
-        let schedule = loan.amortizationSchedule
+        let schedule = loan.legacyAmortizationSchedule
         guard !schedule.isEmpty, (1...schedule.count).contains(firstUnrecordedIndex) else { throw Failure.schedule }
         let prefix = "loan_generated:\(loan.id.uuidString):"
         let allRules = try context.fetch(FetchDescriptor<RecurringTransaction>())

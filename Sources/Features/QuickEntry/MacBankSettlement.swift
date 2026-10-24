@@ -27,12 +27,12 @@ enum MacBankSettlement {
     }
     /// CSV accepts the full derived rate only when it reproduces the saved cents.
     /// Recurring/deposit/loan contracts continue through their original validators.
-    static func validateSavedSnapshot(amount: Double, actual: Double, source: String, base: String, rate: Double) throws {
+    static func validateSavedSnapshot(amount: Double, actual: Double, source: String, base: String, rate: Double, allowLegacyPrecision: Bool = false) throws {
         guard amount.isFinite, actual.isFinite, rate.isFinite, amount >= 0, actual >= 0,
               amount <= 1e12, actual <= 1e12, rate > 0, rate <= 1e14,
-              abs(FinancialPrecision.roundAmountForStorage(amount) - amount) < 1e-6,
-              abs(FinancialPrecision.roundAmountForStorage(actual) - actual) < 1e-6,
-              abs(FinancialPrecision.roundAmountForStorage(amount * rate) - actual) < 0.005,
+              allowLegacyPrecision || abs(FinancialPrecision.roundAmountForStorage(amount) - amount) < 1e-6,
+              allowLegacyPrecision || abs(FinancialPrecision.roundAmountForStorage(actual) - actual) < 1e-6,
+              abs(FinancialPrecision.roundAmountForStorage(amount * rate) - FinancialPrecision.roundAmountForStorage(actual)) < 0.005,
               source != base || (rate == 1 && abs(amount - actual) < 0.005) else {
             throw MacSettingsFailure.invalid("记账金额与保存的汇率快照不一致。")
         }

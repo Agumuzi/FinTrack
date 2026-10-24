@@ -672,7 +672,7 @@ enum MacNativeBackup {
             }
             var seen = Set(merged.map(\.id))
             for item in backupHistory where seen.insert(item.id).inserted { merged.append(item.localRecord) }
-            restoredHistoryData = try JSONEncoder().encode(Array(merged.prefix(100)))
+            restoredHistoryData = try JSONEncoder().encode(Array(MacBackupHistory.normalized(merged).prefix(100)))
         } else { restoredHistoryData = nil }
         guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
         let fm = FileManager.default, target = MacBankLogos.directory()

@@ -17,6 +17,7 @@ struct MacTransactionEditor: View {
     @State private var type: TransactionType = .expense
     @State private var amountText = ""
     @State private var category = ""
+    @State private var categoryUsage = MacCategoryUsageSnapshot()
     @State private var note = ""
     @State private var date = Date()
     @State private var originalCurrency = ""
@@ -45,12 +46,9 @@ struct MacTransactionEditor: View {
     }
 
     private var savedCategories: [String] {
-        Array(Set(categories.filter {
-            $0.deletedAt == nil && $0.type == type.rawValue
-        }.map(\.name))).sorted {
-            let a = MacCategoryCatalog.style(name: $0, type: type.rawValue).order, b = MacCategoryCatalog.style(name: $1, type: type.rawValue).order
-            return a == b ? $0 < $1 : a < b
-        }
+        var seen = Set<String>()
+        return categoryUsage.sorted(categories.filter { $0.deletedAt == nil && $0.type == type.rawValue })
+            .filter { seen.insert($0.name).inserted }.map(\.name)
     }
 
     private var foreignCurrency: Bool { originalCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != bookCurrency }
@@ -128,13 +126,10 @@ struct MacTransactionEditor: View {
                                 else { MacCategoryBadge(name: category, type: type.rawValue, size: 32) }
                                 TextField("请选择或输入分类", text: Binding(get: { MacOverviewStyle.category(category) }, set: { category = $0 })).textFieldStyle(.plain).appFont(.body, weight: .semibold, design: .default)
                                     .accessibilityLabel("分类").accessibilityIdentifier("entryCategory")
-                                Menu {
-                                    ForEach(savedCategories, id: \.self) { item in
-                                        Button { category = item } label: { Label { Text(CategoryUsageHelper.localizedDisplayName(for: item)) } icon: { Image(nsImage: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: item, type: type.rawValue), name: item)) } }
-                                    }
-                                } label: { Image(systemName: "chevron.down").appFont(.body, weight: .semibold, design: .default).frame(width: MacUI.space(20)) }
-                                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().disabled(savedCategories.isEmpty)
-                                    .accessibilityLabel("已有分类").accessibilityIdentifier("savedCategoryMenu")
+                                MacIconMenu(selection: $category, options: savedCategories.map { item in
+                                    MacIconMenuOption(title: MacOverviewStyle.category(item), value: item,
+                                        image: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: item, type: type.rawValue), name: item))
+                                }, identifier: "savedCategoryMenu", accessibilityTitle: "已有分类", width: 250, compact: true).disabled(savedCategories.isEmpty)
                             }.appPadding(.horizontal, 12).appMinHeight(40).modifier(MacEntryFieldBorder())
                             Button {
                                 managedCategoryID = categories.first { ($0.name == category || MacOverviewStyle.category($0.name) == category) && $0.type == type.rawValue && $0.deletedAt == nil }?.id
@@ -219,17 +214,21 @@ struct MacTransactionEditor: View {
                 }.appPadding(20).appPanel(width: 720, height: 540).background(MacOverviewStyle.canvas)
             }
             .onAppear {
+                categoryUsage = (try? MacCategoryUsageSnapshot.load(in: modelContext)) ?? .init()
                 if let existing {
                     type = existing.typedType
-                    amountText = existing.originalAmount.formatted(.number.precision(.fractionLength(0...2)).locale(Locale(identifier: "en_US_POSIX")))
+                    amountText = MacTransactionCRUD.amountEditingText(existing.originalAmount)
                     category = existing.category; note = existing.note ?? ""; date = existing.date
                     originalCurrency = existing.originalCurrency; rateText = String(format: "%.6f", existing.exchangeRateToBase)
                     if existing.originalCurrency != bookCurrency {
                         // Saved monetary facts take precedence during an edit.
-                        bankAmount = MacBankSettlement.amountText(existing.baseAmount); useBankAmount = true
+                        bankAmount = MacTransactionCRUD.amountEditingText(existing.baseAmount); useBankAmount = true
                     }
                 } else { originalCurrency = bookCurrency }
                 amountFocused = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+                categoryUsage = (try? MacCategoryUsageSnapshot.load(in: modelContext)) ?? .init()
             }
             .onChange(of: originalCurrency) { _, newValue in
                 rateRequest = UUID(); fetchingRate = false
@@ -261,7 +260,7 @@ struct MacTransactionEditor: View {
         do {
             let source = try MacCurrency.code(originalCurrency)
             let rate = source == bookCurrency || useBankAmount ? 1 : try MacCurrency.rate(rateText)
-            let actual = foreignCurrency && useBankAmount ? try MacTransactionCRUD.amount(bankAmount) : nil
+            let actual = foreignCurrency && useBankAmount ? try MacTransactionCRUD.editedAmount(bankAmount, original: existing?.baseAmount ?? 0) : nil
             let id: UUID
             let savedRate: Double
             if let existing {

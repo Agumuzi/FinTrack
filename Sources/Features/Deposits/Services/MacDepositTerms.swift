@@ -25,6 +25,19 @@ enum MacDepositTerms {
         }
         return result
     }
+    static func projectedInterest(_ deposit: DepositRecord) -> Double {
+        FinancialPrecision.roundAmountForStorage(schedule(deposit).reduce(0) { $0 + $1.interest })
+    }
+    private static func monthlyTotal(principal: Double, annualRate: Double, start: Date, maturity: Date) -> Double {
+        var cursor = start, total = 0.0
+        for _ in 0..<1200 {
+            guard cursor < maturity, let next = Calendar.current.date(byAdding: .month, value: 1, to: cursor), next > cursor else { break }
+            let due = min(next, maturity)
+            total += DepositSettlementRule.periodicPayoutInterest(principal: principal, annualInterestRate: annualRate, from: cursor, to: due)
+            cursor = due
+        }
+        return FinancialPrecision.roundAmountForStorage(total)
+    }
     struct Terms { let annualRate: Double; let expectedInterest: Double; let manuallyEdited: Bool }
     static func calculate(principal: Double, annualRate: Double, start: Date, maturity: Date,
                           mode: DepositInterestSettlementMode, expectedOverride: Double?) throws -> Terms {
@@ -36,7 +49,9 @@ enum MacDepositTerms {
             else { throw MacFinanceRecords.Failure.invalidRate }
             return Terms(annualRate: rate, expectedInterest: FinancialPrecision.roundAmountForStorage(expectedOverride), manuallyEdited: true)
         }
-        return Terms(annualRate: annualRate, expectedInterest: DepositSettlementRule.totalInterest(principal: principal,
-            annualInterestRate: annualRate, startDate: start, maturityDate: maturity, settlementMode: mode), manuallyEdited: false)
+        let storedRate = FinancialPrecision.roundInterestRateForStorage(annualRate)
+        let interest = mode == .monthly ? monthlyTotal(principal: principal, annualRate: storedRate, start: start, maturity: maturity) : DepositSettlementRule.totalInterest(principal: principal,
+            annualInterestRate: storedRate, startDate: start, maturityDate: maturity, settlementMode: mode)
+        return Terms(annualRate: storedRate, expectedInterest: interest, manuallyEdited: false)
     }
 }

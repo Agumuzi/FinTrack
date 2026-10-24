@@ -191,17 +191,15 @@ struct MacCurrencySettingsView: View {
             currencyChoice(code).frame(maxWidth:.infinity,alignment:.leading)
             currencyStatus(code).frame(width:80)
             currencyActions(code).frame(width:28)
-        }.padding(.horizontal,10).padding(.vertical,8).frame(minHeight:56)
+        }.padding(.horizontal,10).padding(.vertical,6).frame(minHeight:44)
             .background(selected == code ? MacSettingsVisual.accent.opacity(0.045) : .clear)
     }
     private func currencyChoice(_ code: String) -> some View {
         Button { selected = code; section = "历史记录" } label: {
             HStack(spacing:10) {
                 MacCurrencyFlag(code:code,width:26).fixedSize()
-                VStack(alignment:.leading,spacing:3) {
-                    Text(code).appFont(.body,weight:.semibold)
-                    Text(MacSettingsVisual.currencyName(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
+                Text(code).appFont(.body,weight:.semibold).frame(width:48,alignment:.leading)
+                Text(MacSettingsVisual.currencyName(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength:0)
             }.contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityIdentifier("settingsCurrency-" + code)
@@ -336,7 +334,7 @@ struct MacFXSourceEditor: View {
                 Button("保存") { do { if template != .custom && key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw MacSettingsFailure.invalid("请填写 API Key / App ID") }; try MacFXService.save(source, key: key); dismiss() } catch { self.error = MacLocalization.error(error) } }.disabled(busy).accessibilityIdentifier("fxSourceSave")
             }
         }.appPadding(26).appDialog(width: 570)
-        .onAppear { template = source.provider.flatMap(MacFXTemplate.init(rawValue:)) ?? .custom; do { key = try MacFXSecrets.read(source.id) } catch { self.error = error.localizedDescription } }
+        .onAppear { template = source.provider.flatMap(MacFXTemplate.init(rawValue:)) ?? .custom; do { key = try MacFXSecrets.read(source.id, retryAuthorization: true) } catch { self.error = error.localizedDescription } }
         .onChange(of: template) { _, value in
             guard source.provider != (value == .custom ? nil : value.rawValue) else { return }
             let old = source

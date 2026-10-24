@@ -60,11 +60,11 @@ final class MacFXSystemSources {
     }
     private func loadData(_ url:String,cycle:String) async throws -> Data {
         let key = cycle + "/" + url
-        if let pending = batches[key] { return try await pending.value }
+        if let pending = batches[key] { return try await withTaskCancellationHandler { try await pending.value } onCancel: { pending.cancel() } }
         let task = Task { try await MacFXService.requestData(MacFXSource(name:"系统数据源",urlTemplate:url),from:"USD",to:"CNY",date:Date(),keyOverride:"") }
         batches[key] = task; order.append(key)
         while order.count > 128 { batches.removeValue(forKey:order.removeFirst()) }
-        return try await task.value
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 }
 

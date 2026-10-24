@@ -15,6 +15,7 @@ struct MacQuickEntryView: View {
     @Query private var recurring: [RecurringTransaction]
     @Query private var loans: [LoanRule]
     @State private var datePicker = false
+    @State private var categoryUsage = MacCategoryUsageSnapshot()
     @FocusState private var amountFocused: Bool
     @FocusState private var dateFocused: Bool
     private var base: String? {
@@ -22,11 +23,7 @@ struct MacQuickEntryView: View {
         return resolution.matchesPreference ? resolution.displayCurrency : nil
     }
     private var validCategories: [FinTrackMac.Category] {
-        categories.filter { $0.deletedAt == nil && $0.type == draft.type.rawValue }.sorted {
-            let a = MacCategoryCatalog.style(name:$0.name,type:draft.type.rawValue).order
-            let b = MacCategoryCatalog.style(name:$1.name,type:draft.type.rawValue).order
-            return a == b ? $0.name < $1.name : a < b
-        }
+        categoryUsage.sorted(categories.filter { $0.deletedAt == nil && $0.type == draft.type.rawValue })
     }
     private var selected: FinTrackMac.Category? { validCategories.first { $0.id == draft.categoryID } }
     private var foreign: Bool { draft.currency.trimmingCharacters(in:.whitespacesAndNewlines).uppercased() != base }
@@ -116,9 +113,11 @@ struct MacQuickEntryView: View {
             }
         }.appFont(.body).buttonStyle(MacStandardButtonStyle()).tint(MacUI.accent)
         .task {
+            categoryUsage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init()
             if draft.currency.isEmpty { draft.currency = base ?? preferred }
             try? await Task.sleep(for:.milliseconds(50)); amountFocused = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in categoryUsage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init() }
         .onChange(of:draft.currency) { _, value in
             draft.invalidateQuote()
             if value.trimmingCharacters(in:.whitespacesAndNewlines).uppercased() != base { draft.showsExchangeDetails = true }

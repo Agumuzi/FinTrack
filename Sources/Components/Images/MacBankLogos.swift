@@ -98,7 +98,7 @@ struct MacBankIcon: View {
             if let image = MacBankLogos.image(bank) {
                 Image(nsImage: image).resizable().scaledToFit().appPadding(5)
             } else {
-                Image(systemName: "building.columns").appIconFont(size * 0.48, weight: .regular, design: .default).foregroundStyle(.secondary)
+                Image(systemName: "building.columns").appIconFont(size * 0.48, weight: .regular, design: .default).foregroundStyle(Color(nsColor: .darkGray))
             }
         }.frame(width: MacUI.space(size), height: MacUI.space(size))
             .background(.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 9))

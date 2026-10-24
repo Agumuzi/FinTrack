@@ -27,13 +27,14 @@ struct MacFinanceListToolbar<Sort: Hashable>: View {
 struct MacFinanceListDivider: View {
     @Binding var width: Double
     var maximum: Double
+    var commit: (Double) -> Void = { _ in }
     @State private var initial: Double?
     var body: some View {
         Rectangle().fill(Color.secondary.opacity(0.15)).frame(width: 5).contentShape(Rectangle())
             .onHover { if $0 { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
-            .gesture(DragGesture().onChanged { value in
+            .gesture(DragGesture(coordinateSpace: .global).onChanged { value in
                 if initial == nil { initial = min(maximum, max(300, width)) }
                 width = min(max(300, (initial ?? width) + value.translation.width), max(300, maximum))
-            }.onEnded { _ in initial = nil }).accessibilityLabel("调整列表宽度")
+            }.onEnded { _ in commit(width); initial = nil }).accessibilityLabel("调整列表宽度")
     }
 }

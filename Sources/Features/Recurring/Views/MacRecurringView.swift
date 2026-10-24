@@ -33,8 +33,9 @@ struct MacRecurringView: View {
     @State private var message: String?
     @State private var now = Date()
     @AppStorage("v13_recurring_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
-    private var listWidth: Double { listColumns == 2 ? doubleListWidth : singleListWidth }
-    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { if listColumns == 2 { doubleListWidth = $0 } else { singleListWidth = $0 } }) }
+    @State private var transientWidth: Double?
+    private var listWidth: Double { transientWidth ?? (listColumns == 2 ? doubleListWidth : singleListWidth) }
+    private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { transientWidth = $0 }) }
     private var active: [RecurringTransaction] { rules.filter { $0.deletedAt == nil } }
     private var visible: [RecurringTransaction] {
         MacRecurringData.filtered(active, search: search, type: type, status: status, category: category, currency: currency, sort: sort)
@@ -51,7 +52,9 @@ struct MacRecurringView: View {
                 Divider()
                 list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
-                    MacFinanceListDivider(width: widthBinding, maximum: maximum)
+                    MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
+                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }; transientWidth = nil
+                    }
                     if let selected { presentedDetail(selected).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一个周期项目", systemImage: "clock.arrow.circlepath", description: Text("查看规则、计划和实际入账记录。")).frame(maxWidth: .infinity) }
                 }
@@ -66,6 +69,7 @@ struct MacRecurringView: View {
             }
         }
         .onAppear { selectedID = visible.first?.id }
+        .onChange(of: listColumns) { _, _ in transientWidth = nil }
         .onChange(of: visible.map(\.id)) { _, ids in
             if !ids.contains(selectedID ?? UUID()) { selectedID = ids.first; showsDetails = false }
         }
@@ -187,7 +191,7 @@ struct MacRecurringView: View {
                     Spacer()
                 }
                 card {
-                    Text(amount(rule)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().foregroundStyle(color(rule)).accessibilityIdentifier("recurringAmount").id("amount-\(rule.id)-\(rule.originalAmount)")
+                    Text(amount(rule)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).foregroundStyle(color(rule)).accessibilityIdentifier("recurringAmount").id("amount-\(rule.id)-\(rule.originalAmount)")
                     Text("\(rule.typedType == .income ? "收入" : "支出") · 每次原币金额").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     Divider()
                     HStack(alignment: .top) {
@@ -231,12 +235,14 @@ struct MacRecurringView: View {
                     }
                     if let last = rule.lastExecutionDate { Text("规则最近执行：\(MacDateDisplay.string(last))；实际入账以可核验账目为准。").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                 }
-                card {
-                    Text("记账快照").appFont(.section, weight: .semibold)
-                    Text("\(MacOverviewStyle.money(rule.baseAmount)) \(rule.baseCurrencyCode)").monospacedDigit().accessibilityIdentifier("recurringBookAmount")
-                    Text("最近保存汇率 \(rule.exchangeRateToBase.formatted())；未来外币入账按每次发生日期重新获取汇率。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                if rule.originalCurrency != rule.baseCurrencyCode || !MacFinanceNotes.visible(rule.note).isEmpty {
+                    card {
+                        if rule.originalCurrency != rule.baseCurrencyCode {
+                            HStack { Text("本位币 \(MacOverviewStyle.money(rule.baseAmount)) \(rule.baseCurrencyCode)").monospacedDigit().accessibilityIdentifier("recurringBookAmount"); Spacer(); Text("汇率 \(rule.exchangeRateToBase.formatted())").foregroundStyle(.secondary) }.appFont(.caption)
+                        }
+                        if !MacFinanceNotes.visible(rule.note).isEmpty { Text(MacFinanceNotes.visible(rule.note)).textSelection(.enabled) }
+                    }
                 }
-                card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(rule.note).isEmpty ? "暂无备注" : MacFinanceNotes.visible(rule.note)).appFont(.body, weight: .regular).textSelection(.enabled) }
             }.appPadding(20)
         }.accessibilityIdentifier("recurringDetailScroll")
     }

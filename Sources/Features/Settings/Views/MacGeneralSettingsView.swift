@@ -30,15 +30,15 @@ struct MacGeneralSettingsView: View {
             VStack(spacing: MacUI.space(15)) {
                 MacSettingsCard(title: "日期与时间", icon: "calendar", subtitle: "设置日期范围、周起始日和显示格式。", headerColor: .red) {
                     MacSettingsRow(label: "周起始日") { MacSettingsMenu(selection: $weekStart, options: [("星期一",2), ("星期日",1)]).accessibilityIdentifier("generalWeekStartMenu") }
-                    MacSettingsRow(label: "日期格式") { MacSettingsMenu(selection: $dateFormat, options: [("2026-10-15（年-月-日）","yyyy-MM-dd"), ("2026.10.15","yyyy.MM.dd"), ("15/10/2026","dd/MM/yyyy"), ("15.10.2026","dd.MM.yyyy"), ("10/15/2026","M/d/yyyy")]).accessibilityIdentifier("appDateFormatPicker") }
+                    MacSettingsRow(label: "日期格式") { MacSettingsMenu(selection: $dateFormat, options: [("2026-10-15","yyyy-MM-dd"), ("2026.10.15","yyyy.MM.dd"), ("15/10/2026","dd/MM/yyyy"), ("15.10.2026","dd.MM.yyyy"), ("10/15/2026","M/d/yyyy")]).accessibilityIdentifier("appDateFormatPicker") }
                     MacSettingsRow(label: "月份显示格式") { MacSettingsMenu(selection: $monthFormat, options: [("2026年10月","yyyy年M月"), ("2026-10","yyyy-MM")]).accessibilityIdentifier("generalMonthFormatMenu") }
-                    MacSettingsRow(label: "时间格式") { MacSettingsMenu(selection: $timeFormat, options: [("24 小时制（13:45）","HH:mm"), ("12 小时制（下午 1:45）","a h:mm")]).accessibilityIdentifier("generalTimeFormatMenu") }
+                    MacSettingsRow(label: "时间格式") { MacSettingsMenu(selection: $timeFormat, options: [("24 小时制","HH:mm"), ("12 小时制","a h:mm")]).accessibilityIdentifier("generalTimeFormatMenu") }
                 }
                 MacSettingsCard(title: "金额与货币显示", icon: "banknote", subtitle: "设置金额的显示格式和精度，不改变保存值。", headerColor: .orange) {
                     MacSettingsRow(label: "默认货币精度") { MacSettingsMenu(selection: $decimals, options: (0...4).map { ("\($0) 位小数", $0) }).accessibilityIdentifier("settingsDecimals") }
-                    MacSettingsRow(label: "千位分隔符") { MacSettingsMenu(selection: $grouping, options: [("1,234,567（逗号）","comma"), ("1 234 567（空格）","space"), ("1234567（不分隔）","none")]).accessibilityIdentifier("generalGroupingMenu") }
-                    MacSettingsRow(label: "负数显示方式") { MacSettingsMenu(selection: $negative, options: [("−1,234.56（减号前缀）","minus"), ("(1,234.56)（括号）","parentheses")]).accessibilityIdentifier("generalNegativeMenu") }
-                    MacSettingsRow(label: "零值显示") { MacSettingsMenu(selection: $zero, options: [("0.00（数字）","number"), ("—（短横线）","dash")]).accessibilityIdentifier("generalZeroDisplayMenu") }
+                    MacSettingsRow(label: "千位分隔符") { MacSettingsMenu(selection: $grouping, options: [("逗号","comma"), ("空格","space"), ("不分隔","none")]).accessibilityIdentifier("generalGroupingMenu") }
+                    MacSettingsRow(label: "负数显示方式") { MacSettingsMenu(selection: $negative, options: [("减号前缀","minus"), ("括号","parentheses")]).accessibilityIdentifier("generalNegativeMenu") }
+                    MacSettingsRow(label: "零值显示") { MacSettingsMenu(selection: $zero, options: [("数字","number"), ("短横线","dash")]).accessibilityIdentifier("generalZeroDisplayMenu") }
                     Text("预览：" + MacDisplayPreferences.money(-12345.6789, decimals: decimals, grouping: grouping, negative: negative, zero: zero)).appFont(.caption, weight: .regular, design: .monospaced).foregroundStyle(.secondary).accessibilityIdentifier("settingsMoneyPreview")
                 }
                 MacSettingsCard(title: "列表与数据展示", icon: "tablecells", subtitle: "设置列表页面的默认排序和显示选项。", headerColor: .blue) {
@@ -61,7 +61,7 @@ struct MacGeneralSettingsView: View {
                     Text("引用、受保护收据与清空最终确认始终有效。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                 }
                 MacSettingsCard(title: "提醒与通知", icon: "bell", headerColor: .purple) {
-                    MacSettingsToggleRow(title: "定期交易提醒", subtitle: "在到期日前显示提醒", icon: "calendar", color: .red, value: $remindRecurring)
+                    MacSettingsToggleRow(title: "定期交易提醒", subtitle: "应用内及系统通知，仍遵循单项提醒设置", icon: "calendar", color: .red, value: $remindRecurring)
                     MacSettingsToggleRow(title: "目标提醒", subtitle: "当目标接近或已逾期时显示提醒", icon: "target", color: .orange, value: $remindGoals)
                     MacSettingsToggleRow(title: "预算提醒", subtitle: "当分类支出接近或超过预算时显示提醒", icon: "chart.bar", color: .green, value: $remindBudgets)
                 }
@@ -72,6 +72,7 @@ struct MacGeneralSettingsView: View {
                 }
             }
         }.onAppear { size = databaseSize() }
+        .onChange(of: remindRecurring) { _, _ in Task { try? await MacNotifications.schedule(in: context) } }
     }
     private func databaseSize() -> String {
         guard let config = context.container.configurations.first else { return "无法读取" }

@@ -24,6 +24,7 @@ struct MacBackupSettingsView: View {
     @AppStorage("v2_backup_naming") private var naming = "datetime"
     @State private var selectedBackups = Set<UUID>()
     @State private var confirmDeleteBackups = false
+    @State private var historyLimit = 8
     @State private var message: String?
     @State private var error: String?
     @State private var exportRange = "全部时间"
@@ -39,7 +40,7 @@ struct MacBackupSettingsView: View {
     @State private var csvReview: CSVReview?
     @State private var restoreText = ""
     @State private var includeUpdateTrust = false
-    private var history: [MacBackupRecord] { (try? JSONDecoder().decode([MacBackupRecord].self, from: historyBytes)) ?? [] }
+    private var history: [MacBackupRecord] { MacBackupHistory.normalized((try? JSONDecoder().decode([MacBackupRecord].self, from: historyBytes)) ?? []) }
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
             MacSettingsColumns(wide: wide) {
@@ -48,21 +49,22 @@ struct MacBackupSettingsView: View {
                         MacSettingsRow(label: "备份保存位置", labelWidth: 125) {
                             HStack(spacing: MacUI.space(8)) { Image(systemName: "folder.fill").foregroundStyle(.blue); Text(backupFolder.isEmpty ? (MacSettingsVisual.preview ? "~/FinTrack/Backups" : "保存时选择文件夹") : backupFolder.replacingOccurrences(of: NSHomeDirectory(), with: "~")).appFont(.caption, weight: .regular, design: .default).lineLimit(1).truncationMode(.middle); Spacer(minLength: 0); Button("更改…") { chooseFolder() } }
                         }
-                        MacSettingsRow(label: "备份文件命名", labelWidth: 125) { MacSettingsMenu(selection: $naming, options: [("FinTrack_backup_YYYYMMDD_HHmm","datetime"), ("FinTrack_backup_YYYYMMDD","date")]).accessibilityIdentifier("backupNamingMenu") }
-                        Text("完整备份包含账目、金融规则、预算、目标、可迁移设置和备份历史。更新源信任配置在恢复预览中单独选择。自定义 API Key 保存在系统钥匙串，不随备份导出；新设备需重新填写。")
+                        MacSettingsRow(label: "文件命名", labelWidth: 100) { MacSettingsMenu(selection: $naming, options: [("日期与时间（按分钟）","datetime"), ("仅日期（按日）","date")]).accessibilityIdentifier("backupNamingMenu") }
+                        Text("同名文件覆盖后只保留最新记录。完整备份不包含钥匙串中的 API Key。")
                             .appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     MacSettingsCard(title: "备份记录", icon: "clock.arrow.circlepath", subtitle: "查看和管理已有的备份文件。", headerColor: .green) {
                         HStack { Text("文件名").frame(maxWidth: .infinity, alignment: .leading); Text("创建时间").frame(width: MacUI.space(104)); Text("大小").frame(width: MacUI.space(43)); Text("格式").frame(width: MacUI.space(32)) }.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(8).background(.gray.opacity(0.04))
                         VStack(spacing: MacUI.space(0)) {
                             if history.isEmpty { Text("尚未创建完整备份").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).appPadding(25) }
-                            ForEach(history.prefix(8)) { record in
+                            ForEach(history.prefix(historyLimit)) { record in
                                 Button { if selectedBackups.contains(record.id) { selectedBackups.remove(record.id) } else { selectedBackups.insert(record.id) } } label: {
                                     HStack(spacing: MacUI.space(7)) { Image(systemName: "doc.text").appFont(.body, weight: .regular, design: .default); Text(record.name).appFont(.caption, weight: .medium, design: .default).lineLimit(1).truncationMode(.middle).frame(maxWidth: .infinity, alignment: .leading); Text(MacDateDisplay.string(record.date) + "\n" + MacDisplayPreferences.time(record.date)).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(86)); Text(ByteCountFormatter.string(fromByteCount: Int64(record.size), countStyle: .file)).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(44)); Text("1").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(28)) }.appPadding(.horizontal, 7).appMinHeight(41).background(selectedBackups.contains(record.id) ? Color.blue.opacity(0.08) : .clear).contentShape(Rectangle())
                                 }.buttonStyle(.plain)
                                 Divider()
                             }
                         }
+                        if history.count > historyLimit { Button("显示全部 \(history.count) 条记录") { historyLimit = history.count } }
                         HStack { Button("在访达中显示备份文件夹", systemImage: "folder") { showFolder() }.appFont(.caption, weight: .regular, design: .default); Spacer(); Button("删除选中备份", role: .destructive) { confirmDeleteBackups = true }.disabled(selectedBackups.isEmpty).appFont(.caption, weight: .regular, design: .default) }
                     }
                     MacSettingsCard(title: "数据恢复", icon: "arrow.counterclockwise", subtitle: "从备份文件恢复数据。恢复将覆盖当前账本。", headerColor: .purple, action: AnyView(Button("选择备份文件…") { previewNative() }.accessibilityIdentifier("previewNativeRestore"))) {
@@ -234,9 +236,8 @@ struct MacBackupSettingsView: View {
         try data.write(to: url, options: .atomic)
         let saved = try Data(contentsOf: url)
         guard MacNativeBackup.digest(saved) == MacNativeBackup.digest(data) else { throw MacSettingsFailure.invalid("备份写入校验失败") }
-        var list = history
-        list.insert(MacBackupRecord(name: url.lastPathComponent, path: url.path, date: Date(), size: saved.count, sha256: MacNativeBackup.digest(saved)), at: 0)
-        try MacSettingsStore.save(Array(list.prefix(100)), key: "v2_backup_history")
+        try MacSettingsStore.save(MacBackupHistory.recording(saved, at: url, history: history), key: "v2_backup_history")
+        selectedBackups.removeAll()
     }
     private func createBackup() {
         do {
@@ -299,13 +300,13 @@ struct MacBackupSettingsView: View {
         else { message = MacSettingsVisual.preview ? "当前为演示备份记录，创建真实备份后可在访达中查看。" : "请先选择备份文件夹或创建备份。" }
     }
     private func deleteBackups() {
-        var removed = Set<UUID>()
         do {
-            for record in history where selectedBackups.contains(record.id) {
-                if !record.path.isEmpty, FileManager.default.fileExists(atPath: record.path) { try FileManager.default.trashItem(at: URL(fileURLWithPath: record.path), resultingItemURL: nil) }
-                removed.insert(record.id)
-            }
-            try MacSettingsStore.save(history.filter { !removed.contains($0.id) }, key: "v2_backup_history"); selectedBackups.removeAll(); message = "选中的备份记录已移除"; error = nil
+            let updated = try MacBackupHistory.removing(selectedBackups, from: history)
+            try MacSettingsStore.save(updated, key: "v2_backup_history"); selectedBackups.removeAll(); message = "选中的备份记录已移除"; error = nil
+        } catch let failure as MacBackupHistory.PartialRemoval {
+            do { try MacSettingsStore.save(failure.history, key: "v2_backup_history"); selectedBackups.removeAll() }
+            catch { self.error = "部分文件已移除，但历史更新失败：" + error.localizedDescription; return }
+            self.error = failure.localizedDescription
         } catch { self.error = MacLocalization.error(error) }
     }
     private func previewCSV(legacy: Bool = false) {

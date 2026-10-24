@@ -34,13 +34,13 @@ enum MacAutomaticPosting {
     static func post(_ rule: RecurringTransaction, now: Date, book: String, in context: ModelContext) async throws -> Int {
         let cursor = rule.nextExecutionDate, updated = rule.updatedAt, source = rule.originalCurrency
         let quotes = try await rates(source: source, base: book, dates: recurringDates(rule, now: now))
-        guard cursor == rule.nextExecutionDate, updated == rule.updatedAt, source == rule.originalCurrency else { throw MacFinanceReview.Failure.schedule }
+        guard rule.modelContext === context, rule.deletedAt == nil, rule.isActive, cursor == rule.nextExecutionDate, updated == rule.updatedAt, source == rule.originalCurrency else { throw MacFinanceReview.Failure.schedule }
         return try MacFinanceRecords.postDue(rule: rule, transactions: [], now: now, bookCurrency: book, exchangeRates: quotes, in: context)
     }
     static func post(_ deposit: DepositRecord, now: Date, book: String, estimated: Bool = false, in context: ModelContext) async throws -> MacDepositSettlement.PostingResult {
         let cursor = deposit.nextInterestPayoutDate, updated = deposit.updatedAt, source = deposit.originalCurrency
         let quotes = try await rates(source: source, base: book, dates: depositDates(deposit, now: now))
-        guard cursor == deposit.nextInterestPayoutDate, updated == deposit.updatedAt, source == deposit.originalCurrency else { throw MacFinanceReview.Failure.schedule }
+        guard deposit.modelContext === context, deposit.deletedAt == nil, deposit.isActive, cursor == deposit.nextInterestPayoutDate, updated == deposit.updatedAt, source == deposit.originalCurrency else { throw MacFinanceReview.Failure.schedule }
         return try MacDepositSettlement.postDue(deposit, now: now, bookCurrency: book, exchangeRates: quotes, estimated: estimated, in: context)
     }
     static func run(in context: ModelContext, now: Date = Date(), includeRules: Bool = true, includeDeposits: Bool = true, estimateDeposits: Bool = false) async -> String? {
@@ -74,12 +74,12 @@ enum MacAutomaticPosting {
         catch MacLoanRepayment.PostingError.notDue { return 0 }
         catch MacLoanRepayment.PostingError.allPaid { return 0 }
         let source = loan.currency, updated = loan.updatedAt
-        let due = loan.amortizationSchedule.filter {
-            $0.index >= preview.payment.index && Calendar.current.startOfDay(for: $0.date) <= Calendar.current.startOfDay(for: now)
+        let due = MacLoanRepayment.resolvedSchedule(loan, transactions: try context.fetch(FetchDescriptor<Transaction>())).filter {
+            $0.total > 0 && $0.index >= preview.payment.index && Calendar.current.startOfDay(for: $0.date) <= Calendar.current.startOfDay(for: now)
         }
         guard due.count <= 24 else { throw MacFinanceRecords.Failure.tooManyOccurrences }
         let quotes = try await rates(source: source, base: book, dates: due.map(\.date))
-        guard source == loan.currency, updated == loan.updatedAt, loan.deletedAt == nil else { throw MacFinanceReview.Failure.schedule }
+        guard loan.modelContext === context, source == loan.currency, updated == loan.updatedAt, loan.deletedAt == nil else { throw MacFinanceReview.Failure.schedule }
         do {
             for payment in due {
                 try MacLoanRepayment.recordPaid(loan, now: now, bookCurrency: book, expectedIndex: payment.index,
