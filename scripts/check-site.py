@@ -17,7 +17,7 @@ class Document(HTMLParser):
         if 'id' in attrs:
             assert attrs['id'] not in self.ids, f'Duplicate id: {attrs["id"]}'
             self.ids.add(attrs['id'])
-        for key in ('src', 'href'):
+        for key in ('src', 'href', 'srcset'):
             if key in attrs:
                 self.links.append(attrs[key])
 
@@ -40,12 +40,13 @@ def check():
             assert path.is_file(), f'Missing site resource: {link}'
         count += 1
     for name in ('overview', 'records', 'finance', 'exchange', 'settings'):
-        path = SITE / 'assets' / 'screenshots' / (name + '.png')
-        assert path.read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), f'Invalid screenshot: {path.name}'
+        for theme in ('light', 'dark'):
+            path = SITE / 'assets' / 'screenshots' / (name + '-' + theme + '.png')
+            assert path.read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), f'Invalid screenshot: {path.name}'
     for link in re.findall(r'url\([\'\"]?([^\)\'\"]+)', (SITE / 'styles.css').read_text()):
         if not urlsplit(link).scheme and not link.startswith('data:'):
             assert (SITE / link).is_file(), link
-    print(f'Validated {count} local links and five real screenshot resources.')
+    print(f'Validated {count} local links and ten light/dark screenshot resources.')
 
 if __name__ == '__main__':
     check()
