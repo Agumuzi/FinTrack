@@ -62,7 +62,7 @@ enum MacLegacyLoanAudit {
         // triggered a historical expense. Do NOT use isActive as proof of paid.
         let linkedIDs = Set(loan.generatedRules.map(\.id))
         let orphan = matched.filter { !linkedIDs.contains($0.id) }.count
-        let schedule = loan.amortizationSchedule
+        let schedule = loan.legacyAmortizationSchedule
         var bucket: [Int: [RecurringTransaction]] = [:]
         var malformed = 0
         for rule in matched {

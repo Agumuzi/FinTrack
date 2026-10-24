@@ -17,10 +17,14 @@ enum MacDepositsData {
         let days = calendar.dateComponents([.day], from: today, to: end).day ?? Int.max
         return days <= 30 ? .soon : .active
     }
+    static func matches(_ actual: Status, filter: Status?) -> Bool {
+        guard let filter else { return true }
+        return filter == .matured ? actual == .matured || actual == .ended : actual == filter
+    }
     static func filtered(_ deposits: [DepositRecord], search: String, status selected: Status?, bank: String?, currency: String?, sort: Sort, now: Date = Date()) -> [DepositRecord] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return deposits.filter {
-            $0.deletedAt == nil && (selected == nil || status($0, now: now) == selected) &&
+            $0.deletedAt == nil && matches(status($0, now: now), filter: selected) &&
             (bank == nil || $0.bankName == bank) && (currency == nil || $0.originalCurrency == currency) &&
             (needle.isEmpty || [$0.bankName, $0.originalCurrency, MacFinanceNotes.visible($0.note)].contains { $0.localizedCaseInsensitiveContains(needle) })
         }.sorted {

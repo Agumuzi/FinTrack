@@ -123,7 +123,7 @@ struct MacGoalInlineEditor: View {
     }
     private func stat(_ value: String, _ label: String, identifier: String) -> some View {
         VStack(spacing: MacUI.space(6)) {
-            Text(value).appFont(.amount, weight: .semibold).monospacedDigit()
+            Text(value).appFont(.amount, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                 .fixedSize(horizontal: true, vertical: false).accessibilityIdentifier(identifier)
             Text(label).appFont(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }.frame(maxWidth: .infinity).appPadding(.vertical, 11)

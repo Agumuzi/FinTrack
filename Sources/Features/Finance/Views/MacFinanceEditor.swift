@@ -128,20 +128,26 @@ struct MacFinanceEditor: View {
                         MacFinanceCategoryField(category: $recurrenceCategory, type: "Expense", identifier: "loanEditorCategory")
                     }
                 }
-                if panel == .deposits || panel == .loans {
+                if panel == .loans {
                     MacFinanceNumberField(title: "年利率 %", text: $rateText, rate: true, identifier: "financeEntryRate")
                 }
                 if panel == .deposits {
-                    Toggle("手动设置预期利息", isOn: $overridesInterest)
-                    if overridesInterest { MacFinanceNumberField(title: "预期利息", text: $expectedInterestText, identifier: "financeExpectedInterest") }
-                    HStack(alignment: .top, spacing: 16) {
-                        if existing == nil {
-                            MacEntryField(title: "续存来源") { MacSettingsMenu(selection: $renewalSource, options: [("无", UUID?.none)] + savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }.map { ($0.bankName, Optional($0.id)) }) }
-                        }
-                        Spacer(minLength: 0)
-                        MacEntryField(title: "结息方式") { MacSettingsMenu(selection: $depositMode, options: DepositInterestSettlementMode.allCases.map { (MacLocalization.value($0.rawValue), $0) }) }.frame(width: 180)
+                    HStack(alignment: .top, spacing: 14) {
+                        MacFinanceNumberField(title: "年利率 %", text: $rateText, rate: true, identifier: "financeEntryRate")
+                        MacEntryField(title: "结息方式") { MacSettingsMenu(selection: $depositMode, options: DepositInterestSettlementMode.allCases.map { (MacLocalization.value($0.rawValue), $0) }) }
                     }
-                    MacDateTimeField(title: "开始日期", date: $start, identifier: "financeStartDate")
+                    HStack(alignment: .center, spacing: 14) {
+                        Toggle("手动设置预期利息", isOn: $overridesInterest).fixedSize()
+                        if overridesInterest { MacFinanceNumberField(title: "预期利息", text: $expectedInterestText, identifier: "financeExpectedInterest") }
+                        else { Spacer(minLength: 0) }
+                    }
+                    if existing == nil {
+                        MacEntryField(title: "续存来源") { MacSettingsMenu(selection: $renewalSource, options: [("无", UUID?.none)] + savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }.map { ($0.bankName, Optional($0.id)) }) }
+                    }
+                    HStack(alignment: .top, spacing: 14) {
+                        MacDateTimeField(title: "开始日期", date: $start, identifier: "financeStartDate")
+                        if manualMaturity { MacDateTimeField(title: "到期日期", date: $maturity, identifier: "financeMaturityDate") }
+                    }
                     HStack {
                         Toggle("直接设置到期日", isOn: $manualMaturity)
                         Spacer()
@@ -150,8 +156,7 @@ struct MacFinanceEditor: View {
                             MacSettingsMenu(selection: $termUnit, options: [("日", "day"), ("月", "month"), ("年", "year")]).frame(width: 90)
                         }
                     }
-                    if manualMaturity { MacDateTimeField(title: "到期日期", date: $maturity, identifier: "financeMaturityDate") }
-                    else { Text("到期：" + MacDateDisplay.string(maturity)).appFont(.caption).foregroundStyle(.secondary) }
+                    if !manualMaturity { Text("到期：" + MacDateDisplay.string(maturity)).appFont(.caption).foregroundStyle(.secondary) }
                 } else if panel == .loans {
                     HStack {
                         Stepper("还款期数：\(months) 个月", value: $months, in: 1...600).fixedSize()
@@ -306,8 +311,7 @@ struct MacFinanceEditor: View {
                 originalCurrency = r.originalCurrency; principalFx = String(r.principalExchangeRateToBase); interestFx = String(r.interestExchangeRateToBase)
                 depositMode = r.typedInterestSettlementMode; overridesInterest = r.isInterestManuallyEdited; expectedInterestText = String(r.expectedInterest)
                 notes = MacFinanceNotes.visible(r.note); reminders = r.notificationsEnabled; reminderDays = r.reminderDaysBefore
-                let duration = max(1, Calendar.current.dateComponents([.day], from: r.startDate, to: r.maturityDate).day ?? 1)
-                maturity = Calendar.current.date(byAdding: .day, value: duration, to: start) ?? maturity
+                start = r.startDate; maturity = r.maturityDate
                 manualMaturity = true
             } else { updateMaturity() }
             return

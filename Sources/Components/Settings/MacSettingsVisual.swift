@@ -93,7 +93,7 @@ struct MacSymbolColorPicker: View {
     @State private var choosingIcon = false
     var body: some View {
         HStack(spacing: 10) {
-            Text("图标").appFont(.body).foregroundStyle(.secondary)
+            Text("图标").appFont(.body).foregroundStyle(.secondary).fixedSize()
             Button { choosingIcon = true } label: {
                 HStack(spacing: 8) {
                     MacSettingsIcon(symbol: icon, color: MacAccent.color(color), size: 30)
@@ -102,8 +102,8 @@ struct MacSymbolColorPicker: View {
                 }.padding(8).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
             }.buttonStyle(.plain).fixedSize(horizontal: true, vertical: false).accessibilityIdentifier(identifierPrefix + "Open")
             Spacer(minLength: 16)
-            Text("颜色").appFont(.body).foregroundStyle(.secondary)
-            MacColorChoices(selection: $color, identifierPrefix: identifierPrefix + "Color").frame(width: 140)
+            Text("颜色").appFont(.body).foregroundStyle(.secondary).fixedSize()
+            MacColorChoices(selection: $color, identifierPrefix: identifierPrefix + "Color").fixedSize()
         }.accessibilityElement(children: .contain).accessibilityIdentifier(identifierPrefix)
             .sheet(isPresented: $choosingIcon) { MacIconLibraryChooser(icon: $icon, color: color, title: title, identifierPrefix: identifierPrefix) }
     }
@@ -168,6 +168,7 @@ struct MacSettingsButtonStyle: ButtonStyle {
         let destructive = configuration.role == .destructive
         configuration.label.appFont(.body, weight: .semibold, design: .default)
             .foregroundStyle(primary ? .white : destructive ? .red : .primary)
+            .lineLimit(1)
             .appPadding(.horizontal, 13).frame(minHeight: MacUI.space(height))
             .background(primary ? MacUI.accent : destructive ? Color.red.opacity(0.035) : MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(destructive ? .red.opacity(0.2) : .gray.opacity(0.18)))
@@ -367,7 +368,7 @@ struct MacColorChoices: View {
     var body: some View {
         Button { choosing = true } label: {
             HStack(spacing: 10) {
-                Capsule().fill(MacAccent.color(selection)).frame(height: 24)
+                Circle().fill(MacAccent.color(selection)).frame(width: 26, height: 26)
                 Image(systemName: "chevron.right").appFont(.caption).foregroundStyle(.secondary)
             }.padding(8).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
         }.buttonStyle(.plain).accessibilityLabel("选择颜色").accessibilityIdentifier(identifierPrefix + "Open")

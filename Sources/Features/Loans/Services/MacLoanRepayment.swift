@@ -58,6 +58,14 @@ enum MacLoanRepayment {
         "Loan installment \(payment.index)/\(loan.termMonths) — Principal: \(payment.principal); Interest: \(payment.interest) \(marker(loanID: loan.id, payment: payment))"
     }
 
+    static func resolvedSchedule(_ loan: LoanRule, transactions: [Transaction]) -> [LoanAmortizationEngine.Payment] {
+        let legacy = loan.legacyAmortizationSchedule
+        let historical = Dictionary(uniqueKeysWithValues: legacy.filter {
+            payment in transactions.contains { $0.note == receiptNote(loan, payment: payment) && $0.originalAmount == payment.total }
+        }.map { ($0.index, $0) })
+        return LoanAmortizationEngine.reconciled(principal: loan.principal, schedule: legacy, historical: historical)
+    }
+
     /// Validate every receipt scoped to this loan, including deleted rows and
     /// markers that no longer match an edited schedule. Ignoring either can
     /// incorrectly advance progress or replay a previously paid installment.
@@ -136,14 +144,14 @@ enum MacLoanRepayment {
         try validateCurrency(loan, book: bookCurrency, transactions: transactions,
                              deposits: deposits, loans: loans, recurring: recurring)
 
-        let schedule = loan.amortizationSchedule
+        let schedule = resolvedSchedule(loan, transactions: transactions)
         let paid = try verifiedPaidIndices(loan, schedule: schedule,
                                           transactions: transactions, book: bookCurrency)
         // A posted later period with an earlier period missing is unsafe:
         // never guess whether someone manually deleted a prior payment.
         var completed = 0
         var firstMissing: LoanAmortizationEngine.Payment?
-        for payment in schedule {
+        for payment in schedule where payment.total > 0 {
             if paid.contains(payment.index) {
                 guard firstMissing == nil else { throw PostingError.inconsistentLedger }
                 completed += 1

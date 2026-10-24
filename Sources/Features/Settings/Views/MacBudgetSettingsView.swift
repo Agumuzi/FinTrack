@@ -138,8 +138,11 @@ struct MacBudgetSettingsView: View {
                             Spacer(minLength: 3)
                             Text(percentText).appFont(.caption, weight: .regular, design: .default).lineLimit(1).fixedSize(horizontal: true, vertical: false).foregroundStyle(.secondary)
                         }
-                        HStack { Text("预算金额").appFont(.caption, weight: .regular).foregroundStyle(.secondary); Spacer(minLength: 8); Text(amountText).appFont(.caption, weight: .medium, design: .default).lineLimit(1).fixedSize(horizontal: true, vertical: false) }
-                        HStack { Text("已支出").appFont(.caption, weight: .regular).foregroundStyle(.secondary); Spacer(minLength: 8); Text(spentText).appFont(.caption, weight: .medium, design: .default).lineLimit(1).fixedSize(horizontal: true, vertical: false).foregroundStyle(fraction >= 0.8 ? .red : .primary) }
+                        HStack(spacing: 8) {
+                            Text("已用 " + spentText).foregroundStyle(fraction >= 0.8 ? .red : .primary)
+                            Spacer(minLength: 4)
+                            Text("预算 " + amountText).foregroundStyle(.secondary)
+                        }.appFont(.caption).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                         MacSettingsProgress(value: fraction, color: fraction >= 0.8 ? .red : .green, height: 7)
                     }.appPadding(.horizontal, 9).appPadding(.vertical, 9)
                 } else {

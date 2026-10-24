@@ -156,11 +156,22 @@ enum MacTransactionCRUD {
         else {
             throw PostingError.foreignCurrencyEdit
         }
-        let amount = try amount(draft.amountText)
+        let amount = try editedAmount(draft.amountText, original: transaction.originalAmount)
         let category = try validatedCategory(draft.category)
         _ = try MacCurrency.ledgerCurrency(in: context, preferred: book)
+        let source = try MacCurrency.code(originalCurrency ?? book)
         let snapshot: MacCurrencySnapshot
-        if let actualBaseAmount {
+        let unchangedAmount = draft.amountText == amountEditingText(transaction.originalAmount) && source == transaction.originalCurrency
+        let unchangedSettlement = actualBaseAmount.map { $0 == transaction.baseAmount } ?? ((exchangeRate ?? transaction.exchangeRateToBase) == transaction.exchangeRateToBase)
+        if unchangedAmount, unchangedSettlement,
+           transaction.originalAmount.isFinite, transaction.originalAmount > 0,
+           transaction.baseAmount.isFinite, transaction.baseAmount > 0, transaction.baseAmount <= 1e12,
+           transaction.exchangeRateToBase.isFinite, transaction.exchangeRateToBase > 0,
+           abs(FinancialPrecision.roundAmountForStorage(transaction.originalAmount * transaction.exchangeRateToBase) - FinancialPrecision.roundAmountForStorage(transaction.baseAmount)) < 0.005,
+           source != book || (transaction.exchangeRateToBase == 1 && abs(transaction.originalAmount - transaction.baseAmount) < 1e-6) {
+            snapshot = .init(originalAmount: transaction.originalAmount, originalCurrency: source,
+                             baseAmount: transaction.baseAmount, baseCurrency: book, rate: transaction.exchangeRateToBase)
+        } else if let actualBaseAmount {
             let candidate = try MacBankSettlement.snapshot(originalAmount:amount,actualBaseAmount:actualBaseAmount,original:originalCurrency ?? book,base:book)
             // A non-financial edit must not re-derive even the last floating bit
             // of an existing, valid snapshot. Explicit amount changes derive anew.

@@ -153,7 +153,30 @@ struct LoanAmortizationEngine {
         let remainingBalance: Double
     }
 
-    static func schedule(
+    /// Round cash principal cumulatively and settle the remaining cents in the
+    /// final installment. Verified historical payments may retain the original
+    /// components; only future cash payments absorb the rounding difference.
+    static func reconciled(principal: Double, schedule: [Payment], historical: [Int: Payment] = [:]) -> [Payment] {
+        var balance = FinancialPrecision.roundAmountForStorage(principal)
+        return schedule.map { payment in
+            let saved = historical[payment.index]
+            let principalPart = saved?.principal ?? (payment.index == schedule.last?.index ? balance : min(balance, payment.principal))
+            let interest = saved?.interest ?? payment.interest
+            balance = FinancialPrecision.roundAmountForStorage(max(0, balance - principalPart))
+            return Payment(index: payment.index, date: payment.date,
+                           total: saved?.total ?? FinancialPrecision.roundAmountForStorage(principalPart + interest),
+                           principal: principalPart, interest: interest,
+                           remainingBalance: balance)
+        }
+    }
+
+    static func schedule(principal: Double, annualRate: Double, termMonths: Int,
+                         method: RepaymentMethod, firstPaymentDate: Date) -> [Payment] {
+        reconciled(principal: principal, schedule: legacySchedule(principal: principal, annualRate: annualRate,
+            termMonths: termMonths, method: method, firstPaymentDate: firstPaymentDate))
+    }
+
+    static func legacySchedule(
         principal: Double,
         annualRate: Double,
         termMonths: Int,
@@ -240,6 +263,11 @@ struct LoanAmortizationEngine {
 extension LoanRule {
     var usesForeignCurrency: Bool {
         currency != baseCurrencyCode
+    }
+
+    var legacyAmortizationSchedule: [LoanAmortizationEngine.Payment] {
+        LoanAmortizationEngine.legacySchedule(principal: principal, annualRate: annualRate,
+            termMonths: termMonths, method: method, firstPaymentDate: startDate)
     }
 
     var amortizationSchedule: [LoanAmortizationEngine.Payment] {

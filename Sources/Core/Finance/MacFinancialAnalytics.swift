@@ -42,9 +42,20 @@ enum MacFinancialSettings {
 
     static func snapshot(profile: FinancialProfile?, transactions: [Transaction], loans: [LoanRule],
                          deposits: [DepositRecord], currency: String, asOf date: Date) -> FinancialProfileSnapshot {
-        FinancialProfileSnapshotRule.snapshot(profile: profile,
-            transactions: transactions.filter { $0.deletedAt == nil },
-            loans: loans.filter { $0.deletedAt == nil }, deposits: deposits.filter { $0.deletedAt == nil },
+        let cash = transactions.filter { $0.deletedAt == nil && $0.date <= date }
+        let currentLoans = loans.filter { $0.deletedAt == nil && $0.baseCurrencyCode == currency }
+        let original = FinancialProfileSnapshotRule.snapshot(profile: profile,
+            transactions: cash, loans: [], deposits: deposits.filter { $0.deletedAt == nil },
             baseCurrency: currency, asOf: date)
+        // A date passing is not evidence of a repayment. Unverified loans retain
+        // their full saved principal until their receipt history is reconciled.
+        let debt = currentLoans.reduce(0.0) { sum, loan in
+            let audit = MacLoansData.audit(loan, transactions: cash, rules: [])
+            let remaining = audit.reliable ? (audit.outstanding ?? loan.principal) : loan.principal
+            return sum + FinancialPrecision.roundAmountForStorage(remaining * loan.exchangeRateToBase)
+        }
+        return FinancialProfileSnapshot(netWorth: original.netWorth - debt, availableAssets: original.availableAssets,
+            frozenDepositPrincipal: original.frozenDepositPrincipal, manualDebtBalance: original.manualDebtBalance,
+            loanBalance: debt, requiredAssetReferenceTopUp: original.requiredAssetReferenceTopUp)
     }
 }

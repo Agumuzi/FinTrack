@@ -32,7 +32,7 @@ enum MacNotifications {
             let due = Calendar.current.date(bySettingHour: record.reminderHour, minute: record.reminderMinute, second: 0, of: date)!
             try await add(id: "deposit-\(record.id)", title: record.bankName, date: due)
         }
-        for rule in try context.fetch(FetchDescriptor<RecurringTransaction>()) where rule.deletedAt == nil && rule.isActive && rule.notificationsEnabled {
+        for rule in try context.fetch(FetchDescriptor<RecurringTransaction>()) where (MacPreferences.defaults.object(forKey: "v2_remind_recurring") as? Bool ?? true) && rule.deletedAt == nil && rule.isActive && rule.notificationsEnabled {
             let date = Calendar.current.date(byAdding: .day, value: -rule.reminderDaysBefore, to: rule.nextExecutionDate)!
             let due = Calendar.current.date(bySettingHour: rule.reminderHour, minute: rule.reminderMinute, second: 0, of: date)!
             try await add(id: "recurring-\(rule.id)", title: rule.title, date: due)

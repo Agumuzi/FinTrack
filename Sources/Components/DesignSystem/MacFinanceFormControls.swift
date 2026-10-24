@@ -2,7 +2,7 @@ import SwiftUI
 import AppKit
 import SwiftData
 
-/// Keep the editing value ungrouped. Presentation never rounds a stored amount.
+/// The binding stays ungrouped; native editing displays separators without rounding.
 enum MacNumberInput {
     static func raw(_ display: String, grouping: String) -> String {
         let separator = grouping == "space" ? " " : ","
@@ -52,34 +52,77 @@ struct MacNumericInput: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: MacNumericInput
         var editing = false
+        var observedText = ""
         init(_ parent: MacNumericInput) { self.parent = parent }
+        var lastDisplay = ""
+        private var separator: String { parent.grouping == "space" ? " " : "," }
+        private func logicalOffset(_ string: String, _ position: Int) -> Int {
+            String(string.prefix(max(0, position))).filter { String($0) != separator }.count
+        }
+        private func displayOffset(_ string: String, _ logical: Int) -> Int {
+            guard logical > 0 else { return 0 }
+            var digits = 0
+            for (index, char) in string.enumerated() {
+                if String(char) != separator { digits += 1 }
+                if digits == logical { return index + 1 }
+            }
+            return string.utf16.count
+        }
+        private func render(_ display: String, in field: NSTextField) {
+            let editor = field.currentEditor() as? NSTextView
+            let old = field.stringValue
+            let selection = editor?.selectedRange() ?? NSRange(location: old.utf16.count, length: 0)
+            let start = logicalOffset(old, selection.location)
+            let end = logicalOffset(old, NSMaxRange(selection))
+            if old != display { field.stringValue = display }
+            if let editor {
+                let a = displayOffset(display, start), b = displayOffset(display, end)
+                editor.setSelectedRange(NSRange(location: a, length: max(0, b - a)))
+            }
+            lastDisplay = display
+        }
+        func externalUpdate(_ field: NSTextField) {
+            observedText = parent.text
+            render(parent.rate ? MacNumberInput.rate(parent.text) : MacNumberInput.display(parent.text, grouping: parent.grouping), in: field)
+        }
         func controlTextDidBeginEditing(_ notification: Notification) {
             editing = true; parent.focus?.wrappedValue = true
-            if let field = notification.object as? NSTextField { field.stringValue = parent.presented(parent.text, editing: true) }
+            observedText = parent.text
+            if let field = notification.object as? NSTextField { externalUpdate(field) }
         }
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
             let value = field.stringValue
-            let raw = parent.rate ? value : MacNumberInput.raw(value, grouping: parent.grouping)
-            if !parent.rate && raw.contains(parent.grouping == "space" ? " " : ",") && parent.grouping != "none" {
-                field.stringValue = MacNumberInput.display(parent.text, grouping: parent.grouping)
-                NSSound.beep(); return
+            if parent.rate { parent.text = value; observedText = value; lastDisplay = value; return }
+            if (field.currentEditor() as? NSTextView)?.hasMarkedText() == true { return }
+            // A one-character edit may temporarily break a group, for example
+            // 1,000 -> 1,0000. Validate its digits, then rebuild the separators.
+            let old = Array(lastDisplay), new = Array(value)
+            var prefix = 0, suffix = 0
+            while prefix < min(old.count, new.count), old[prefix] == new[prefix] { prefix += 1 }
+            while suffix < min(old.count, new.count) - prefix, old[old.count - 1 - suffix] == new[new.count - 1 - suffix] { suffix += 1 }
+            let ordinaryEdit = max(old.count - prefix - suffix, new.count - prefix - suffix) <= 1
+            let grouped = parent.grouping != "none" && value.contains(separator)
+            let raw = grouped ? value.replacingOccurrences(of: separator, with: "") : value
+            guard raw.range(of: #"^[0-9]*(\.[0-9]*)?$"#, options: .regularExpression) != nil,
+                  !grouped || ordinaryEdit || MacNumberInput.raw(value, grouping: parent.grouping) != value else {
+                render(lastDisplay, in: field); NSSound.beep(); return
             }
-            let editor = field.currentEditor() as? NSTextView
-            let selection = editor?.selectedRange() ?? NSRange(location: value.utf16.count, length: 0)
-            let prefix = String(value.prefix(min(selection.location, value.count)))
-            let meaningful = prefix.filter { $0 != "," && $0 != " " }.count
-            parent.text = raw
-            let formatted = parent.rate ? raw : MacNumberInput.display(raw, grouping: parent.grouping)
-            guard formatted != value else { return }
-            field.stringValue = formatted
-            var count = 0, position = 0
-            for character in formatted {
-                if count >= meaningful { break }
-                position += String(character).utf16.count
-                if character != "," && character != " " { count += 1 }
-            }
-            editor?.setSelectedRange(NSRange(location: position, length: 0))
+            parent.text = raw; observedText = raw
+            render(MacNumberInput.display(raw, grouping: parent.grouping), in: field)
+        }
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard !parent.rate, parent.grouping != "none", textView.selectedRange().length == 0 else { return false }
+            let selection = textView.selectedRange(), value = textView.string as NSString
+            let backwards = commandSelector == #selector(NSResponder.deleteBackward(_:))
+            let forwards = commandSelector == #selector(NSResponder.deleteForward(_:))
+            let index = backwards ? selection.location - 1 : selection.location
+            guard (backwards || forwards), index >= 0, index < value.length,
+                  value.substring(with: NSRange(location: index, length: 1)) == separator else { return false }
+            let start = backwards ? max(0, index - 1) : index
+            let count = min(2, value.length - start)
+            textView.insertText("", replacementRange: NSRange(location: start, length: count))
+            return true
         }
         func controlTextDidEndEditing(_ notification: Notification) {
             editing = false; parent.focus?.wrappedValue = false
@@ -101,8 +144,15 @@ struct MacNumericInput: NSViewRepresentable {
     }
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.parent = self
-        let value = presented(text, editing: context.coordinator.editing)
-        if field.stringValue != value { field.stringValue = value }
+        let coordinator = context.coordinator
+        if !coordinator.editing {
+            let value = presented(text, editing: false)
+            if field.stringValue != value { field.stringValue = value }
+        } else if text != coordinator.observedText {
+            // External changes (for example inferred interest) may update a field;
+            // a redraw must not rewrite an unchanged in-progress keystroke.
+            coordinator.externalUpdate(field)
+        }
         field.font = MacInterfaceFonts.font(size: MacUI.fontSize(large ? .amount : .body, tier: MacFontSizeTier(rawValue: tier) ?? .standard), monospacedDigits: true)
         field.textColor = .labelColor; field.isEnabled = enabled
         field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(identifier)
@@ -125,19 +175,17 @@ struct MacFinanceNumberField: View {
 }
 
 struct MacFinanceCategoryField: View {
+    @Environment(\.modelContext) private var context
     @Binding var category: String
     var type: String
     var identifier: String
     @Query private var categories: [Category]
+    @State private var usage = MacCategoryUsageSnapshot()
     @AppStorage("v2_category_styles", store: MacPreferences.defaults) private var revision = Data()
     var body: some View {
         let _ = revision
         let styles: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
-        let rows = categories.filter { $0.deletedAt == nil && $0.type == type }.sorted {
-            let a = MacCategoryCatalog.style(name: $0.name, type: type, in: styles).order
-            let b = MacCategoryCatalog.style(name: $1.name, type: type, in: styles).order
-            return a == b ? $0.name < $1.name : a < b
-        }
+        let rows = usage.sorted(categories.filter { $0.deletedAt == nil && $0.type == type })
         let names = rows.map(\.name) + (category.isEmpty || rows.contains { $0.name == category } ? [] : [category])
         MacEntryField(title: "分类") {
             MacIconMenu(selection: $category, options: names.map { name in
@@ -146,6 +194,8 @@ struct MacFinanceCategoryField: View {
             }, identifier: identifier, accessibilityTitle: "分类", width: 250)
             if names.isEmpty { Text("请先在分类管理中添加分类").appFont(.caption).foregroundStyle(.secondary) }
         }
+        .onAppear { usage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init() }
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in usage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init() }
     }
 }
 

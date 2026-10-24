@@ -68,7 +68,7 @@ struct MacFXRateCard: View {
     }
     @ViewBuilder private var value: some View {
         if quote != nil {
-            Text(valueText).appFont(.section,weight:.semibold).monospacedDigit().lineLimit(1)
+            Text(valueText).appFont(.amount,weight:.bold).monospacedDigit().lineLimit(1)
                 .accessibilityIdentifier("fxRate-" + pair.key).accessibilityValue(valueText + " " + pair.quote)
         } else {
             Text("暂无报价").appFont(.body,weight:.regular).foregroundStyle(.secondary)

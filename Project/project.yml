@@ -26,8 +26,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.agumuzi.fintrack.macos
         PRODUCT_MODULE_NAME: FinTrackMac
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "1.3"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "1.4"
+        CURRENT_PROJECT_VERSION: "6"
         INFOPLIST_KEY_CFBundleDisplayName: FinTrack
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
         GENERATE_INFOPLIST_FILE: "YES"

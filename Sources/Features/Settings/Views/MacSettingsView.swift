@@ -82,7 +82,9 @@ struct MacSettingsView: View {
             let menuWidth: CGFloat = geometry.size.width < MacUI.space(850) ? MacUI.space(190) : MacUI.space(230)
             HStack(spacing: MacUI.space(0)) {
                 if !compactMenu { navigation.frame(width: menuWidth); Divider() }
-                let wide = geometry.size.width - (compactMenu ? 0 : menuWidth) > MacUI.space(780)
+                let contentWidth = geometry.size.width - (compactMenu ? 0 : menuWidth) - 44
+                let minimumColumn: CGFloat = fontTierValue == "large" ? 460 : 420
+                let wide = contentWidth >= 2 * minimumColumn + 16
                 if page == .currency {
                     VStack(alignment:.leading,spacing:0) {
                         pageHeader(compactMenu:compactMenu)

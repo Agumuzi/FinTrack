@@ -89,7 +89,7 @@ struct MacCategoriesSettingsView: View {
     @State private var usageRevision = 0
     @AppStorage("v2_budgets") private var budgetRevision = Data()
     @State private var type = "Expense"
-    @State private var sorting = "手动顺序"
+    @State private var sorting = "引用最多"
     @State private var selectedID: UUID?
     @State private var name = ""
     @State private var symbol = "tag"
@@ -152,10 +152,11 @@ struct MacCategoriesSettingsView: View {
                         if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(.green) }
                         HStack { Spacer(); Button("保存修改") { if let selected, name.trimmingCharacters(in: .whitespacesAndNewlines) != selected.name && name != MacOverviewStyle.category(selected.name) { rename = true } else { save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveManagedCategory") }
                     }
-                    MacSettingsCard(title: "分类使用", icon: "doc.text", subtitle: "本分类用于记账、周期规则与预算。", headerColor: .gray) {
-                        if let selected { LabeledContent("历史引用", value: usageSnapshot.map { "\($0.count(for: selected)) 次" } ?? "待核对") }
-                        Text("重命名会同步更新已有引用；被使用的分类不可直接删除。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
+                    if let selected {
+                        HStack { Label("历史引用", systemImage: "doc.text"); Spacer(); Text(usageSnapshot.map { "\($0.count(for: selected)) 次" } ?? "待核对") }.appFont(.caption).foregroundStyle(.secondary)
                     }
+                    Text("重命名同步更新引用；使用中的分类不可删除。").appFont(.caption).foregroundStyle(.secondary)
+
                 }
             }
         }
