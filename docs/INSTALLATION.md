@@ -2,7 +2,7 @@
 
 ## 下载和校验
 
-从 [v1.3 Release](https://github.com/Agumuzi/FinTrack/releases/tag/v1.3) 下载 `FinTrack-v1.3-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.3-macOS.zip` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
 
 在下载目录检查：
 
