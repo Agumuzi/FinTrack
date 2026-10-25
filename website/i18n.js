@@ -1,8 +1,12 @@
 /* FinTrack website localization: the HTML is authored in English for first-visit/SEO fallback.
-   Keep v1.4.1 release facts and existing Chinese app screenshots unchanged until a newer release. */
+   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.2. */
 (() => {
   'use strict';
   const dictionary = {
+  "Startup, permissions & a branded installer": "启动、权限与品牌安装包",
+  "Start with an empty ledger and a shared permission guide. Updates use an attached app dialog; automatic checks notify you when a new version is available. The warm Agumuzi DMG includes the new wallet icon and drag-to-install layout.": "默认空白账本与统一权限引导。更新使用主窗口内弹窗，自动发现新版时发送系统通知。暖色 Agumuzi DMG 包含新钱包图标及拖动安装布局。",
+  "System permissions are optional for basic bookkeeping. Create a full backup before upgrading.": "基本记账不强制开启系统权限。升级前请创建完整备份。",
+  "October 26, 2026": "2026 年 10 月 26 日",
   "Swipe or scroll to explore past releases.": "左右滑动，浏览历史版本。",
   "Newer releases": "较新版本",
   "Older releases": "较早版本",
@@ -15,7 +19,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.1 is available": "FinTrack v1.4.1 现已发布",
+  "FinTrack v1.4.2 is available": "FinTrack v1.4.2 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -147,6 +151,10 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Startup, permissions & a branded installer": "Запуск, разрешения и фирменный установщик",
+  "Start with an empty ledger and a shared permission guide. Updates use an attached app dialog; automatic checks notify you when a new version is available. The warm Agumuzi DMG includes the new wallet icon and drag-to-install layout.": "Начните с пустого журнала и общего мастера разрешений. Обновления открываются в диалоге главного окна; автоматическая проверка уведомляет о новой версии. DMG в тёплых цветах Agumuzi содержит новый значок кошелька и установку перетаскиванием.",
+  "System permissions are optional for basic bookkeeping. Create a full backup before upgrading.": "Для базового учёта системные разрешения необязательны. Перед обновлением создайте полную резервную копию.",
+  "October 26, 2026": "26 октября 2026 г.",
   "Swipe or scroll to explore past releases.": "Листайте или прокручивайте, чтобы посмотреть историю версий.",
   "Newer releases": "К новым версиям",
   "Older releases": "К старым версиям",
@@ -159,7 +167,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.1 is available": "Вышла версия FinTrack v1.4.1",
+  "FinTrack v1.4.2 is available": "Вышла версия FinTrack v1.4.2",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
