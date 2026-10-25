@@ -133,7 +133,7 @@ struct MacCategoriesSettingsView: View {
                                         Spacer(minLength: 0)
                                         Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(55))
                                     }.contentShape(Rectangle())
-                                }.buttonStyle(.plain).accessibilityIdentifier("settingsCategoryRow-" + row.name)
+                                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCategoryRow-" + row.name)
                                 Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                 Menu { Button("编辑") { select(row) }; Button("上移") { move(row, by: -1) }.disabled(index == 0); Button("下移") { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(24)) }.menuStyle(.borderlessButton).fixedSize()
                                     .accessibilityLabel("分类操作：" + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
@@ -196,7 +196,7 @@ struct MacCategoriesSettingsView: View {
         }
     }
     private func categoryTab(_ title: String, value: String, icon: String, color: Color) -> some View {
-        Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).contentShape(Rectangle()).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain)
+        Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).contentShape(Rectangle()).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(MacInteractiveButtonStyle())
     }
     private func select(_ row: Category?) {
         selectedID = row?.id; name = row.map { MacOverviewStyle.category($0.name) } ?? ""

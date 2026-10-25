@@ -3,14 +3,14 @@ import SwiftData
 import Charts
 import AppKit
 
-private struct OverviewCard<Content: View>: View {
+struct OverviewCard<Content: View>: View {
     var help: String
     var height: CGFloat? = nil
     @ViewBuilder var content: Content
     var body: some View {
         content.appPadding(18).frame(maxWidth: .infinity, alignment: .topLeading)
             .frame(minHeight: height.map { MacUI.space($0) }, alignment: .topLeading)
-            .macHoverCardSurface().help(help)
+            .macHoverCardSurface().appHelp(help)
     }
 }
 
@@ -102,13 +102,13 @@ struct MacOverviewView: View {
                                 scheduleCard.frame(maxWidth: .infinity)
                             }
                             HStack(alignment: .top, spacing: MacUI.space(15)) {
-                                categoryCard(.income, rows: incomes, total: incomeCategoryTotal, chartSize: categoryChartSize).frame(maxWidth: .infinity)
                                 categoryCard(.expense, rows: expenses, total: expenseCategoryTotal, chartSize: categoryChartSize).frame(maxWidth: .infinity)
+                                categoryCard(.income, rows: incomes, total: incomeCategoryTotal, chartSize: categoryChartSize).frame(maxWidth: .infinity)
                             }
                         } else {
                             goalCard; scheduleCard
-                            categoryCard(.income, rows: incomes, total: incomeCategoryTotal, chartSize: categoryChartSize)
                             categoryCard(.expense, rows: expenses, total: expenseCategoryTotal, chartSize: categoryChartSize)
+                            categoryCard(.income, rows: incomes, total: incomeCategoryTotal, chartSize: categoryChartSize)
                         }
                         recentCard
                     }
@@ -124,7 +124,7 @@ struct MacOverviewView: View {
                             .foregroundStyle(.white).frame(width: MacUI.space(58), height: MacUI.space(58))
                             .background(MacOverviewStyle.accent, in: Circle())
                             .shadow(color: MacOverviewStyle.accent.opacity(0.2), radius: 8, y: 4)
-                        }.buttonStyle(.plain).help("快速记账")
+                        }.buttonStyle(MacInteractiveButtonStyle()).appHelp("快速记账")
                             .accessibilityLabel("快速记账").accessibilityIdentifier("overviewQuickRecord")
                             .disabled(bookCurrency == nil)
                         .appPadding(.trailing, 20).appPadding(.bottom, 16)
@@ -171,7 +171,7 @@ struct MacOverviewView: View {
                 .accessibilityIdentifier("overviewTitle")
             Spacer()
             Text("本位币  \(currency)").appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary)
-                .help("金额使用已保存的本位币快照；修改本位币请前往设置。")
+                .appHelp("金额使用已保存的本位币快照；修改本位币请前往设置。")
         }.appPadding(.bottom, 3)
     }
     private var filterPanel: some View {
@@ -193,7 +193,7 @@ struct MacOverviewView: View {
                         Text(period.rawValue).appFont(.caption, weight: .regular, design: .default).frame(maxWidth: .infinity).appPadding(.vertical, 8)
                             .background(scope.period == period ? MacOverviewStyle.accent.opacity(0.16) : MacOverviewStyle.card.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
                             .foregroundStyle(scope.period == period ? MacOverviewStyle.accent : .primary)
-                    }.buttonStyle(.plain).accessibilityIdentifier("overviewPeriod-\(period.id)")
+                    }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("overviewPeriod-\(period.id)")
                 }
             }
             if scope.period == .month || scope.period == .year {
@@ -215,7 +215,7 @@ struct MacOverviewView: View {
                         .onChange(of: showsMonthPicker) { _, isPresented in if !isPresented { monthPickerAnchorFocused = true } }
                     Button { movePeriod(1) } label: { Image(systemName: "chevron.right") }
                         .accessibilityLabel("下一期间").accessibilityIdentifier("overviewNextPeriod")
-                }.buttonStyle(.plain).appPadding(10).background(MacOverviewStyle.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 9))
+                }.buttonStyle(MacInteractiveButtonStyle()).appPadding(10).background(MacOverviewStyle.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 9))
             } else if scope.period == .custom {
                 MacDateTimeField(title: "开始", date: $scope.from).accessibilityIdentifier("overviewFrom")
                 MacDateTimeField(title: "结束", date: $scope.through).accessibilityIdentifier("overviewThrough")
@@ -226,11 +226,11 @@ struct MacOverviewView: View {
             Text("账目类别").appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
             Button { scope.category = nil } label: {
                 filterRow("全部类别", icon: "square.grid.2x2", selected: scope.category == nil, count: nil)
-            }.buttonStyle(.plain).accessibilityIdentifier("overviewAllCategories")
+            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("overviewAllCategories")
             VStack(spacing: MacUI.space(3)) { ForEach(categoryRows) { row in
                 Button { scope.category = row.id } label: {
                     filterRow(MacOverviewStyle.category(row.id), icon: MacCategoryCatalog.style(name: row.id, type: (scope.type ?? .expense).rawValue).symbol, selected: scope.category == row.id, count: row.count)
-                }.buttonStyle(.plain).accessibilityIdentifier("overviewCategory-\(row.id)")
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("overviewCategory-\(row.id)")
             } }
             if categoryRows.isEmpty { Text("该期间暂无类别").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
             if scope.category != nil && !categoryRows.contains(where: { $0.id == scope.category }) {
@@ -267,11 +267,11 @@ struct MacOverviewView: View {
         let cellMinimum = columnCount == 1 ? min(minimumCardWidth, max(1, contentWidth)) : minimumCardWidth
         let columns = Array(repeating: GridItem(.flexible(minimum: cellMinimum), spacing: spacing), count: columnCount)
         return LazyVGrid(columns: columns, spacing: spacing) {
-            metric("收入", value: totals.income, prior: previous?.income, icon: "arrow.up.right", color: MacOverviewStyle.income, id: "overviewIncome", detail: .income) {
-                var records = scope; records.type = .income; workspace.showRecords(records)
-            }
             metric("支出", value: totals.expense, prior: previous?.expense, icon: "arrow.down.right", color: MacOverviewStyle.expense, id: "overviewExpense", detail: .expense) {
                 var records = scope; records.type = .expense; workspace.showRecords(records)
+            }
+            metric("收入", value: totals.income, prior: previous?.income, icon: "arrow.up.right", color: MacOverviewStyle.income, id: "overviewIncome", detail: .income) {
+                var records = scope; records.type = .income; workspace.showRecords(records)
             }
             metric("净额", value: totals.net, prior: previous?.net, icon: "arrow.right", color: MacOverviewStyle.accent, id: "overviewNet", detail: .net) { workspace.showRecords(scope) }
             metric("资产总额", value: snapshot.availableAssets + snapshot.frozenDepositPrincipal, prior: nil, icon: "square.stack.3d.up", color: .blue, id: "overviewAssets", current: true) { showsAssets = true }
@@ -280,8 +280,8 @@ struct MacOverviewView: View {
     private func metric(_ title: String, value: Double, prior: Double?, icon: String, color: Color, id: String,
                         current: Bool = false, detail: MacOverviewMetric? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            OverviewCard(help: current ? "查看当前资产、负债和净资产口径" : "查看该期间的\(title)账目", height: 134) {
-                VStack(alignment: .leading, spacing: MacUI.space(13)) {
+            OverviewCard(help: current ? "查看当前资产、负债和净资产口径" : "查看该期间的\(title)账目", height: 114) {
+                VStack(alignment: .leading, spacing: MacUI.space(8)) {
                     HStack(spacing: MacUI.space(9)) {
                         Image(systemName: icon).appFont(.body, weight: .medium, design: .default).foregroundStyle(color)
                             .frame(width: MacUI.space(29), height: MacUI.space(29)).background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
@@ -289,8 +289,9 @@ struct MacOverviewView: View {
                         if detail == nil { Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.tertiary) }
                     }
                     HStack(alignment: .firstTextBaseline, spacing: MacUI.space(5)) {
+                        Spacer(minLength: 0)
                         Text(bookCurrency == nil ? "—" : MacOverviewStyle.money(value)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().fixedSize(horizontal: true, vertical: false)
-                        Text(currency).appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: true, vertical: false)
+                        Text(MacSettingsVisual.symbol(currency)).appFont(.body, weight: .medium, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: true, vertical: false)
                     }.accessibilityElement(children: .combine).accessibilityIdentifier(id)
                     if current {
                         Text("当前 · 不随期间筛选").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
@@ -303,7 +304,7 @@ struct MacOverviewView: View {
                 }
             }
         }
-        .buttonStyle(.plain).accessibilityIdentifier(id + "Card").disabled(bookCurrency == nil)
+        .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id + "Card").disabled(bookCurrency == nil)
         .overlay(alignment: .topTrailing) {
             if let detail {
                 Button { detailMetric = detail } label: {
@@ -311,8 +312,8 @@ struct MacOverviewView: View {
                         .foregroundStyle(MacOverviewStyle.accent).padding(.horizontal, 8).padding(.vertical, 5)
                         .background(MacOverviewStyle.accent.opacity(0.07), in: Capsule())
                 }
-                .buttonStyle(.plain)
-                .help("打开\(title)统计详情；卡片主体仍可直接查看账目")
+                .buttonStyle(MacInteractiveButtonStyle())
+                .appHelp("打开\(title)统计详情；卡片主体仍可直接查看账目")
                 .accessibilityIdentifier(id + "Statistics")
                 .padding(.top, MacUI.space(23)).padding(.trailing, MacUI.space(17))
                 .disabled(bookCurrency == nil)
@@ -353,87 +354,15 @@ struct MacOverviewView: View {
                     }
                 }.frame(minHeight: MacUI.space(185), alignment: .top)
             }
-        }.buttonStyle(.plain)
+        }.buttonStyle(MacInteractiveButtonStyle())
             .accessibilityRepresentation {
                 Button("财务目标") { showsGoals = true }.accessibilityIdentifier("overviewGoals")
             }
     }
 
     private func categoryCard(_ type: TransactionType, rows: [MacOverviewData.Bucket], total: Double, chartSize: CGFloat) -> some View {
-        let isIncome = type == .income
-        let title = isIncome ? "收入分类" : "支出分类"
-        let kind = type.rawValue
-        let chartIdentifier = isIncome ? "overviewIncomeChart" : "overviewExpenseChart"
-        let categoryIdentifier = isIncome ? "overviewIncomeCategory-" : "overviewExpenseCategory-"
-        let percentFont = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: MacUI.fontTier))
-        let percentWidth = max(MacUI.space(32), ("100%" as NSString).size(withAttributes: [.font: percentFont]).width + MacUI.space(6))
-        let totalText = MacOverviewStyle.money(total)
-        let centerFont = MacInterfaceFonts.font(size: MacUI.fontSize(.section, tier: MacUI.fontTier), weight: .semibold)
-        let centerTotalFits = (totalText as NSString).size(withAttributes: [.font: centerFont]).width <= chartSize * 0.62
-        return OverviewCard(help: "点击类别查看对应的\(title)账目", height: 258) {
-            VStack(alignment: .leading, spacing: MacUI.space(12)) {
-                HStack {
-                    Text(title).appFont(.body, weight: .semibold, design: .default)
-                        .accessibilityIdentifier(isIncome ? "overviewIncomeCategoryTitle" : "overviewExpenseCategoryTitle")
-                    Spacer(); Text("\(rows.count) 个类别").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                }
-                if !rows.isEmpty && !centerTotalFits {
-                    Text("合计 \(totalText) \(currency)").appFont(.caption, weight: .medium, design: .default).monospacedDigit()
-                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                        .accessibilityIdentifier(isIncome ? "overviewIncomeCategoryTotal" : "overviewExpenseCategoryTotal")
-                }
-                if rows.isEmpty {
-                    empty(isIncome ? "该期间暂无收入" : "该期间暂无支出", icon: "chart.pie").frame(height: chartSize)
-                } else {
-                    HStack(spacing: chartSize < MacUI.space(150) ? MacUI.space(12) : MacUI.space(22)) {
-                        Chart(Array(rows.enumerated()), id: \.element.id) { index, row in
-                            SectorMark(angle: .value("金额", row.amount), innerRadius: .ratio(0.68), angularInset: 1.4)
-                                .foregroundStyle(MacAccent.color(MacCategoryCatalog.style(name: row.id, type: kind).color))
-                        }.chartLegend(.hidden).frame(width: chartSize, height: chartSize)
-                            .chartBackground { _ in
-                                VStack(spacing: MacUI.space(3)) {
-                                    if centerTotalFits {
-                                        Text(totalText).appFont(.section, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                                    } else {
-                                        Text("分类合计").appFont(.caption, weight: .medium, design: .default)
-                                    }
-                                    Text(currency).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                                }.frame(width: chartSize * 0.72)
-                            }.accessibilityIdentifier(chartIdentifier)
-                        ScrollView {
-                            VStack(spacing: MacUI.space(4)) {
-                                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                                    Button { var records = scope; records.category = row.id; records.type = type; workspace.showRecords(records) } label: {
-                                        ViewThatFits(in: .horizontal) {
-                                            HStack(spacing: MacUI.space(8)) {
-                                                categoryDot(row, kind: kind)
-                                                Text(MacOverviewStyle.category(row.id)).lineLimit(1).truncationMode(.tail).frame(minWidth: MacUI.space(70), alignment: .leading)
-                                                Spacer(minLength: 2)
-                                                categoryPercent(row, total: total, width: percentWidth)
-                                                Text(MacOverviewStyle.money(row.amount)).monospacedDigit().lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                                            }
-                                            .fixedSize(horizontal: true, vertical: false)
-
-                                            VStack(alignment: .leading, spacing: MacUI.space(3)) {
-                                                HStack(spacing: MacUI.space(8)) {
-                                                    categoryDot(row, kind: kind)
-                                                    Text(MacOverviewStyle.category(row.id)).lineLimit(1).truncationMode(.tail)
-                                                    Spacer(minLength: 2)
-                                                    categoryPercent(row, total: total, width: percentWidth)
-                                                }
-                                                Text(MacOverviewStyle.money(row.amount)).monospacedDigit().lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                            }
-                                        }
-                                        .appFont(.caption, weight: .regular, design: .default).appPadding(.vertical, 8).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                                    }.buttonStyle(.plain).help("查看\(MacOverviewStyle.category(row.id))的\(title)记录")
-                                        .accessibilityIdentifier(categoryIdentifier + row.id)
-                                }
-                            }
-                        }.frame(height: chartSize)
-                    }
-                }
-            }.frame(minHeight: MacUI.space(185), alignment: .top)
+        MacOverviewCategoryCard(type: type, rows: rows, total: total, currency: currency, chartSize: chartSize) { category in
+            var records = scope; records.category = category; records.type = type; workspace.showRecords(records)
         }
     }
 
@@ -510,7 +439,7 @@ struct MacOverviewView: View {
                                 Text(row.status).appFont(.caption, weight: .regular, design: .default).foregroundStyle(row.color).appPadding(5).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
                                 Text(row.amount).appFont(.caption, weight: .regular, design: .default).monospacedDigit().lineLimit(1).fixedSize(horizontal: true, vertical: false).layoutPriority(1)
                             }.appPadding(.vertical, 4).contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("查看\(row.name)的详情").accessibilityIdentifier("overviewSchedule-" + row.id)
+                        }.buttonStyle(MacInteractiveButtonStyle()).appHelp("查看\(row.name)的详情").accessibilityIdentifier("overviewSchedule-" + row.id)
                         if row.id != schedule.prefix(4).last?.id { Divider() }
                     } }
                 }
@@ -524,7 +453,7 @@ struct MacOverviewView: View {
             VStack(alignment: .leading, spacing: MacUI.space(13)) {
                 HStack {
                     Text("最近交易").appFont(.body, weight: .semibold, design: .default); Spacer()
-                    Button("查看全部 ›") { workspace.showRecords(scope) }.buttonStyle(.plain).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).accessibilityIdentifier("overviewAllRecords")
+                    Button("查看全部 ›") { workspace.showRecords(scope) }.buttonStyle(MacInteractiveButtonStyle()).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).accessibilityIdentifier("overviewAllRecords")
                 }
                 if periodRows.isEmpty { empty("该期间暂无交易", icon: "doc.text").appMinHeight(100).accessibilityIdentifier("overviewNoRecords") }
                 else {
@@ -593,7 +522,7 @@ struct MacOverviewView: View {
             }
             .appFont(.caption, weight: .regular, design: .default).monospacedDigit().contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacInteractiveButtonStyle())
         .accessibilityIdentifier("overviewTransaction-\(row.id)")
         .accessibilityValue(amount + " " + row.baseCurrencyCode)
     }
@@ -809,7 +738,7 @@ private struct MacOverviewTrendCard: View {
                     Text("收支趋势").appFont(.body, weight: .semibold, design: .default); Spacer()
                     MacSettingsMenu(selection: $trendMonths, options: [("近 6 个月", 6), ("近 12 个月", 12)]).frame(width: MacUI.space(130)).accessibilityIdentifier("overviewTrendRange")
                     Button { var records = scope; records.period = .custom; records.from = trend.first?.id ?? scope.reference; records.through = Calendar.current.dateInterval(of: .month, for: scope.reference)!.end.addingTimeInterval(-1); showRecords(records) } label: { Image(systemName: "arrow.up.right") }
-                        .buttonStyle(.plain).help("查看趋势账目")
+                        .buttonStyle(MacInteractiveButtonStyle()).appHelp("查看趋势账目")
                 }
                 Chart(trend) { month in
                     BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.income))

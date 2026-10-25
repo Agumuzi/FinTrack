@@ -60,7 +60,7 @@ struct MacQuickEntryView: View {
                                 Text(MacEntryDateDisplay.string(draft.date)).appFont(.body,weight:.semibold)
                                 Spacer(); Image(systemName:"chevron.down").appFont(.body,weight:.semibold)
                             }.appPadding(.horizontal,15).appMinHeight(40).modifier(MacEntryFieldBorder())
-                        }.buttonStyle(.plain).focused($dateFocused).accessibilityIdentifier("menuDate")
+                        }.buttonStyle(MacInteractiveButtonStyle()).focused($dateFocused).accessibilityIdentifier("menuDate")
                             .accessibilityLabel("选择交易日期").accessibilityValue(MacEntryDateDisplay.string(draft.date))
                             .popover(isPresented:$datePicker) {
                                 MacCalendarPickerPopover(title:"选择日期",selection:$draft.date,pickerIdentifier:"menuDatePicker",doneIdentifier:"menuDateDone",onDone:{datePicker = false})

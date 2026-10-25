@@ -133,7 +133,7 @@ struct MacFXSourceManagementCard: View {
             ForEach(sources) { source in
                 HStack {
                     MacFXSourceImage(source: source, size: 30)
-                    Button(source.name) { editing = source }.buttonStyle(.plain).accessibilityIdentifier("settingsFXSource-" + source.name)
+                    Button(source.name) { editing = source }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsFXSource-" + source.name)
                     Spacer()
                     Toggle("启用" + source.name, isOn: Binding(get: { source.enabled }, set: { enabled in
                         var values = sources; if let index = values.firstIndex(where: { $0.id == source.id }) { values[index].enabled = enabled }

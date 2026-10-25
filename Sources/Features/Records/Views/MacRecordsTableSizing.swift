@@ -25,8 +25,17 @@ struct MacRecordsTableSizing: NSViewRepresentable {
         var queued = false
         var lastConfiguration = ""
         var appliedWidths: [CGFloat] = []
+        var userWidths: [CGFloat]?
+        var lockedColumn: Int?
+        var eventMonitor: Any?
+        var dragColumn: Int?
+        var dragStart = CGPoint.zero
+        var dragWidths: [CGFloat] = []
+        #if FINTRACK_LOCAL_VALIDATION
+        var dragEvents = 0
+        #endif
         init(_ parent: MacRecordsTableSizing) { self.parent = parent }
-        deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) } }
+        deinit { for observer in observers { NotificationCenter.default.removeObserver(observer) }; if let eventMonitor { NSEvent.removeMonitor(eventMonitor) } }
         private func findTable(_ view: NSView) -> NSTableView? {
             if let table = view as? NSTableView { return table }
             for child in view.subviews { if let result = findTable(child) { return result } }
@@ -45,13 +54,34 @@ struct MacRecordsTableSizing: NSViewRepresentable {
                 for observer in observers { NotificationCenter.default.removeObserver(observer) }
                 observers.removeAll(); lastConfiguration = ""; appliedWidths = []
                 table = found
-                scroll.contentView.postsBoundsChangedNotifications = true
-                observers.append(NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: .main) { [weak self] _ in
+                scroll.contentView.postsFrameChangedNotifications = true
+                observers.append(NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: scroll.contentView, queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.scheduleSizing() }
                 })
-                observers.append(NotificationCenter.default.addObserver(forName: NSTableView.columnDidResizeNotification, object: found, queue: .main) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.scheduleSizing() }
+                observers.append(NotificationCenter.default.addObserver(forName: NSTableView.columnDidResizeNotification, object: found, queue: .main) { [weak self] notification in
+                    MainActor.assumeIsolated { self?.columnResized(notification) }
                 })
+            }
+            if eventMonitor == nil {
+                eventMonitor = NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp]) { [weak self] event in
+                    guard let self, let table = self.table, event.window === table.window, let header = table.headerView else { return event }
+                    let point = header.convert(event.locationInWindow,from:nil)
+                    #if FINTRACK_LOCAL_VALIDATION
+                    if event.type == .leftMouseDragged { self.dragEvents += 1 }
+                    MacRecordSizingDiagnostics.shared.text = "dragEvents=\(self.dragEvents) event=\(event.type.rawValue) point=\(point) bounds=\(header.bounds) rects=\(table.tableColumns.indices.map { header.headerRect(ofColumn:$0).maxX }) widths=\(table.tableColumns.map(\.width))"
+                    #endif
+                    if event.type == .leftMouseDown {
+                        guard header.bounds.contains(point), let index = table.tableColumns.indices.dropLast().first(where: { abs(header.headerRect(ofColumn:$0).maxX-point.x) <= 10 }) else { return event }
+                        self.dragColumn = index; self.dragStart = point; self.dragWidths = table.tableColumns.map(\.width)
+                        return nil
+                    }
+                    guard let index = self.dragColumn else { return event }
+                    self.userWidths = self.dragWidths
+                    self.userWidths?[index] = max(1,self.dragWidths[index]+point.x-self.dragStart.x)
+                    self.lockedColumn = index; self.lastConfiguration = ""; self.sizeColumns()
+                    if event.type == .leftMouseUp { self.dragColumn = nil }
+                    return nil
+                }
             }
             sizeColumns()
         }
@@ -60,6 +90,15 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             queued = true
             DispatchQueue.main.async { [weak self] in self?.queued = false; self?.sizeColumns() }
         }
+        private func columnResized(_ notification: Notification) {
+            guard !applying, let table else { return }
+            let event = NSApp.currentEvent?.type
+            guard event == .leftMouseDragged || event == .leftMouseUp else { return }
+            userWidths = table.tableColumns.map(\.width)
+            if let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn { lockedColumn = table.tableColumns.firstIndex(of: column) }
+            lastConfiguration = ""
+            scheduleSizing()
+        }
         private func sizeColumns() {
             guard !applying, let table, let scroll = table.enclosingScrollView else { return }
             let expected = (parent.compact ? 3 : 5) + (parent.selecting ? 1 : 0)
@@ -67,39 +106,36 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             let viewport = scroll.contentView.bounds.width
             guard viewport > 0 else { return }
             let configuration = "\(viewport)/\(parent.dateWidth)/\(parent.amountWidth)/\(parent.categoryWidth)/\(parent.compact)/\(parent.selecting)/\(parent.revision)"
-            if configuration == lastConfiguration, appliedWidths.count == expected,
-               zip(table.tableColumns, appliedWidths).allSatisfy({ abs($0.width - $1) < 0.5 }) { return }
+            if configuration == lastConfiguration, appliedWidths.count == expected { return }
             applying = true; defer { applying = false }
-            // Keep amount and category close to their content widths; notes
-            // absorb spare space and the exact native inset correction.
+            scroll.hasHorizontalScroller = false
+            scroll.horizontalScrollElasticity = .none
             let spacing = table.intercellSpacing.width
-            let available = max(1, viewport - spacing * CGFloat(max(0, expected - 1)))
-            let check: CGFloat = parent.selecting ? 36 : 0
-            let date = parent.dateWidth + 12
-            let currency: CGFloat = parent.compact ? 0 : 62
-            let remaining = max(1, available - check - date - currency)
-            let amount = min(parent.amountWidth + 12, max(50, remaining - 46))
-            let noteMinimum: CGFloat = parent.compact ? 0 : 80
-            let category = max(30, min(parent.categoryWidth + 12, remaining - amount - noteMinimum))
-            let note = max(1, remaining - amount - category)
-            var widths: [CGFloat] = parent.selecting ? [check, date, parent.compact ? remaining - amount : category] : [date, parent.compact ? remaining - amount : category]
-            if !parent.compact { widths += [note, currency] }
-            widths.append(amount)
-            table.columnAutoresizingStyle = .noColumnAutoresizing
-            for (column, width) in zip(table.tableColumns, widths) {
-                column.minWidth = 1; column.maxWidth = .greatestFiniteMagnitude
-                if abs(column.width - width) > 0.5 { column.width = width }
-            }
-            if abs(table.frame.width - viewport) > 0.5 { table.setFrameSize(NSSize(width: viewport, height: table.frame.height)) }
-            // Inset style adds margins beyond intercellSpacing. Remove their
-            // exact measured overflow from the flexible interior column.
-            let overflow = table.rect(ofColumn: expected - 1).maxX - viewport
-            if overflow > 0 {
+            let existingSum = table.tableColumns.reduce(0) { $0 + $1.width }
+            let inset = max(0, table.rect(ofColumn: expected-1).maxX - existingSum - spacing * CGFloat(expected-1))
+            let available = max(1, viewport - spacing * CGFloat(expected-1) - inset)
+            let key = "v141_record_columns.\(parent.compact ? "compact" : "full").\(parent.selecting)"
+            let saved = MacPreferences.defaults.array(forKey: key)?.compactMap { ($0 as? NSNumber).map { CGFloat($0.doubleValue) } }
+            var preferred: [CGFloat] = parent.compact ? [parent.dateWidth, parent.categoryWidth, parent.amountWidth] : [parent.dateWidth, parent.categoryWidth, 240, 48, parent.amountWidth]
+            var minimum: [CGFloat] = parent.compact ? [74, 45, 75] : [74, 50, 80, 42, 80]
+            if parent.selecting { preferred.insert(28,at:0); minimum.insert(28,at:0) }
+            if let candidate = userWidths ?? saved, candidate.count == expected { preferred = candidate }
+            else {
                 let flexible = parent.compact ? (parent.selecting ? 2 : 1) : (parent.selecting ? 3 : 2)
-                let column = table.tableColumns[flexible]
-                column.width = max(1, column.width - overflow)
+                preferred[flexible] = max(minimum[flexible], available - preferred.enumerated().filter { $0.offset != flexible }.reduce(0) { $0 + $1.element })
             }
-            lastConfiguration = configuration; appliedWidths = table.tableColumns.map(\.width)
+            let widths = MacRecordColumnLayout.fit(preferred: preferred, minimum: minimum, total: available, locked: lockedColumn)
+            table.allowsColumnResizing = true
+            table.columnAutoresizingStyle = .noColumnAutoresizing
+            for (column,width) in zip(table.tableColumns,widths) {
+                column.minWidth = 1; column.maxWidth = .greatestFiniteMagnitude
+                column.resizingMask = .userResizingMask
+                if abs(column.width-width) > 0.5 { column.width = width }
+            }
+            if abs(table.frame.width-viewport) > 0.5 { table.setFrameSize(NSSize(width:viewport,height:table.frame.height)) }
+            if userWidths != nil { userWidths = widths; MacPreferences.defaults.set(widths.map(Double.init),forKey:key) }
+            lockedColumn = nil
+            lastConfiguration = configuration; appliedWidths = widths
         }
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -137,3 +173,46 @@ struct MacRecordsSelectAllCheckbox: NSViewRepresentable {
         button.state = state == 2 ? .on : state == 1 ? .mixed : .off
     }
 }
+
+/// Fit internal columns into one fixed viewport, preserving the dragged column.
+nonisolated enum MacRecordColumnLayout {
+    static func fit(preferred: [CGFloat], minimum: [CGFloat], total: CGFloat, locked: Int? = nil) -> [CGFloat] {
+        guard !preferred.isEmpty, preferred.count == minimum.count, total.isFinite, total > 0 else { return [] }
+        let count = preferred.count
+        let safeMin = minimum.map { max(1, $0.isFinite ? $0 : 1) }
+        let minSum = safeMin.reduce(0,+)
+        if minSum > total { return safeMin.map { $0 / minSum * total } }
+        var result = zip(preferred,safeMin).map { max($1,$0.isFinite ? $0 : $1) }
+        let movable = result.indices.filter { $0 != locked }
+        if let locked, result.indices.contains(locked) { result[locked] = min(result[locked], total - movable.reduce(0) { $0 + safeMin[$1] }) }
+        var remainder = total - result.reduce(0,+)
+        if remainder > 0 {
+            let receivers = movable.isEmpty ? Array(result.indices) : movable
+            let weight = receivers.reduce(0) { $0 + result[$1] }
+            for index in receivers { result[index] += remainder * result[index] / max(weight,1) }
+        } else if remainder < 0 {
+            let donors = movable.isEmpty ? Array(result.indices) : movable
+            let capacity = donors.reduce(0) { $0 + result[$1]-safeMin[$1] }
+            for index in donors { result[index] -= min(-remainder,capacity) * (result[index]-safeMin[index]) / max(capacity,1) }
+            remainder = total-result.reduce(0,+)
+            if remainder < -0.001, let locked, result.indices.contains(locked) { result[locked] += remainder }
+        }
+        result[count-1] += total-result.reduce(0,+)
+        return result
+    }
+}
+
+#if FINTRACK_LOCAL_VALIDATION
+@MainActor final class MacRecordSizingDiagnostics: ObservableObject {
+    static let shared = MacRecordSizingDiagnostics()
+    @Published var text = "No native header events"
+}
+struct MacRecordSizingDiagnosticsView: View {
+    @ObservedObject var state = MacRecordSizingDiagnostics.shared
+    var body: some View {
+        if ProcessInfo.processInfo.environment["FINTRACK_RECORD_SIZING_PROBE"] == "1" {
+            Text(state.text).font(.system(size:8)).padding(4).background(.yellow).accessibilityIdentifier("recordSizingDiagnostics")
+        }
+    }
+}
+#endif

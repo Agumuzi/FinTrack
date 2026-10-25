@@ -15,7 +15,7 @@ struct MacFinanceListToolbar<Sort: Hashable>: View {
                             .padding(.horizontal, 8).frame(minHeight: 32)
                             .foregroundStyle(columns == count ? MacUI.accent : .secondary)
                             .background(columns == count ? MacUI.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 7)).contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityIdentifier(prefix + "Columns-\(count)").accessibilityValue(columns == count ? "已选中" : "未选中")
+                    }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(prefix + "Columns-\(count)").accessibilityValue(columns == count ? "已选中" : "未选中")
                 }
             }.padding(3).background(.gray.opacity(0.05), in: RoundedRectangle(cornerRadius: 9)).fixedSize()
             Spacer(minLength: 4)

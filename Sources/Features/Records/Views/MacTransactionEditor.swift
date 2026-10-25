@@ -92,7 +92,7 @@ struct MacTransactionEditor: View {
                 Text(existing == nil ? "新增账目" : "编辑账目").appFont(.dialogTitle, weight: .bold, design: .default).accessibilityIdentifier("editorTitle")
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark").appIconFont(19, weight: .medium, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(30), height: MacUI.space(30)).contentShape(Rectangle()) }
-                    .buttonStyle(.plain).help("关闭").accessibilityLabel("关闭新增账目").accessibilityIdentifier("closeEntry")
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp("关闭").accessibilityLabel("关闭新增账目").accessibilityIdentifier("closeEntry")
             }
             MacEntryTypeSwitcher(type:Binding(get:{type},set:{value in
                 if type != value { type = value; category = ""; savedMessage = nil }
@@ -135,7 +135,7 @@ struct MacTransactionEditor: View {
                                 managedCategoryID = categories.first { ($0.name == category || MacOverviewStyle.category($0.name) == category) && $0.type == type.rawValue && $0.deletedAt == nil }?.id
                                 managingCategories = true
                             } label: { Label("管理分类", systemImage: "gearshape").appFont(.body, weight: .semibold, design: .default).frame(width: MacUI.space(128)).appMinHeight(40).background(MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 9)) }
-                                .buttonStyle(.plain).accessibilityIdentifier("entryManageCategories")
+                                .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("entryManageCategories")
                         }
                     }
                     field("交易日期") {
@@ -145,7 +145,7 @@ struct MacTransactionEditor: View {
                                 Text(entryDateLabel).appFont(.body, weight: .semibold, design: .default)
                                 Spacer(); Image(systemName: "chevron.down").appFont(.body, weight: .semibold, design: .default)
                             }.appPadding(.horizontal, 15).appMinHeight(40).modifier(MacEntryFieldBorder())
-                        }.buttonStyle(.plain).focused($entryDateFocused).accessibilityIdentifier("entryDate")
+                        }.buttonStyle(MacInteractiveButtonStyle()).focused($entryDateFocused).accessibilityIdentifier("entryDate")
                             .accessibilityLabel("选择交易日期").accessibilityValue(entryDateLabel)
                             .popover(isPresented: $showsDatePicker) {
                                 MacCalendarPickerPopover(

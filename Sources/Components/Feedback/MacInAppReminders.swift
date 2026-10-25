@@ -60,7 +60,7 @@ struct MacInAppReminders: View {
                     Button {
                         if let page = items[index].2 { MacPreferences.defaults.set(page.id, forKey: "v2_settings_page") }
                         workspace.section = items[index].1
-                    } label: { HStack { Label(items[index].0, systemImage: "bell.badge"); Spacer(); Image(systemName: "chevron.right") }.appFont(.caption, weight: .regular, design: .default).contentShape(Rectangle()) }.buttonStyle(.plain)
+                    } label: { HStack { Label(items[index].0, systemImage: "bell.badge"); Spacer(); Image(systemName: "chevron.right") }.appFont(.caption, weight: .regular, design: .default).contentShape(Rectangle()) }.buttonStyle(MacInteractiveButtonStyle())
                 }
             }.appPadding(14).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12)).accessibilityIdentifier("settingsInAppReminders")
         }

@@ -52,7 +52,7 @@ struct MacCurrencySettingsView: View {
                                 .foregroundStyle(section == name ? MacUI.accent : .primary)
                                 .background(section == name ? MacUI.accent.opacity(0.1) : MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:10))
                                 .overlay(RoundedRectangle(cornerRadius:10).strokeBorder(section == name ? MacUI.accent.opacity(0.35) : .gray.opacity(0.14)))
-                        }.buttonStyle(.plain).accessibilityLabel(name).accessibilityIdentifier("settingsSegment-" + name).accessibilityValue(section == name ? "已选中" : "未选中")
+                        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(name).accessibilityIdentifier("settingsSegment-" + name).accessibilityValue(section == name ? "已选中" : "未选中")
                     }
                 }.accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsSections")
                     .appPadding(.horizontal,22).appPadding(.bottom,14)
@@ -124,7 +124,7 @@ struct MacCurrencySettingsView: View {
                         Label("显示与更新",systemImage:"slider.horizontal.3").appFont(.body,weight:.semibold)
                         Spacer(); Image(systemName:menuOptionsExpanded ? "chevron.up" : "chevron.down").appIconFont(13)
                     }.frame(minHeight:30).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("fxMenuPreferencesToggle").accessibilityValue(menuOptionsExpanded ? "已展开" : "已收起")
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxMenuPreferencesToggle").accessibilityValue(menuOptionsExpanded ? "已展开" : "已收起")
                 if menuOptionsExpanded { MacFXPreferencesView(section:.display,includeDirectoryAndSources:false,includeDisplayLists:false).padding(.top,12) }
             }.padding(16).background(MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:13)).accessibilityElement(children:.contain).accessibilityIdentifier("fxMenuPreferencesGroup")
             MacFXDisplaySettings(availableHeight:min(height,470))
@@ -202,7 +202,7 @@ struct MacCurrencySettingsView: View {
                 Text(MacSettingsVisual.currencyName(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength:0)
             }.contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityIdentifier("settingsCurrency-" + code)
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCurrency-" + code)
     }
     private func currencyStatus(_ code: String) -> some View {
         Text(code == baseCurrency ? "账本币种" : disabled.contains(code) ? "未启用" : "使用中")
@@ -231,7 +231,7 @@ struct MacCurrencySettingsView: View {
     private func sourceRow(_ source: MacFXSource, index: Int) -> some View {
 HStack(spacing: MacUI.space(8)) {
                         MacFXSourceImage(source: source, size: 29)
-                        Button { editingSource = source } label: { VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(source.name).appFont(.body, weight: .semibold, design: .default).lineLimit(1); Text(index < 2 && MacSettingsVisual.preview ? "官方汇率数据 · 演示" : "自定义 API").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()) }.buttonStyle(.plain).accessibilityIdentifier("settingsFXSource-" + source.name)
+                        Button { editingSource = source } label: { VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(source.name).appFont(.body, weight: .semibold, design: .default).lineLimit(1); Text(index < 2 && MacSettingsVisual.preview ? "官方汇率数据 · 演示" : "自定义 API").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()) }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsFXSource-" + source.name)
                         Text(monitor.quotes.filter { $0.identity.sourceID == source.id.uuidString }.max { $0.retrievedAt < $1.retrievedAt }.map { MacDateDisplay.string($0.retrievedAt) + "\n" + MacDisplayPreferences.time($0.retrievedAt) } ?? "尚未更新").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(70))
                         Text(source.enabled ? "启用" : "停用").appFont(.caption, weight: .medium, design: .default).foregroundStyle(source.enabled ? Color.green : Color.secondary).appPadding(5).background(source.enabled ? Color.green.opacity(0.09) : .gray.opacity(0.05), in: Capsule())
                         Toggle("启用" + source.name, isOn: Binding(get: { source.enabled }, set: { toggle(source, enabled: $0) })).labelsHidden().toggleStyle(.switch).controlSize(.small).tint(.blue).accessibilityIdentifier("fxEnable-" + source.name)

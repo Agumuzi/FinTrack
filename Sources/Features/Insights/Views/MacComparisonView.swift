@@ -155,7 +155,7 @@ struct MacPeriodComparisonDashboard: View {
             Divider()
             Text("差额  " + signed(current - previous) + " " + currency).appFont(.body, weight: .medium)
             Text(abs(previous) < 0.01 ? "期间 B 为 0，变化率不适用" : "变化率  " + ((current - previous) / abs(previous)).formatted(.percent.precision(.fractionLength(1))))
-                .appFont(.caption).foregroundStyle(.secondary).help("变化率 = (期间 A − 期间 B) ÷ |期间 B|")
+                .appFont(.caption).foregroundStyle(.secondary).appHelp("变化率 = (期间 A − 期间 B) ÷ |期间 B|")
         }.accessibilityElement(children: .combine).accessibilityIdentifier("comparisonMetric-" + title)
     }
     private func card<Content: View>(fillsHeight: Bool = false, @ViewBuilder _ content: () -> Content) -> some View {

@@ -17,9 +17,9 @@ enum MacSettingsStore {
     static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey,
         "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size",
         MacInterfaceFonts.preferenceKey, "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
-        "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
+        "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
         "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear", "v2_remind_recurring", "v2_remind_goals",
-        "v2_remind_budgets", "v2_display_name", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
+        "v2_remind_budgets", "v2_display_name", "v141_hotkey", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
         "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_region", "v2_fx_preferred_source", "v2_goal_presentation", "v2_backup_folder", "v2_backup_naming", "v2_update_auto", "v2_update_frequency", "v2_update_download", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
     static func snapshot() throws -> Data {
         migrateFontPreference()
@@ -38,10 +38,10 @@ enum MacSettingsStore {
         }
         // Optional fields may be absent in older backups, but present values must
         // match their storage type. Conditional casts alone silently skip bad data.
-        let binaryKeys: Set<String> = ["v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
+        let binaryKeys: Set<String> = ["v141_hotkey", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
             "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_goal_presentation", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
         let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed",
-            "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
+            "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
             "v2_remind_recurring", "v2_remind_goals", "v2_remind_budgets", "v2_update_auto", "v2_update_download"]
         let integerChoices: [String: Set<Int>] = ["v2_decimals": Set(0...4), "v2_week_start": [1, 2],
             "v2_page_size": [25, 50, 100], "v2_chart_months": [3, 6, 12]]
@@ -65,6 +65,10 @@ enum MacSettingsStore {
                 } ?? false
             } else { valid = value is String }
             guard valid else { throw MacSettingsFailure.invalid("备份中的设置类型或选项无效，请选择完整有效的备份文件") }
+        }
+        if let data = values["v141_hotkey"] as? Data {
+            let hotkey = try JSONDecoder().decode(MacConversionHotkey.self, from: data)
+            guard hotkey.code <= 127, hotkey.modifiers > 0, hotkey.label.count <= 30 else { throw MacSettingsFailure.invalid("快捷键设置无效") }
         }
         if let data = values[MacAppEntryConfiguration.storageKey] as? Data {
             let configuration = try JSONDecoder().decode(MacAppEntryConfiguration.self, from: data)

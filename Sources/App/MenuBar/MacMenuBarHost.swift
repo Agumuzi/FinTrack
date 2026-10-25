@@ -63,6 +63,7 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         button.imagePosition = .imageLeft
         button.font = .monospacedDigitSystemFont(ofSize:MacUI.fontSize(.caption,tier:MacUI.fontTier),weight:.medium)
         button.title = config.information == .icon ? "" : MacMenuBarLabel.text(configuration: config, monitor: app.monitor)
+        guard MacPreferences.defaults.object(forKey: "v141_show_help") as? Bool != false else { button.toolTip = nil; return }
         if let pair = config.displayPair, let quote = app.monitor.quote(pair) {
             button.toolTip = "FinTrack · " + pair.key + "\n每1单位：" + String(quote.unitRate) + "\n" + app.monitor.sourceName(quote) + "\n" + MacFXDates.label(quote.quoteTime) + (app.monitor.isCached(pair) ? "\n缓存" : "")
         } else { button.toolTip = "FinTrack · 点击打开快速记账、汇率列表与换算" }

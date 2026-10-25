@@ -37,7 +37,7 @@ struct MacGoalSettingsView: View {
                     VStack(spacing: MacUI.space(7)) {
                         HStack(spacing: MacUI.space(2)) {
                             ForEach(["全部目标", "进行中", "已完成", "已暂停"], id: \.self) { title in
-                                Button { filter = title } label: { Text(title + " (" + String(title == "全部目标" ? activeGoals.count : activeGoals.filter { status($0) == title }.count) + ")").appFont(.caption, weight: .semibold, design: .default).lineLimit(1).frame(maxWidth: .infinity).appMinHeight(36).foregroundStyle(filter == title ? MacSettingsVisual.accent : .secondary).background(filter == title ? MacSettingsVisual.accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(.plain)
+                                Button { filter = title } label: { Text(title + " (" + String(title == "全部目标" ? activeGoals.count : activeGoals.filter { status($0) == title }.count) + ")").appFont(.caption, weight: .semibold, design: .default).lineLimit(1).frame(maxWidth: .infinity).appMinHeight(36).foregroundStyle(filter == title ? MacSettingsVisual.accent : .secondary).background(filter == title ? MacSettingsVisual.accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(MacInteractiveButtonStyle())
                             }
                         }.appPadding(3).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 8)).accessibilityIdentifier("settingsGoalFilter")
                         if rows.isEmpty { ContentUnavailableView("暂无符合条件的目标", systemImage: "target") }
@@ -57,7 +57,7 @@ struct MacGoalSettingsView: View {
                                         HStack { Text(MacSettingsVisual.money(row.targetAmount * progress(row)) + " / " + MacSettingsVisual.money(row.targetAmount) + " " + MacSettingsVisual.symbol(currency ?? "")); Spacer(); if status(row) != "进行中" { Text(status(row)).foregroundStyle(row.isPaused ? .orange : .green).appPadding(.horizontal, 6).appPadding(.vertical, 2).background((row.isPaused ? Color.orange : .green).opacity(0.1), in: Capsule()) }; Text(MacGoalTargetDate.label(row)) }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                     }
                                 }.appPadding(.horizontal, 10).appPadding(.vertical, 8).background(selected?.id == row.id ? .gray.opacity(0.045) : .clear, in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
-                            }.buttonStyle(.plain).accessibilityRepresentation { Button(row.title + " " + status(row)) { selectedID = row.id }.accessibilityIdentifier("settingsGoalRow-" + row.title) }
+                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityRepresentation { Button(row.title + " " + status(row)) { selectedID = row.id }.accessibilityIdentifier("settingsGoalRow-" + row.title) }
                             if row.id != rows.last?.id { Divider() }
                         }
                     }

@@ -154,6 +154,7 @@ struct MacStandardButtonStyle: ButtonStyle {
             .foregroundStyle(primary ? .white : .primary)
             .background(primary ? MacUI.accent : MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 9))
             .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
 
@@ -437,4 +438,29 @@ struct MacFinanceCardRow: Layout {
             if horizontal { x += size.width + spacing } else { y += size.height + spacing }
         }
     }
+}
+
+/// Common feedback for lightweight controls, including previously plain buttons.
+struct MacInteractiveButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovered = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background((hovered || configuration.isPressed) && enabled ? Color.primary.opacity(configuration.isPressed ? 0.09 : 0.035) : .clear, in: RoundedRectangle(cornerRadius: 7))
+            .scaleEffect(configuration.isPressed && !reduceMotion && enabled ? 0.985 : 1)
+            .opacity(enabled ? 1 : 0.45)
+            .onHover { hovered = $0 }
+    }
+}
+private struct MacHelpModifier: ViewModifier {
+    var text: Text
+    @AppStorage("v141_show_help", store: MacPreferences.defaults) private var enabled = true
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled { content.help(text) } else { content }
+    }
+}
+extension View {
+    func appHelp(_ text: String) -> some View { modifier(MacHelpModifier(text: Text(text))) }
+    func appHelp(_ text: Text) -> some View { modifier(MacHelpModifier(text: text)) }
 }

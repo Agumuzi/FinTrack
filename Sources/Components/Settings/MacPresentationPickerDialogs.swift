@@ -25,7 +25,7 @@ struct MacIconLibraryChooser: View {
                                 Text(name).appFont(.body, weight: .medium).padding(.horizontal, 14).frame(minHeight: 40)
                                     .foregroundStyle(group == name ? MacUI.accent : .primary)
                                     .background(group == name ? MacUI.accent.opacity(0.12) : .gray.opacity(0.06), in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
-                            }.buttonStyle(.plain).accessibilityIdentifier(identifierPrefix + "Group-" + name).accessibilityValue(group == name ? "已选择" : "未选择")
+                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(identifierPrefix + "Group-" + name).accessibilityValue(group == name ? "已选择" : "未选择")
                         }
                     }
                 }
@@ -40,7 +40,7 @@ struct MacIconLibraryChooser: View {
                                 }.frame(maxWidth: .infinity).padding(5)
                                     .background(draft == symbol ? MacUI.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 10))
                                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(draft == symbol ? MacUI.accent : .clear, lineWidth: 1.5)).contentShape(Rectangle())
-                            }.buttonStyle(.plain).help(name).accessibilityLabel(title + "图标：" + name)
+                            }.buttonStyle(MacInteractiveButtonStyle()).appHelp(name).accessibilityLabel(title + "图标：" + name)
                                 .accessibilityIdentifier(identifierPrefix + "-" + symbol).accessibilityValue(draft == symbol ? "已选择" : "未选择")
                         }
                     }.padding(2)

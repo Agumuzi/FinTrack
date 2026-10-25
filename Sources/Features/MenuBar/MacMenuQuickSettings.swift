@@ -14,14 +14,14 @@ struct MacMenuQuickSettings: View {
             HStack {
                 Text("菜单栏设置").appFont(.section,weight:.semibold)
                 Spacer()
-                Button(action:close) { Image(systemName:"xmark").frame(width:28,height:28) }.buttonStyle(.plain).accessibilityLabel("关闭快速设置").accessibilityIdentifier("menuQuickSettingsDone")
+                Button(action:close) { Image(systemName:"xmark").frame(width:28,height:28) }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("关闭快速设置").accessibilityIdentifier("menuQuickSettingsDone")
             }
             ScrollView {
                 VStack(spacing:10) {
                     row("菜单栏来源") { MacSettingsMenu(selection:binding(\.sourcePolicy),options:sourceOptions).accessibilityIdentifier("fxMonitorSource") }
                     if service.configuration.sourcePolicy == "auto" { Text("按已启用的自定义源顺序尝试，系统数据源兜底。").appFont(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading) }
                     Button("API与密钥设置…",systemImage:"key") { MacFXApplication.shared.query.settingsSectionRequest = "数据源"; openSettings("currency") }
-                        .buttonStyle(.plain).foregroundStyle(MacUI.accent).frame(maxWidth:.infinity,alignment:.leading).accessibilityIdentifier("menuAPISettings")
+                        .buttonStyle(MacInteractiveButtonStyle()).foregroundStyle(MacUI.accent).frame(maxWidth:.infinity,alignment:.leading).accessibilityIdentifier("menuAPISettings")
                     row("显示单位") { MacSettingsMenu(selection:binding(\.displayUnits),options:[("1单位",1),("100单位",100)]).accessibilityIdentifier("fxSettingsUnits") }
                     row("小数位数") { MacSettingsMenu(selection:binding(\.rateDigits),options:[2,4,6].map { ("\($0)位小数",$0) }).accessibilityIdentifier("fxRateDigits") }
                     HStack { Text("自动刷新"); Spacer(); Toggle("自动刷新",isOn:binding(\.automatic)).labelsHidden().toggleStyle(.switch).accessibilityIdentifier("fxAutomatic") }.appFont(.body,weight:.regular).frame(minHeight:40)
@@ -49,7 +49,7 @@ struct MacMenuQuickSettings: View {
                     Button("退出 FinTrack", systemImage: "power", role: .destructive) { NSApp.terminate(nil) }.accessibilityIdentifier("menuQuit").frame(maxWidth: .infinity, alignment: .leading)
                 }
             }.labelStyle(MacMenuActionLabelStyle()).frame(minHeight: 80)
-        }.buttonStyle(.plain).appFont(.body,weight:.regular).padding(16).frame(width:340).frame(maxHeight:.infinity)
+        }.buttonStyle(MacInteractiveButtonStyle()).appFont(.body,weight:.regular).padding(16).frame(width:340).frame(maxHeight:.infinity)
             .onAppear { interval = String(service.configuration.intervalMinutes) }
             .onChange(of:service.configuration.intervalMinutes) { _, value in interval = String(value) }
             .onExitCommand(perform:close)

@@ -84,7 +84,7 @@ struct MacRecurringView: View {
             HStack {
                 Text("筛选").appFont(.section, weight: .semibold); Spacer()
                 Button { showsNew = true } label: { Image(systemName: "plus").frame(width: MacUI.space(24), height: MacUI.space(24)) }
-                    .buttonStyle(.plain).help("新增周期").accessibilityLabel("新增周期").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil || posting)
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp("新增周期").accessibilityLabel("新增周期").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil || posting)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(7)) {
@@ -111,7 +111,7 @@ struct MacRecurringView: View {
                     }
                 }
             }
-            Button("重置筛选") { search = ""; type = nil; status = nil; category = nil; currency = nil }.buttonStyle(.plain).foregroundStyle(.secondary).accessibilityIdentifier("recurringReset")
+            Button("重置筛选") { search = ""; type = nil; status = nil; category = nil; currency = nil }.buttonStyle(MacInteractiveButtonStyle()).foregroundStyle(.secondary).accessibilityIdentifier("recurringReset")
         }.appPadding(18).background(MacOverviewStyle.filters)
     }
     private func filter(_ title: String, count: Int? = nil, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
@@ -119,13 +119,13 @@ struct MacRecurringView: View {
             HStack { Text(title).lineLimit(2); Spacer(minLength: 2); if let count { Text("\(count)").monospacedDigit().foregroundStyle(.secondary) } }
                 .appFont(.caption, weight: .regular, design: .default).appPadding(9).frame(maxWidth: .infinity, alignment: .leading)
                 .macFinanceFilterRow(selected: selected)
-        }.buttonStyle(.plain).accessibilityIdentifier(id)
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id)
     }
     private func list(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             HStack {
                 Text("\(visible.count) 个周期项目").appFont(.section, weight: .semibold).accessibilityIdentifier("recurringCount"); Spacer()
-                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("recurringOpenDetails") }
+                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.appHelp("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("recurringOpenDetails") }
             }
             TextField("搜索项目、类别或备注", text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("recurringSearch")
             MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacRecurringData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "recurring")
@@ -139,7 +139,7 @@ struct MacRecurringView: View {
                 ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                     ForEach(visible, id: \.id) { rule in
                         Button { selectedID = rule.id; if !wide { showsDetails = true } } label: { row(rule) }
-                            .buttonStyle(.plain).accessibilityIdentifier("recurringRow-\(rule.title)")
+                            .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("recurringRow-\(rule.title)")
                     }
                 }.appPadding(1) }
             }

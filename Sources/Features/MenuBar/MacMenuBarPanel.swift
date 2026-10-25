@@ -32,7 +32,7 @@ struct MacMenuBarPanel: View {
                                 }
                             }
                         tool("arrow.clockwise",title:"更新汇率",identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
-                            .disabled(service.busy).help(service.busy ? "正在更新…" : service.status)
+                            .disabled(service.busy).appHelp(service.busy ? "正在更新…" : service.status)
                     }
                     tool("gearshape",title:"设置",identifier:"menuSettings") { quickSettings.toggle() }
                 }
@@ -43,7 +43,7 @@ struct MacMenuBarPanel: View {
                         Label(page.title, systemImage: page.symbol).appFont(.label, weight: .medium)
                             .frame(maxWidth: .infinity).frame(height: 40)
                             .background(session.page == page ? MacUI.accent.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityIdentifier("menuPage-" + page.rawValue).accessibilityValue(session.page == page ? "已选中" : "未选中")
+                    }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("menuPage-" + page.rawValue).accessibilityValue(session.page == page ? "已选中" : "未选中")
                 }
             }.padding(.horizontal, 14).padding(.bottom, 12)
             Divider()
@@ -69,7 +69,7 @@ struct MacMenuBarPanel: View {
     }
     private func tool(_ symbol:String,title:String,identifier:String,action:@escaping () -> Void) -> some View {
         Button(action:action) { Image(systemName:symbol).appIconFont(22).frame(width:40,height:40).contentShape(Rectangle()) }
-            .buttonStyle(.plain).accessibilityLabel(title).accessibilityIdentifier(identifier)
+            .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(title).accessibilityIdentifier(identifier)
     }
     @ViewBuilder private var quickEntry: some View {
         if let container = ledger.container {

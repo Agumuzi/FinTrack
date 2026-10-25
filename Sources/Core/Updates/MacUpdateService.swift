@@ -23,13 +23,16 @@ final class MacUpdateService: ObservableObject {
     @Published private(set) var checkedAt: Date?
     private var trustedConfiguration: String?
     private var downloadID: UUID?
-    private static var configurationIdentity: String { (MacPreferences.defaults.string(forKey: "v2_update_url") ?? "") + "|" + (MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? "") }
+    private static var configurationIdentity: String { officialManifestURL + "|" + officialPublicKey }
     struct SignedManifest: Codable { var payload: Data; var signature: Data }
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知" }
     static var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知" }
-    static var configured: Bool {
-        let d = MacPreferences.defaults
-        return validatedURL(d.string(forKey: "v2_update_url") ?? "") != nil && Data(base64Encoded: d.string(forKey: "v2_update_public_key") ?? "")?.count == 32
+    static var configured: Bool { validatedURL(officialManifestURL) != nil && Data(base64Encoded: officialPublicKey)?.count == 32 }
+    var actionTitle: String { busy ? "处理中…" : archive != nil ? "安装并重新启动" : release != nil ? "下载并安装" : "立即检查" }
+    func performPrimaryAction() {
+        if archive != nil { MacUpdatePrompt.shared.show(.ready) }
+        else if release != nil { MacUpdatePrompt.shared.download() }
+        else { Task { await check() } }
     }
     nonisolated static func validatedURL(_ text: String) -> URL? {
         guard let url = URL(string: text), url.scheme == "https", url.host != nil, url.user == nil, url.password == nil, url.fragment == nil else { return nil }
@@ -50,8 +53,8 @@ final class MacUpdateService: ObservableObject {
     func reset() { release = nil; archive = nil; checkedAt = nil; trustedConfiguration = nil; status = "更新源已更改，请重新检查" }
     func check() async {
         guard !busy else { return }
-        guard Self.configured, let url = Self.validatedURL(MacPreferences.defaults.string(forKey: "v2_update_url") ?? ""),
-              let key = Data(base64Encoded: MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? "")
+        guard Self.configured, let url = Self.validatedURL(Self.officialManifestURL),
+              let key = Data(base64Encoded: Self.officialPublicKey)
         else { status = "尚未配置签名发布源，当前使用本地安装包更新"; return }
         let identity = Self.configurationIdentity
         busy = true; defer { busy = false }; release = nil; archive = nil; trustedConfiguration = nil; status = "正在检查签名更新…"
@@ -64,6 +67,7 @@ final class MacUpdateService: ObservableObject {
             guard ProcessInfo.processInfo.operatingSystemVersionString.count > 0,
                   Self.isCompatible(item.minimumOS) else { status = "新版本需要 macOS \(item.minimumOS) 或更高版本"; return }
             trustedConfiguration = identity; release = item; status = "发现新版本 \(item.version)（\(item.build)）"
+            MacUpdatePrompt.shared.show(.offer)
         } catch { status = "检查失败：\(safe(error))" }
     }
     static func isCompatible(_ minimum: String) -> Bool {
@@ -96,6 +100,7 @@ final class MacUpdateService: ObservableObject {
             try await MacUpdateArchiveDownload.verify(file, sha256: item.sha256)
             guard trustedConfiguration == Self.configurationIdentity, release?.sha256 == item.sha256, release?.build == item.build else { throw MacSettingsFailure.invalid("更新源或版本已更改，请重新检查") }
             archive = file; status = "更新已下载并通过签名清单与 SHA256 校验，等待安装确认"
+            MacUpdatePrompt.shared.show(.ready)
         } catch {
             try? FileManager.default.removeItem(at: folder)
             status = "下载失败：\(safe(error))"
@@ -163,10 +168,9 @@ final class MacUpdateService: ObservableObject {
                 let last = d.object(forKey: "v2_update_last_check") as? Date ?? .distantPast
                 if Date().timeIntervalSince(last) >= interval {
                     await check()
-                    if release != nil, d.bool(forKey: "v2_update_download") { await downloadRelease() }
                 }
             }
-            try? await Task.sleep(for: .seconds(3600))
+            do { try await Task.sleep(for: .seconds(3600)) } catch { return }
         }
     }
     private func download(_ url: URL, limit: Int, allowHTTPSRedirects: Bool) async throws -> Data {

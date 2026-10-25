@@ -189,7 +189,7 @@ struct MacEditableCurrencyMenu: View {
                         .focused($focused).accessibilityLabel("其他货币代码").accessibilityIdentifier(textIdentifier)
                     Button { custom = false } label: { Image(systemName:"chevron.down").frame(width:24,height:32) }
                         .fixedSize()
-                        .buttonStyle(.plain).accessibilityLabel("返回货币选择").accessibilityIdentifier(identifier + "Back")
+                        .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("返回货币选择").accessibilityIdentifier(identifier + "Back")
                 }.padding(.horizontal,12).frame(height:MacCurrencyMenuStyle.height).modifier(MacEntryFieldBorder())
             } else {
                 MacCurrencyMenu(selection:Binding(get:{currency},set:{ value in
