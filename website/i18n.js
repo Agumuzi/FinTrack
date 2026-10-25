@@ -145,7 +145,7 @@
   const root = document.documentElement;
   const textEntries = [];
   const attributes = [];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const node = walker.currentNode;
     const english = node.nodeValue.trim();
