@@ -59,6 +59,10 @@ enum MacPreferences {
             defaults.set(true, forKey: officialUpdateSourceKey)
         }
         let marker = blankInitialStateKey
+        if defaults.object(forKey:"v141_background") == nil {
+            let existing = defaults.bool(forKey:marker) || defaults.bool(forKey:"fintrack_initial_setup_complete") || defaults.data(forKey:MacFXConfiguration.storageKey) != nil
+            defaults.set(existing,forKey:"v141_background")
+        }
         guard !defaults.bool(forKey: marker) else { return }
         let existingInstallation = defaults.bool(forKey: "fintrack_initial_setup_complete") ||
             defaults.data(forKey: MacFXConfiguration.storageKey) != nil

@@ -94,23 +94,8 @@ struct MacLedgerWorkspaceGate: View {
                     MacAppEntrySettingsCard()
                 }.padding(20)
             case .unconfigured, .notLoaded:
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("FinTrack").appFont(.pageTitle, weight: .bold)
-                            Text("创建账本，或从备份导入已有数据。汇率查询与换算可通过菜单栏使用。").appFont(.body, weight: .regular).foregroundStyle(.secondary).accessibilityIdentifier("ledgerNotConfigured")
-                        }
-                        Spacer()
-                        Button("开始记账") { access.load(createIfMissing: true) }.buttonStyle(MacSettingsButtonStyle(primary: true, height: 40)).accessibilityIdentifier("beginBookkeeping")
-                    }
-                    Button("导入或恢复备份…") {
-                        MacPreferences.defaults.set("backup", forKey: "v2_settings_page")
-                        FinTrackMacApp.workspace.section = .settings
-                        access.load(createIfMissing: true)
-                    }.accessibilityIdentifier("beginImportBookkeeping")
-                    Text("导入将在创建账本后进入备份预览；恢复仍需确认并保存安全副本。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                    MacAppEntrySettingsCard()
-                }.padding(20)
+                ProgressView("正在准备账本…").appFont(.body).frame(maxWidth:.infinity,maxHeight:.infinity)
+
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -121,6 +106,6 @@ struct MacLedgerWorkspaceGate: View {
         }
         .defaultAppStorage(MacPreferences.defaults)
         .background(MacMenuBarWindowProbe { runtime.mainWindow = $0 })
-        .onAppear { access.load() }
+        .onAppear { access.load(createIfMissing: true) }
     }
 }

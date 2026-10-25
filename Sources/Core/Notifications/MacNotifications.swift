@@ -11,6 +11,7 @@ final class MacNotificationDelegate: NSObject, UNUserNotificationCenterDelegate 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let route = response.notification.request.content.userInfo["route"] as? String ?? "recurring"
         await MainActor.run {
+            if route == "updates" { MacUpdateService.shared.openFromNotification(); return }
             MacApplicationRuntime.shared.showMain(settings: route == "goals" || route == "budgets")
             if route == "goals" || route == "budgets" { MacPreferences.defaults.set(route, forKey: "v2_settings_page") }
             else { FinTrackMacApp.workspace.section = route == "deposits" ? .deposits : .recurring }
@@ -35,21 +36,36 @@ enum MacNotifications {
         ["deposit-", "recurring-", "goal-", "budget-"].contains { id.hasPrefix($0) }
     }
     static func authorizationLabel() async -> String {
-        guard !MacPreferences.isTesting else { return "隔离测试：不更改系统通知权限" }
-        switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
-        case .authorized, .provisional, .ephemeral: return "系统通知已允许"
-        case .denied: return "系统通知已关闭，请在系统设置中允许"
-        case .notDetermined: return "尚未请求系统通知权限"
-        @unknown default: return "系统通知状态未知"
-        }
+        await MacPermissionCoordinator.shared.refresh()
+        return MacPermissionCoordinator.shared.notificationText
     }
     static func authorizeAndSchedule(in context: ModelContext) async throws {
+        try await MacPermissionCoordinator.shared.requestNotifications()
+        try await schedule(in:context)
+    }
+    static func updateRequest(_ release: MacUpdateRelease) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = "FinTrack 有新版本"
+        content.body = "v\(release.version) 已可下载，点击查看更新。"
+        content.sound = .default; content.userInfo = ["route":"updates","build":release.build]
+        return UNNotificationRequest(identifier:"update-\(release.build)",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:1,repeats:false))
+    }
+    @discardableResult static func notifyUpdate(_ release: MacUpdateRelease) async throws -> Bool {
+        guard !MacPreferences.isTesting else { return false }
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return false }
+        let key = "v142_update_notice_build"
+        guard MacPreferences.defaults.integer(forKey:key) < release.build else { return true }
+        try await center.add(updateRequest(release))
+        MacPreferences.defaults.set(release.build,forKey:key)
+        return true
+    }
+    static func cancelUpdateNotices() {
         guard !MacPreferences.isTesting else { return }
         let center = UNUserNotificationCenter.current()
-        guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else {
-            throw MacSettingsFailure.invalid("系统通知未获允许，请在系统设置中开启 FinTrack 通知。")
-        }
-        try await schedule(in: context)
+        center.getPendingNotificationRequests { requests in center.removePendingNotificationRequests(withIdentifiers:requests.map(\.identifier).filter{$0.hasPrefix("update-")}) }
+        center.getDeliveredNotifications { notices in center.removeDeliveredNotifications(withIdentifiers:notices.map{$0.request.identifier}.filter{$0.hasPrefix("update-")}) }
     }
     static func plans(in context: ModelContext, now: Date = Date(), calendar: Calendar = .current) throws -> [Plan] {
         let d = MacPreferences.defaults
