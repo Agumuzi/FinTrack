@@ -67,7 +67,7 @@ final class MacUpdateService: ObservableObject {
             guard ProcessInfo.processInfo.operatingSystemVersionString.count > 0,
                   Self.isCompatible(item.minimumOS) else { status = "新版本需要 macOS \(item.minimumOS) 或更高版本"; return }
             trustedConfiguration = identity; release = item; status = "发现新版本 \(item.version)（\(item.build)）"
-            if !MacPreferences.isTesting { MacUpdatePrompt.shared.show(.offer) }
+            MacUpdatePrompt.shared.show(.offer)
         } catch { status = "检查失败：\(safe(error))" }
     }
     static func isCompatible(_ minimum: String) -> Bool {
