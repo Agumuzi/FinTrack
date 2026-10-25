@@ -89,7 +89,7 @@ struct MacLoansView: View {
             HStack {
                 Text("筛选").appFont(.section, weight: .semibold); Spacer()
                 Button { showsNew = true } label: { Image(systemName: "plus").frame(width: MacUI.space(24), height: MacUI.space(24)) }
-                    .buttonStyle(.plain).help("新增贷款").accessibilityLabel("新增贷款").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil)
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp("新增贷款").accessibilityLabel("新增贷款").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(7)) {
@@ -112,7 +112,7 @@ struct MacLoansView: View {
                     }
                 }
             }
-            Button("重置筛选") { search = ""; status = nil; category = nil; currency = nil }.buttonStyle(.plain).foregroundStyle(.secondary).accessibilityIdentifier("loansReset")
+            Button("重置筛选") { search = ""; status = nil; category = nil; currency = nil }.buttonStyle(MacInteractiveButtonStyle()).foregroundStyle(.secondary).accessibilityIdentifier("loansReset")
         }.appPadding(18).background(MacOverviewStyle.filters)
     }
     private func filter(_ title: String, count: Int? = nil, selected: Bool, id: String, action: @escaping () -> Void) -> some View {
@@ -120,13 +120,13 @@ struct MacLoansView: View {
             HStack { Text(title).lineLimit(2); Spacer(minLength: 2); if let count { Text("\(count)").monospacedDigit().foregroundStyle(.secondary) } }
                 .appFont(.caption, weight: .regular, design: .default).appPadding(9).frame(maxWidth: .infinity, alignment: .leading)
                 .macFinanceFilterRow(selected: selected)
-        }.buttonStyle(.plain).accessibilityIdentifier(id)
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id)
     }
     private func list(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             HStack {
                 Text("\(visible.count) 笔贷款").appFont(.section, weight: .semibold).accessibilityIdentifier("loansCount"); Spacer()
-                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("loansOpenDetails") }
+                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.appHelp("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("loansOpenDetails") }
             }
             TextField("搜索贷款、类别或备注", text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("loansSearch")
             MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacLoansData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "loans")
@@ -140,7 +140,7 @@ struct MacLoansView: View {
                 ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                     ForEach(visible, id: \.id) { loan in
                         Button { selectedID = loan.id; if !wide { showsDetails = true } } label: { row(loan) }
-                            .buttonStyle(.plain)
+                            .buttonStyle(MacInteractiveButtonStyle())
                             .accessibilityRepresentation {
                                 Button(loan.title) { selectedID = loan.id; if !wide { showsDetails = true } }
                                     .accessibilityIdentifier("loansRow-\(loan.title)")
@@ -164,7 +164,7 @@ struct MacLoansView: View {
             HStack { Text("贷款本金").appFont(.caption, weight: .regular).foregroundStyle(.secondary); Spacer(); badge(audit) }
             if let outstanding = audit.outstanding {
                 Text("剩余本金 \(money(outstanding, loan))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-                ProgressView(value: Double(audit.paid.count), total: Double(max(1, payments.filter { $0.total > 0 }.count))).help("按已核验收据计算的期数进度")
+                ProgressView(value: Double(audit.paid.count), total: Double(max(1, payments.filter { $0.total > 0 }.count))).appHelp("按已核验收据计算的期数进度")
                 Text("已还 \(audit.paid.count)/\(payments.filter { $0.total > 0 }.count) 期" + (payments.contains { $0.total == 0 } ? " · 零金额期次无需付款" : " · 剩余 \(loan.termMonths - audit.paid.count) 期")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
             } else { Text("实际已还与剩余本金待核对").appFont(.caption, weight: .regular).foregroundStyle(.orange) }
             if let end = loan.amortizationSchedule.last?.date { Text("计划到期 \(MacDateDisplay.string(end))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
@@ -238,7 +238,7 @@ struct MacLoansView: View {
                     ForEach(audit.receipts, id: \.id) { entry in
                         Button { receipt = entry } label: {
                             HStack { Text(MacDateDisplay.string(entry.date)); Spacer(); Text("−\(MacOverviewStyle.money(entry.originalAmount)) \(entry.originalCurrency)").monospacedDigit(); Image(systemName: "chevron.right").appFont(.caption, weight: .regular) }.appFont(.caption, weight: .regular).appPadding(.vertical, 7).contentShape(Rectangle())
-                        }.buttonStyle(.plain).help("查看实际账目和保存的汇率快照").accessibilityIdentifier("loansReceipt-\(entry.id)")
+                        }.buttonStyle(MacInteractiveButtonStyle()).appHelp("查看实际账目和保存的汇率快照").accessibilityIdentifier("loansReceipt-\(entry.id)")
                     }
                 }
                 if loan.currency != loan.baseCurrencyCode {
@@ -285,7 +285,7 @@ struct MacLoansView: View {
                         .accessibilityLabel("第\(item.index)期计划利息").accessibilityValue("\(MacOverviewStyle.money(item.interest)) \(loan.currency)")
                 }.chartForegroundStyleScale(["本金": MacOverviewStyle.accent, "利息": MacOverviewStyle.accent.opacity(0.32)])
                     .chartXAxisLabel("期次").frame(height: MacUI.space(160)).accessibilityIdentifier("loansCompositionChart")
-                    .help("本金与利息均来自原有摊还计划；点击还款计划查看每期金额。")
+                    .appHelp("本金与利息均来自原有摊还计划；点击还款计划查看每期金额。")
             }
         }
     }

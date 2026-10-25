@@ -43,8 +43,8 @@ struct MacFXTrendCardView: View {
                 }
             }.frame(height: 136).padding(8).background(MacOverviewStyle.canvas, in: RoundedRectangle(cornerRadius: 12))
             if let result {
-                Text(summary).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8).help(summary).accessibilityIdentifier("fxHistorySummary-" + pair.key)
-                if let error = result.error { Text("部分历史日期未取得报价：" + error).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).help(error) }
+                Text(summary).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8).appHelp(summary).accessibilityIdentifier("fxHistorySummary-" + pair.key)
+                if let error = result.error { Text("部分历史日期未取得报价：" + error).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(error) }
             }
         }.task(id: request) { if let request { await history.load(request, monitor: service) } }
     }

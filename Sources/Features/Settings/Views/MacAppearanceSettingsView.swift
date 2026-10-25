@@ -23,7 +23,7 @@ struct MacThemeChoices: View {
                 .background(theme == value ? MacSettingsVisual.accent.opacity(0.045) : .clear, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(theme == value ? MacSettingsVisual.accent : .gray.opacity(0.15), lineWidth: theme == value ? 1.6 : 1))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityIdentifier("theme-" + value).accessibilityValue(theme == value ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("theme-" + value).accessibilityValue(theme == value ? "已选中" : "未选中")
     }
 }
 
@@ -64,7 +64,11 @@ struct MacAppearanceSettingsView: View {
         MacSettingsColumns(wide: wide) {
             VStack(spacing: MacUI.space(14)) {
                 MacSettingsCard(title: "主题模式", icon: "sun.max", subtitle: "选择应用的整体外观风格。", headerColor: .red) { MacThemeChoices(theme: $theme) }
-                MacSettingsCard(title: "强调色", icon: "paintpalette", subtitle: "用于按钮、图表和高亮元素。", headerColor: .red) { MacColorChoices(selection: $accent) }
+                HStack(spacing: 12) {
+                    MacSettingsIcon(symbol: "paintpalette", color: .red, size: 36)
+                    VStack(alignment: .leading, spacing: 4) { Text("强调色").appFont(.section, weight: .semibold); Text("用于按钮、图表和高亮元素。").appFont(.caption).foregroundStyle(.secondary) }
+                    Spacer(minLength: 8); MacColorChoices(selection: $accent)
+                }.padding(16).background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
                 MacSettingsCard(title: "界面密度", icon: "rectangle.split.3x1", subtitle: "调整列表、表格和卡片的显示密度。", headerColor: .red) {
                     HStack(spacing: MacUI.space(8)) {
                         densityChoice("舒适", value: "comfortable", icon: "list.bullet")
@@ -113,7 +117,7 @@ struct MacAppearanceSettingsView: View {
                                 .background(fontTierValue == tier.rawValue ? MacSettingsVisual.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 8))
                                 .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(fontTierValue == tier.rawValue ? MacSettingsVisual.accent : .gray.opacity(0.18)))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(MacInteractiveButtonStyle())
                             .accessibilityIdentifier("fontTier-\(tier.rawValue)")
                             .accessibilityValue(fontTierValue == tier.rawValue ? "已选中" : "未选中")
                         }
@@ -128,13 +132,13 @@ struct MacAppearanceSettingsView: View {
                 .contentShape(Rectangle())
                 .background(density == value ? MacSettingsVisual.accent.opacity(0.035) : .clear, in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(density == value ? MacSettingsVisual.accent : .gray.opacity(0.18)))
-        }.buttonStyle(.plain).accessibilityIdentifier("density-" + value).accessibilityValue(density == value ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("density-" + value).accessibilityValue(density == value ? "已选中" : "未选中")
     }
     private func navigationChoice(_ title: String, collapsed value: Bool, icon: String, detail: String) -> some View {
         Button { collapsed = value } label: {
             HStack { Image(systemName: icon).appIconFont(21, weight: .regular, design: .default); VStack(alignment: .leading, spacing: MacUI.space(3)) { Text(title).appFont(.body, weight: .semibold, design: .default); Text(detail).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }; Spacer(minLength: 0) }
                 .appPadding(10).frame(maxWidth: .infinity).contentShape(Rectangle()).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(collapsed == value ? MacSettingsVisual.accent : .gray.opacity(0.18)))
-        }.buttonStyle(.plain).accessibilityIdentifier(value ? "settingsNavigationIcons" : "settingsNavigationFull").accessibilityValue(collapsed == value ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(value ? "settingsNavigationIcons" : "settingsNavigationFull").accessibilityValue(collapsed == value ? "已选中" : "未选中")
     }
 }
 
@@ -152,13 +156,13 @@ struct MacAppearancePreview: View {
                 HStack(spacing: MacUI.space(4)) { Circle().fill(.red); Circle().fill(.yellow); Circle().fill(.green) }.frame(width: MacUI.space(38), height: MacUI.space(9)).appPadding(.vertical, 7)
                 HStack(spacing: MacUI.space(6)) { MacBrandIcon(size: 22); if !collapsed { Text("FinTrack").appFont(.caption, weight: .semibold, design: .default) } }.appPadding(.vertical, 4)
                 ForEach(nav, id: \.0) { item in
-                    Button { page = item.0 } label: { HStack(spacing: MacUI.space(6)) { Image(systemName: item.1).frame(width: MacUI.space(16)); if !collapsed { Text(item.0) }; Spacer(minLength: 0) }.appFont(.caption, weight: .regular, design: .default).appPadding(7).foregroundStyle(page == item.0 ? accent : .primary).background(page == item.0 ? accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 6)) }.buttonStyle(.plain)
+                    Button { page = item.0 } label: { HStack(spacing: MacUI.space(6)) { Image(systemName: item.1).frame(width: MacUI.space(16)); if !collapsed { Text(item.0) }; Spacer(minLength: 0) }.appFont(.caption, weight: .regular, design: .default).appPadding(7).foregroundStyle(page == item.0 ? accent : .primary).background(page == item.0 ? accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 6)) }.buttonStyle(MacInteractiveButtonStyle())
                 }
                 Spacer()
             }.appPadding(9).frame(width: collapsed ? 50 : 105).background(MacOverviewStyle.navigation)
             VStack(alignment: .leading, spacing: density == "compact" ? 10 : 15) {
                 HStack { Text(page).appFont(.body, weight: .bold, design: .default); Spacer(); Image(systemName: "magnifyingglass"); Image(systemName: "plus") }.appFont(.caption, weight: .regular, design: .default)
-                HStack { Button { month = Calendar.current.date(byAdding: .month, value: -1, to: month)! } label: { Image(systemName: "chevron.left") }; Text(MacDisplayPreferences.month(month)).appFont(.caption, weight: .medium, design: .default); Button { month = Calendar.current.date(byAdding: .month, value: 1, to: month)! } label: { Image(systemName: "chevron.right") }; Spacer() }.buttonStyle(.plain)
+                HStack { Button { month = Calendar.current.date(byAdding: .month, value: -1, to: month)! } label: { Image(systemName: "chevron.left") }; Text(MacDisplayPreferences.month(month)).appFont(.caption, weight: .medium, design: .default); Button { month = Calendar.current.date(byAdding: .month, value: 1, to: month)! } label: { Image(systemName: "chevron.right") }; Spacer() }.buttonStyle(MacInteractiveButtonStyle())
                 VStack(alignment: .leading, spacing: MacUI.space(9)) {
                     Text(page == "概览" ? "资产总览" : page + "概况").appFont(.caption, weight: .semibold, design: .default)
                     Text("12345 " + MacSettingsVisual.symbol(currency)).appFont(.amount, weight: .semibold, design: .default).fixedSize(horizontal: false, vertical: true)

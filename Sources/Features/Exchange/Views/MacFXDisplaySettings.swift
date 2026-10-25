@@ -77,7 +77,7 @@ struct MacFXPairAddForm: View {
                     .disabled(pair == nil || pair?.base == pair?.quote || duplicate).accessibilityIdentifier("fxPairConfirm")
                 Spacer(minLength:0)
                 Button { swap(&base,&quote); swap(&customBase,&customQuote) } label: { Image(systemName:"arrow.left.arrow.right").frame(width:36,height:36) }
-                    .buttonStyle(.plain).accessibilityLabel("交换货币").accessibilityIdentifier("fxPairSwap")
+                    .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("交换货币").accessibilityIdentifier("fxPairSwap")
             }
             if duplicate { Text("这个汇率已经存在").appFont(.caption).foregroundStyle(.secondary) }
             else if pair == nil { Text("请输入三位英文字母货币代码").appFont(.caption).foregroundStyle(.secondary) }
@@ -130,7 +130,7 @@ struct MacFXDisplaySettings: View {
                             Text("\(service.configuration.displayUnits) " + pair.base + " → " + pair.quote).appFont(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth:.infinity,alignment:.leading)
                         orderControls(pair.key,ids:service.configuration.watchedPairs.map(\.key),prefix:"fxPairOrder") { delta in stepPair(pair,delta) }
-                        Button("移除") { app.update { $0.watchedPairs.removeAll { $0 == pair } } }.buttonStyle(.plain).accessibilityIdentifier("fxSettingsRemovePair-" + pair.key)
+                        Button("移除") { app.update { $0.watchedPairs.removeAll { $0 == pair } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemovePair-" + pair.key)
                     }.modifier(ListRow()).accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsPair-" + pair.key)
                         .onDrop(of:[UTType.text],delegate:MacFXSettingsDrop(type:MacFXSettingsDrag.pair,token:dragToken,target:pair.key,dragged:$draggedPair,move:movePair))
                 }
@@ -151,7 +151,7 @@ struct MacFXDisplaySettings: View {
                             Text(MacFXSettingsCurrencySearch.name(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }.frame(maxWidth:.infinity,alignment:.leading)
                         orderControls(code,ids:service.configuration.converterCurrencies,prefix:"fxCurrencyOrder") { delta in stepCurrency(code,delta) }
-                        Button("移除") { app.update { $0.converterCurrencies.removeAll { $0 == code } } }.buttonStyle(.plain).accessibilityIdentifier("fxSettingsRemoveCurrency-" + code)
+                        Button("移除") { app.update { $0.converterCurrencies.removeAll { $0 == code } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemoveCurrency-" + code)
                     }.modifier(ListRow()).accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsCurrency-" + code)
                         .onDrop(of:[UTType.text],delegate:MacFXSettingsDrop(type:MacFXSettingsDrag.currency,token:dragToken,target:code,dragged:$draggedCurrency,move:moveCurrency))
                 }
@@ -166,7 +166,7 @@ struct MacFXDisplaySettings: View {
         HStack(spacing:0) {
             Button { move(-1) } label: { Image(systemName:"chevron.up").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.first == id).accessibilityLabel("上移").accessibilityIdentifier(prefix + "Up-" + id)
             Button { move(1) } label: { Image(systemName:"chevron.down").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.last == id).accessibilityLabel("下移").accessibilityIdentifier(prefix + "Down-" + id)
-        }.buttonStyle(.plain).appIconFont(12).background(MacOverviewStyle.canvas,in:RoundedRectangle(cornerRadius:7))
+        }.buttonStyle(MacInteractiveButtonStyle()).appIconFont(12).background(MacOverviewStyle.canvas,in:RoundedRectangle(cornerRadius:7))
     }
     private func endStrip(_ id:String,type:String,dragged:Binding<String?>,move:@escaping (String,String?)->Void) -> some View {
         Label("移至末尾",systemImage:"arrow.down.to.line").appFont(.caption).foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:28).background(MacOverviewStyle.filters,in:RoundedRectangle(cornerRadius:8)).contentShape(Rectangle()).accessibilityIdentifier(id)

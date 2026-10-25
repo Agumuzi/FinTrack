@@ -1,18 +1,21 @@
 import SwiftUI
 
 struct MacAppEntrySettingsCard: View {
+    var showsEntry = true
+    var showsMenu = true
     @ObservedObject private var entries = MacApplicationRuntime.shared.entries
     @ObservedObject private var service = MacFXApplication.shared.monitor
     var body: some View {
         VStack(spacing: 14) {
-            MacSettingsCard(title: "应用入口", icon: "app.badge", subtitle: "菜单栏与 Dock 独立设置，至少保留一个入口。") {
+            if showsEntry { MacSettingsCard(title: "应用入口", icon: "app.badge", subtitle: "菜单栏与 Dock 独立设置，至少保留一个入口。") {
                 MacSettingsToggleRow(title: "显示菜单栏入口", value: binding(\.showMenuBar)).accessibilityIdentifier("entryShowMenu")
                 MacSettingsToggleRow(title: "显示 Dock 图标", value: binding(\.showDock)).accessibilityIdentifier("entryShowDock")
                 MacSettingsToggleRow(title: "启动时显示主窗口", value: binding(\.showMainOnLaunch)).accessibilityIdentifier("entryShowMain")
                 if !entries.configuration.showMenuBar { Text("仅使用 Dock 时，启动始终显示主窗口。").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                 if let message = entries.message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(.orange).accessibilityIdentifier("entryMessage") }
             }
-            MacSettingsCard(title: "菜单栏", icon: "menubar.rectangle", subtitle: "上方预览当前显示，按组选取图标与信息。") {
+            }
+            if showsMenu { MacSettingsCard(title: "菜单栏", icon: "menubar.rectangle", subtitle: "上方预览当前显示，按组选取图标与信息。") {
                 HStack {
                     if entries.configuration.information != .rate { Image(nsImage: MacMenuBarLabel.image(entries.configuration.iconStyle)) }
                     if entries.configuration.information != .icon { Text(MacMenuBarLabel.text(configuration: entries.configuration, monitor: service)).appFont(.body, weight: .medium, design: .monospaced) }
@@ -28,6 +31,7 @@ struct MacAppEntrySettingsCard: View {
                 MacSettingsRow(label: "默认页面") { MacSettingsMenu(selection: binding(\.defaultPage), options: MacMenuBarPage.allCases.map { ($0.title,$0) }).accessibilityIdentifier("entryDefaultPage") }
                 MacSettingsRow(label: "页面记忆") { MacSettingsMenu(selection: binding(\.pageMemory), options: MacMenuBarPageMemory.allCases.map { ($0.title,$0) }).accessibilityIdentifier("entryPageMemory") }
                 Text("跨重启只记住页面；未保存的记账草稿不写入磁盘。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+            }
             }
         }.disabled(entries.isTransitioning)
     }

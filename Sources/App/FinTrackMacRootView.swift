@@ -51,7 +51,7 @@ struct FinTrackMacRootView: View {
     @Environment(\.modelContext) private var context
     @AppStorage("fintrack_auto_posting") private var automaticPosting = false
     @AppStorage("v13_auto_deposit_posting") private var automaticDeposits = true
-    @State private var automaticError: String?
+    @ObservedObject private var appServices = MacAppServices.shared
     @Query private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
     @Query private var loans: [LoanRule]
@@ -96,6 +96,11 @@ struct FinTrackMacRootView: View {
             if MacPreferences.isTesting { MacOverviewPreviewSize().frame(width: MacUI.space(0), height: MacUI.space(0)) }
             #endif
         }
+        .overlay(alignment: .bottomLeading) {
+            #if FINTRACK_LOCAL_VALIDATION
+            MacRecordSizingDiagnosticsView()
+            #endif
+        }
         .ignoresSafeArea(.container, edges: .top)
         .frame(minWidth: 800, minHeight: 600)
         .background(MacOverviewStyle.navigation)
@@ -121,17 +126,9 @@ struct FinTrackMacRootView: View {
         .environment(\.defaultMinListRowHeight, interfaceDensity == "compact" ? 25 : interfaceDensity == "spacious" ? 40 : 32)
         .environment(\.calendar, MacDisplayPreferences.calendar)
         .onChange(of: workspace.section) { _, section in MacPreferences.defaults.set(section.rawValue, forKey: "v2_last_page") }
-        .task { await MacUpdateService.shared.runAutomaticChecks() }
         .preferredColorScheme(theme == "dark" ? .dark : (theme == "light" ? .light : nil))
-        .task(id: "\(automaticPosting)-\(automaticDeposits)") {
-            guard (automaticPosting || automaticDeposits), !MacPreferences.isTesting else { return }
-            while !Task.isCancelled {
-                automaticError = await MacAutomaticPosting.run(in: context, includeRules: automaticPosting, includeDeposits: automaticDeposits, estimateDeposits: true)
-                try? await Task.sleep(for: .seconds(300))
-            }
-        }
         .overlay(alignment: .bottom) {
-            if let automaticError { Text(automaticError).appFont(.caption, weight: .regular).foregroundStyle(.red).appPadding(10).background(.regularMaterial) }
+            if let error = appServices.postingError { Text(error).appFont(.caption).foregroundStyle(.red).padding(10).background(.regularMaterial) }
         }
         .onExitCommand { showsAccount = false }
         .onAppear {
@@ -160,8 +157,8 @@ struct FinTrackMacRootView: View {
                 Image(systemName: "sidebar.left").appIconFont(17, weight: .regular, design: .default)
                     .foregroundStyle(.secondary).frame(width: MacUI.space(30), height: MacUI.space(30))
                     .contentShape(RoundedRectangle(cornerRadius: 6))
-            }.buttonStyle(.plain)
-                .help(navigationCollapsed ? "展开导航" : "收起导航")
+            }.buttonStyle(MacInteractiveButtonStyle())
+                .appHelp(navigationCollapsed ? "展开导航" : "收起导航")
                 .accessibilityLabel("切换导航宽度").accessibilityIdentifier("toggleNavigation")
             if workspace.section == .overview || workspace.section == .records || workspace.section == .deposits || workspace.section == .recurring || workspace.section == .loans || workspace.section == .insights || (workspace.section == .settings && !compact) {
                 Color.clear.frame(width: titleGap, height: 1)
@@ -223,7 +220,7 @@ struct FinTrackMacRootView: View {
                         Spacer(); Image(systemName: "chevron.up").appFont(.caption, weight: .regular)
                     }
                 }.appPadding(12).frame(maxWidth: .infinity).contentShape(Rectangle())
-            }.buttonStyle(.plain).help("账本与设置").accessibilityLabel("账本与设置")
+            }.buttonStyle(MacInteractiveButtonStyle()).appHelp("账本与设置").accessibilityLabel("账本与设置")
                 .accessibilityIdentifier("accountMenu")
             }
 
@@ -243,6 +240,6 @@ struct FinTrackMacRootView: View {
                 .foregroundStyle(workspace.section == section ? (section == .settings ? MacSettingsVisual.accent : MacOverviewStyle.accent) : .primary)
                 .background(workspace.section == section ? (section == .settings ? MacSettingsVisual.accent : MacOverviewStyle.accent).opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 10))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).help(section.rawValue).accessibilityLabel(section.rawValue).accessibilityIdentifier(id)
+        }.buttonStyle(MacInteractiveButtonStyle()).appHelp(section.rawValue).accessibilityLabel(section.rawValue).accessibilityIdentifier(id)
     }
 }

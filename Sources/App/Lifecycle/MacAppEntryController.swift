@@ -153,12 +153,28 @@ final class MacApplicationRuntime: ObservableObject {
 }
 
 final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
+    private var typographyMonitor: Any?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        typographyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection([.command,.shift,.option,.control])
+            if flags.contains(.command), flags.intersection([.option,.control]).isEmpty,
+               ["=","+"].contains(event.charactersIgnoringModifiers ?? "") {
+                MacTypographyCommands.adjust(1); return nil
+            }
+            return event
+        }
+
         MacApplicationRuntime.shared.installHost()
         if !MacApplicationRuntime.isPrototype { MacFXApplication.shared.start() }
-        Task { @MainActor in await MacApplicationRuntime.shared.entries.start() }
+        Task { @MainActor in
+            await MacApplicationRuntime.shared.entries.start()
+            MacAppServices.shared.start()
+            MacSelectionConversion.shared.start()
+        }
     }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !(MacPreferences.defaults.object(forKey: "v141_background") as? Bool ?? true)
+    }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         MacApplicationRuntime.shared.showMain(); return false
     }

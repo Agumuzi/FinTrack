@@ -72,7 +72,7 @@ struct MacDepositsView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             Button { showsNew = true } label: { Image(systemName: "plus").appIconFont(22, weight: .semibold).foregroundStyle(.white).frame(width: 46, height: 46).background(MacUI.accent, in: Circle()).contentShape(Circle()) }
-                .buttonStyle(.plain).help("新建存款").accessibilityLabel("新建存款").accessibilityIdentifier("depositQuickAdd").disabled(bookCurrency == nil || posting).padding(22)
+                .buttonStyle(MacInteractiveButtonStyle()).appHelp("新建存款").accessibilityLabel("新建存款").accessibilityIdentifier("depositQuickAdd").disabled(bookCurrency == nil || posting).padding(22)
         }
         .onAppear { selectedID = visible.first?.id }
         .onChange(of: listColumns) { _, _ in transientWidth = nil }
@@ -128,7 +128,7 @@ struct MacDepositsView: View {
             HStack {
                 Text("筛选").appFont(.section, weight: .semibold); Spacer()
                 Button { showsNew = true } label: { Image(systemName: "plus").frame(width: MacUI.space(24), height: MacUI.space(24)) }
-                    .buttonStyle(.plain).help("新增存款").accessibilityLabel("新增存款").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil || posting)
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp("新增存款").accessibilityLabel("新增存款").accessibilityIdentifier("financeAdd").disabled(bookCurrency == nil || posting)
             }
             TextField("搜索银行或备注", text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("depositSearch")
             ScrollView {
@@ -153,7 +153,7 @@ struct MacDepositsView: View {
                     }
                 }
             }
-            Button("重置筛选") { search = ""; status = nil; bank = nil; currency = nil }.buttonStyle(.plain)
+            Button("重置筛选") { search = ""; status = nil; bank = nil; currency = nil }.buttonStyle(MacInteractiveButtonStyle())
                 .foregroundStyle(.secondary).accessibilityIdentifier("depositReset")
         }.appPadding(18).background(MacOverviewStyle.filters)
     }
@@ -166,12 +166,12 @@ struct MacDepositsView: View {
             }.appFont(.caption, weight: .regular, design: .default).appPadding(.horizontal, 9).appPadding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .macFinanceFilterRow(selected: selected)
-        }.buttonStyle(.plain).accessibilityIdentifier(id)
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id)
     }
     private func list(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             HStack { Text("\(visible.count) 笔存款").appFont(.section, weight: .semibold).accessibilityIdentifier("depositCount"); Spacer()
-                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.help("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("depositOpenDetails") }
+                if !wide, selected != nil { Button { showsDetails = true } label: { Image(systemName: "sidebar.right") }.appHelp("查看详情").accessibilityLabel("查看详情").accessibilityIdentifier("depositOpenDetails") }
             }
             MacFinanceListToolbar(columns: $listColumns, sort: $sort, options: MacDepositsData.Sort.allCases.map { ($0.rawValue, $0) }, prefix: "deposit")
             if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("financeActionError") }
@@ -185,7 +185,7 @@ struct MacDepositsView: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                         ForEach(visible, id: \.id) { deposit in
                             Button { selectedID = deposit.id; if !wide { showsDetails = true } } label: { row(deposit) }
-                                .buttonStyle(.plain).accessibilityIdentifier("depositRow-\(deposit.bankName)")
+                                .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("depositRow-\(deposit.bankName)")
                         }
                     }.appPadding(1)
                 }

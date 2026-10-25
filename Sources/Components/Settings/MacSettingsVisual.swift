@@ -100,7 +100,7 @@ struct MacSymbolColorPicker: View {
                     Text(MacPresentationOptions.icons.first { $0.0 == icon }?.1 ?? "选择图标").appFont(.body).lineLimit(1)
                     Image(systemName: "chevron.right").appFont(.caption).foregroundStyle(.secondary)
                 }.padding(8).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
-            }.buttonStyle(.plain).fixedSize(horizontal: true, vertical: false).accessibilityIdentifier(identifierPrefix + "Open")
+            }.buttonStyle(MacInteractiveButtonStyle()).fixedSize(horizontal: true, vertical: false).accessibilityIdentifier(identifierPrefix + "Open")
             Spacer(minLength: 16)
             Text("颜色").appFont(.body).foregroundStyle(.secondary).fixedSize()
             MacColorChoices(selection: $color, identifierPrefix: identifierPrefix + "Color").fixedSize()
@@ -127,7 +127,7 @@ struct MacSettingsSymbol: View {
             if MacCategoryEmoji.isValid(symbol) {
                 Image(systemName: "tag").appIconFont(size, weight: .medium, design: .default)
             } else if symbol == "github.mark" {
-                Image(systemName: "link").appIconFont(size, weight: .medium, design: .default)
+                Image("GitHubMark").resizable().renderingMode(.template).scaledToFit().frame(width: size, height: size)
                     .accessibilityLabel("GitHub")
             } else if symbol == "palm.tree.fill" {
                 MacPalmTreeGlyph().fill().frame(width: MacUI.space(size), height: MacUI.space(size))
@@ -173,6 +173,7 @@ struct MacSettingsButtonStyle: ButtonStyle {
             .background(primary ? MacUI.accent : destructive ? Color.red.opacity(0.035) : MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(destructive ? .red.opacity(0.2) : .gray.opacity(0.18)))
             .opacity(enabled ? (configuration.isPressed ? 0.7 : 1) : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
 struct MacSettingsFieldStyle: TextFieldStyle {
@@ -335,7 +336,7 @@ struct MacSettingsSegments: View {
                         .frame(minWidth: MacUI.space(minimumOptionWidth), maxWidth: .infinity).appMinHeight(40).contentShape(Rectangle())
                         .foregroundStyle(selection == title ? MacSettingsVisual.accent : .secondary)
                         .background(selection == title ? MacSettingsVisual.accent.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8))
-                }.buttonStyle(.plain).accessibilityIdentifier("settingsSegment-" + title)
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsSegment-" + title)
                     .accessibilityValue(selection == title ? "已选中" : "未选中")
             }
         }.appPadding(3).background(.gray.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
@@ -371,7 +372,7 @@ struct MacColorChoices: View {
                 Circle().fill(MacAccent.color(selection)).frame(width: 26, height: 26)
                 Image(systemName: "chevron.right").appFont(.caption).foregroundStyle(.secondary)
             }.padding(8).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityLabel("选择颜色").accessibilityIdentifier(identifierPrefix + "Open")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("选择颜色").accessibilityIdentifier(identifierPrefix + "Open")
             .sheet(isPresented: $choosing) { MacColorLibraryChooser(selection: $selection, identifierPrefix: identifierPrefix) }
     }
 }
@@ -385,9 +386,9 @@ struct MacColorSwatches: View {
                 Button { selection = name } label: {
                     Circle().fill(MacAccent.color(name)).frame(width: MacUI.space(25), height: MacUI.space(25)).appPadding(4)
                         .overlay(Circle().strokeBorder(selection == name ? MacAccent.color(name) : .clear, lineWidth: 2))
-                }.buttonStyle(.plain).contentShape(Rectangle()).accessibilityLabel("选择" + (["red":"红", "orange":"橙", "yellow":"黄", "green":"绿", "blue":"蓝", "purple":"紫", "pink":"粉", "terracotta":"陶土"][name] ?? name) + "色").accessibilityIdentifier(identifierPrefix + "-" + name).accessibilityValue(selection == name ? "已选中" : "未选中")
+                }.buttonStyle(MacInteractiveButtonStyle()).contentShape(Rectangle()).accessibilityLabel("选择" + (["red":"红", "orange":"橙", "yellow":"黄", "green":"绿", "blue":"蓝", "purple":"紫", "pink":"粉", "terracotta":"陶土"][name] ?? name) + "色").accessibilityIdentifier(identifierPrefix + "-" + name).accessibilityValue(selection == name ? "已选中" : "未选中")
             }
-            ColorPicker("自定义", selection: Binding(get: { MacAccent.color(selection) }, set: { selection = MacAccent.hex($0) }), supportsOpacity: false).labelsHidden().help("自定义颜色")
+            ColorPicker("自定义", selection: Binding(get: { MacAccent.color(selection) }, set: { selection = MacAccent.hex($0) }), supportsOpacity: false).labelsHidden().appHelp("自定义颜色")
         }
     }
 }
@@ -444,7 +445,7 @@ struct MacCalendarPickerPopover: View {
                 Spacer(minLength: 8)
                 if let onDone {
                     Button("完成", action: onDone)
-                        .buttonStyle(.plain)
+                        .buttonStyle(MacInteractiveButtonStyle())
                         .keyboardShortcut(.defaultAction)
                         .appFont(.body, weight: .semibold)
                         .accessibilityIdentifier(doneIdentifier ?? "calendarPopoverDone")
@@ -452,19 +453,19 @@ struct MacCalendarPickerPopover: View {
             }
             HStack(spacing: 4) {
                 Button { moveMonth(-1) } label: { Image(systemName: "chevron.left") }
-                    .buttonStyle(.plain).help(previousTitle).accessibilityLabel(previousTitle).accessibilityIdentifier("calendarPreviousMonth")
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp(previousTitle).accessibilityLabel(previousTitle).accessibilityIdentifier("calendarPreviousMonth")
                 Spacer(minLength: 0)
                 if navigationPrecision == .day {
                     HStack(spacing: 5) {
                         Button { navigation = .year } label: { Text(verbatim: String(calendar.component(.year, from: displayedMonth)) + " 年") }.accessibilityIdentifier("calendarChooseYear")
                         Button { navigation = .month } label: { Text(verbatim: String(calendar.component(.month, from: displayedMonth)) + " 月") }.accessibilityIdentifier("calendarChooseMonth")
-                    }.buttonStyle(.plain).appFont(.body, weight: .semibold).accessibilityElement(children: .contain).accessibilityIdentifier("calendarDisplayedMonth")
+                    }.buttonStyle(MacInteractiveButtonStyle()).appFont(.body, weight: .semibold).accessibilityElement(children: .contain).accessibilityIdentifier("calendarDisplayedMonth")
                 } else {
-                    Button(periodTitle) { navigation = navigationPrecision == .month ? .year : nil }.buttonStyle(.plain).appFont(.body, weight: .semibold).accessibilityIdentifier("calendarDisplayedMonth")
+                    Button(periodTitle) { navigation = navigationPrecision == .month ? .year : nil }.buttonStyle(MacInteractiveButtonStyle()).appFont(.body, weight: .semibold).accessibilityIdentifier("calendarDisplayedMonth")
                 }
                 Spacer(minLength: 0)
                 Button { moveMonth(1) } label: { Image(systemName: "chevron.right") }
-                    .buttonStyle(.plain).help(nextTitle).accessibilityLabel(nextTitle).accessibilityIdentifier("calendarNextMonth")
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp(nextTitle).accessibilityLabel(nextTitle).accessibilityIdentifier("calendarNextMonth")
             }
             Group {
                 if navigationPrecision == .day {
@@ -490,7 +491,7 @@ struct MacCalendarPickerPopover: View {
                 let now = Date()
                 let delta = calendar.dateComponents([.day], from: calendar.startOfDay(for: selection), to: calendar.startOfDay(for: now)).day ?? 0
                 if let value = calendar.date(byAdding: .day, value: delta, to: selection) { selection = value }
-            }.buttonStyle(.plain).foregroundStyle(MacUI.accent).accessibilityIdentifier("calendarToday")
+            }.buttonStyle(MacInteractiveButtonStyle()).foregroundStyle(MacUI.accent).accessibilityIdentifier("calendarToday")
         }
         .appPadding(14)
         .frame(width: width)
@@ -552,7 +553,7 @@ struct MacCalendarPickerPopover: View {
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .foregroundStyle(selected ? Color.white : Color.primary)
                 .background(selected ? MacUI.accent : .clear, in: RoundedRectangle(cornerRadius: 7))
-        }.buttonStyle(.plain).focusable().focusEffectDisabled()
+        }.buttonStyle(MacInteractiveButtonStyle()).focusable().focusEffectDisabled()
             .focused($focusedCellIdentifier, equals: navigationPrecision == .month ? "calendarMonth-\(value)" : "calendarYear-\(value)")
             .disabled(navigationPrecision == .year && !(1...9999).contains(value)).accessibilityLabel(label)
             .accessibilityValue(selected ? "已选择" : "")
@@ -602,8 +603,8 @@ struct MacCalendarPickerPopover: View {
                 .contentShape(Rectangle())
         }
         .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(!selected && (calendar.isDateInToday(date) || focusedCellIdentifier == identifier) ? MacUI.accent.opacity(0.6) : .clear))
-        .help(calendar.isDateInToday(date) ? "今天 · " + label : label)
-        .buttonStyle(.plain).focusable().focusEffectDisabled()
+        .appHelp(calendar.isDateInToday(date) ? "今天 · " + label : label)
+        .buttonStyle(MacInteractiveButtonStyle()).focusable().focusEffectDisabled()
         .onHover { hovered = $0 ? identifier : nil }
         .focused($focusedCellIdentifier, equals: identifier)
         .accessibilityLabel(label)
@@ -622,7 +623,7 @@ struct MacSettingsDateButton: View {
     @FocusState private var dateButtonFocused: Bool
     var body: some View {
         Button { showing = true } label: { HStack { Text(effectivePrecision == .day ? MacDateDisplay.string(date) : MacGoalTargetDate.label(GoalTargetTime(date: date, precision: effectivePrecision))); Spacer(); Image(systemName: "chevron.down").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.appFont(.body, weight: .medium, design: .default).appPadding(.horizontal, 12).appMinHeight(40).overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.gray.opacity(0.2))).contentShape(Rectangle()) }
-            .buttonStyle(.plain).focusable().focused($dateButtonFocused)
+            .buttonStyle(MacInteractiveButtonStyle()).focusable().focused($dateButtonFocused)
             .accessibilityIdentifier(identifier ?? (monthOnly ? "settingsMonthDateButton" : "settingsDateButton"))
             .accessibilityValue(showing ? "已展开" : "已折叠")
             .popover(isPresented: $showing) {

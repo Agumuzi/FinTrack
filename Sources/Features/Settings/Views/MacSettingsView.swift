@@ -173,7 +173,7 @@ struct MacSettingsView: View {
                         .foregroundStyle(item == page ? MacSettingsVisual.accent : .primary)
                         .background(item == page ? MacSettingsVisual.accent.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 9))
                         .contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("settingsNav-" + item.id)
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsNav-" + item.id)
             }
             Spacer()
         }.appPadding(12).appPadding(.top, 10).background(MacOverviewStyle.filters)
@@ -246,7 +246,7 @@ struct MacSettingsView: View {
             MacSettingsCard(title: "计划入账", icon: "calendar.badge.clock", compactHeader: true) {
                 MacSettingsToggleRow(title: "存款到期自动记账", subtitle: "按计划金额记为待核对收入，可在存款详情确认实际到账。", value: $automaticDeposits)
                 MacSettingsToggleRow(title: "周期与贷款自动记账", subtitle: "仅处理已启用且已核对的规则。", value: $automaticPosting).accessibilityIdentifier("automaticPostingToggle")
-                Text("应用运行时每 5 分钟检查；关闭期间的到期计划在下次打开主窗口后补记，不会连接银行核实到账。").appFont(.caption).foregroundStyle(.secondary)
+                Text("按系统本地时间在计划当日 09:00 入账；休眠或退出期间错过的计划，在唤醒或下次启动时补记。自动记账不代表银行已实际到账。").appFont(.caption).foregroundStyle(.secondary)
             }
         }
     }

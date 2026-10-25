@@ -61,7 +61,7 @@ struct MacBudgetSettingsView: View {
                             ForEach(related.prefix(3), id: \.id) { item in
                                 Button { receipt = item } label: {
                                     HStack(spacing: MacUI.space(10)) { MacCategoryBadge(name: item.category, size: 31, filled: false); VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(MacFinanceNotes.visible(item.note).isEmpty ? item.category : MacFinanceNotes.visible(item.note)).appFont(.body, weight: .medium, design: .default); Text(MacDateDisplay.string(item.date)).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }; Spacer(); Text("−" + MacSettingsVisual.money(item.baseAmount) + " " + MacSettingsVisual.symbol(item.baseCurrencyCode)).appFont(.body, weight: .medium, design: .default).foregroundStyle(.red) }.contentShape(Rectangle())
-                                }.buttonStyle(.plain)
+                                }.buttonStyle(MacInteractiveButtonStyle())
                             }
                         }
                     }
@@ -163,7 +163,7 @@ struct MacBudgetSettingsView: View {
             .background(effectiveSelection == row.id ? MacSettingsVisual.accent.opacity(0.025) : .clear)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacInteractiveButtonStyle())
         .accessibilityRepresentation { Button(name + "预算") { selectedID = row.id }.accessibilityIdentifier("budgetRow-" + name) }
     }
 

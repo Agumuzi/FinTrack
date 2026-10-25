@@ -39,7 +39,7 @@ struct MacFXRateCard: View {
                             Button { query.cardRanges[pair.key] = item } label: {
                                 Text(LocalizedStringKey(item.title)).appFont(.caption, weight: .medium).frame(maxWidth: .infinity, minHeight: 40).contentShape(Rectangle())
                                     .background(range == item ? MacUI.accent.opacity(0.15) : .clear, in: Capsule())
-                            }.buttonStyle(.plain).accessibilityIdentifier("fxRange-\(item.rawValue)-" + pair.key).accessibilityValue(range == item ? "已选中" : "未选中")
+                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxRange-\(item.rawValue)-" + pair.key).accessibilityValue(range == item ? "已选中" : "未选中")
                         }
                     }
                 } else {
@@ -63,7 +63,7 @@ struct MacFXRateCard: View {
                 HStack(spacing: 4) { MacCurrencyFlag(code: pair.base, width: 18); Text(pair.base); Text("/").foregroundStyle(.secondary); MacCurrencyFlag(code: pair.quote, width: 18); Text(pair.quote) }.appFont(.section, weight: .semibold).fixedSize()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down").appFont(.caption, weight: .semibold).frame(width: 26, height: 40)
             }.contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityLabel(pair.key + (expanded ? "收起详情" : "展开详情"))
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(pair.key + (expanded ? "收起详情" : "展开详情"))
             .accessibilityIdentifier("fxToggle-" + pair.key).accessibilityValue(expanded ? "已展开" : "已收起")
     }
     @ViewBuilder private var value: some View {
@@ -81,11 +81,11 @@ struct MacFXRateCard: View {
                 .foregroundStyle(change.difference < 0 ? Color.red : .green)
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background((change.difference < 0 ? Color.red : .green).opacity(0.10), in: Capsule())
-                .help(change.caption + String(format: " · %+.2f%%", change.percent))
+                .appHelp(change.caption + String(format: " · %+.2f%%", change.percent))
                 .accessibilityLabel(change.caption + String(format: " · %+.2f%%", change.percent))
                 .appFont(.caption, weight: .semibold).fixedSize()
         } else {
-            Text("暂无可比数据").appFont(.caption, weight: .regular).foregroundStyle(.secondary).help(comparison.reason).fixedSize()
+            Text("暂无可比数据").appFont(.caption, weight: .regular).foregroundStyle(.secondary).appHelp(comparison.reason).fixedSize()
         }
     }
     private var modes: some View {
@@ -101,7 +101,7 @@ struct MacFXRateCard: View {
         } label: {
             Label(title, systemImage: symbol).appFont(.label, weight: .medium).frame(maxWidth: .infinity, minHeight: 34).contentShape(Rectangle())
                 .background(mode == item ? MacOverviewStyle.card : .clear, in: RoundedRectangle(cornerRadius: 8))
-        }.buttonStyle(.plain).accessibilityIdentifier("fxCardMode-" + item.rawValue + "-" + pair.key).accessibilityValue(mode == item ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxCardMode-" + item.rawValue + "-" + pair.key).accessibilityValue(mode == item ? "已选中" : "未选中")
     }
     private func amountField(_ code: String) -> some View {
         let active = input.activeCode == code
@@ -111,7 +111,7 @@ struct MacFXRateCard: View {
             Button { activate(code) } label: {
                 HStack { Text(code); Spacer(); if active { Image(systemName: "pencil") } }
                     .appFont(.caption, weight: .medium).foregroundStyle(.secondary).frame(minHeight: 26).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityIdentifier("fxCardSelect-" + code + "-" + pair.key)
+            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxCardSelect-" + code + "-" + pair.key)
             if active {
                 TextField("输入金额", text: Binding(get: { input.inputText }, set: { query.editCard($0, pair: pair) }), prompt: Text(""))
                     .textFieldStyle(.plain).appFont(.section, weight: .semibold).multilineTextAlignment(.trailing)
@@ -137,7 +137,7 @@ struct MacFXRateCard: View {
     private var footer: some View {
         HStack(alignment: .center, spacing: 4) {
             Text(quote.map { MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? " · 缓存" : "") } ?? "暂无报价")
-                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).help(quote.map { "报价：" + MacFXDates.label($0.quoteTime) + "\n获取：" + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? "暂无报价")
+                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(quote.map { "报价：" + MacFXDates.label($0.quoteTime) + "\n获取：" + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? "暂无报价")
             Spacer(minLength: 0)
             Menu {
                 Button("复制汇率") { MacFXCopy.text(pair.key + " " + valueText) }.disabled(quote == nil)

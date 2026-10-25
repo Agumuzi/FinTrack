@@ -22,7 +22,7 @@ struct MacTimeMenu: View {
             }.padding(.horizontal, 12).frame(minHeight: MacInterfaceFonts.controlHeight())
                 .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 9))
                 .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(.gray.opacity(0.25))).contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityIdentifier(identifier).accessibilityValue(MacDisplayPreferences.time(date))
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(identifier).accessibilityValue(MacDisplayPreferences.time(date))
             .popover(isPresented: $showing) {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("选择时间").appFont(.section, weight: .semibold)

@@ -33,3 +33,7 @@ Flagcdn 说明图片以 Wikimedia Commons 的矢量文件为基础；[Flagpedia 
 FinTrack 自行制作的应用图标、界面代码和产品说明随 MIT 许可提供。截图来自实际应用和专门准备的虚构账本，不代表真实个人财务数据；其中的系统界面图标与字体仍遵循 Apple 的相关条款。银行图片由用户自行添加，用户应具有相应使用权。
 
 后续新增素材应同时记录来源、适用许可或授权证明；不能仅凭可下载或可访问就标注为“无版权”或“开源”。
+
+## GitHub mark
+
+The GitHub mark is provided by [Primer Octicons](https://github.com/primer/octicons) under the MIT license. Copyright (c) 2026 GitHub Inc. The full license accompanies the app. The mark identifies GitHub links and does not imply endorsement.

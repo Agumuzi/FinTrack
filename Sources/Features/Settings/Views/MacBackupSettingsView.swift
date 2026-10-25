@@ -60,7 +60,7 @@ struct MacBackupSettingsView: View {
                             ForEach(history.prefix(historyLimit)) { record in
                                 Button { if selectedBackups.contains(record.id) { selectedBackups.remove(record.id) } else { selectedBackups.insert(record.id) } } label: {
                                     HStack(spacing: MacUI.space(7)) { Image(systemName: "doc.text").appFont(.body, weight: .regular, design: .default); Text(record.name).appFont(.caption, weight: .medium, design: .default).lineLimit(1).truncationMode(.middle).frame(maxWidth: .infinity, alignment: .leading); Text(MacDateDisplay.string(record.date) + "\n" + MacDisplayPreferences.time(record.date)).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(86)); Text(ByteCountFormatter.string(fromByteCount: Int64(record.size), countStyle: .file)).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(44)); Text("1").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(28)) }.appPadding(.horizontal, 7).appMinHeight(41).background(selectedBackups.contains(record.id) ? Color.blue.opacity(0.08) : .clear).contentShape(Rectangle())
-                                }.buttonStyle(.plain)
+                                }.buttonStyle(MacInteractiveButtonStyle())
                                 Divider()
                             }
                         }
@@ -265,30 +265,9 @@ struct MacBackupSettingsView: View {
             nativeReview = nil
         } catch { reportFailure("恢复失败",error,location:.nativePreview) }
     }
-    @ViewBuilder
     private func updateTrustReview(_ item: NativeReview) -> some View {
-        if let trust = item.payload.updateTrust {
-            VStack(alignment: .leading, spacing: MacUI.space(8)) {
-                Label("更新源信任配置", systemImage: "checkmark.shield").appFont(.body, weight: .semibold)
-                Text(trust.url.isEmpty ? "未设置 HTTPS 更新清单地址" : trust.url)
-                    .appFont(.caption, weight: .regular, design: .default).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                if let fingerprint = trust.keyFingerprint {
-                    Text("Ed25519 公钥指纹：\(fingerprint.prefix(20))…")
-                        .appFont(.caption, weight: .regular, design: .monospaced).textSelection(.enabled)
-                } else {
-                    Text("备份未包含可读取的公钥指纹。")
-                        .appFont(.caption, weight: .regular).foregroundStyle(.orange)
-                }
-                Toggle("恢复并信任此更新源配置", isOn: $includeUpdateTrust)
-                    .disabled(!trust.isValid).accessibilityIdentifier("restoreUpdateTrust")
-                Text(trust.isValid ? "默认保留当前设备的信任配置。勾选后会使用此 HTTPS 地址和 32 字节 Ed25519 公钥，并要求之后重新检查签名清单。" : "此更新源配置未通过 HTTPS 地址或公钥长度检查；账本仍可恢复，但不会应用该配置。")
-                    .appFont(.caption, weight: .regular).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            .appPadding(12).background(.gray.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
-        } else {
-            Text("此旧备份没有更新源信任配置；当前设备的配置会保留。")
-                .appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-        }
+        Text("软件更新始终使用 FinTrack 官方签名源，恢复账本不会更改更新来源。")
+            .appFont(.caption).foregroundStyle(.secondary)
     }
     private func chooseFolder() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false

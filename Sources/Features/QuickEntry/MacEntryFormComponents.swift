@@ -37,7 +37,7 @@ struct MacEntryTypeSwitcher: View {
                 .background(color.opacity(type == value ? 0.07 : 0.035),in:RoundedRectangle(cornerRadius:11))
                 .overlay(RoundedRectangle(cornerRadius:11).strokeBorder(type == value ? color.opacity(0.15) : .clear))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityLabel(title).accessibilityValue(type == value ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(title).accessibilityValue(type == value ? "已选中" : "未选中")
             .accessibilityIdentifier(prefix + (value == .expense ? "TypeExpense" : "TypeIncome"))
     }
 }
@@ -61,7 +61,7 @@ struct MacEntryExchangeCard<Content: View>: View {
                     Spacer(minLength:4)
                     Image(systemName:expanded ? "chevron.up" : "chevron.down").appFont(.body,weight:.semibold)
                 }.contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityIdentifier(identifier)
+            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(identifier)
             if expanded { Divider(); content }
         }.appPadding(14).modifier(MacEntryFieldBorder())
     }

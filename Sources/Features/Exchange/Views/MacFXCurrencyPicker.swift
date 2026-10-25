@@ -29,7 +29,7 @@ struct MacFXCurrencyPicker: View {
                                 else if selected == code { Image(systemName:"checkmark").foregroundStyle(MacUI.accent) }
                             }.padding(8).frame(maxWidth:.infinity,minHeight:40).contentShape(Rectangle())
                                 .background(selected == code ? MacUI.accent.opacity(0.12) : .clear,in:RoundedRectangle(cornerRadius:9))
-                        }.buttonStyle(.plain).accessibilityIdentifier("fxChooseCurrency-" + code)
+                        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxChooseCurrency-" + code)
                     }
                 }
             }.frame(height:220)
@@ -56,6 +56,6 @@ struct MacFXLastUpdatedView: View {
     var body: some View {
         Text(service.quotes.map(\.retrievedAt).max().map { "上次更新 " + MacDisplayPreferences.time($0) } ?? "尚未更新")
             .appFont(.caption,weight:.regular).foregroundStyle(.secondary).frame(maxWidth:.infinity,alignment:.leading)
-            .accessibilityIdentifier("fxLastUpdated").help(service.status)
+            .accessibilityIdentifier("fxLastUpdated").appHelp(service.status)
     }
 }

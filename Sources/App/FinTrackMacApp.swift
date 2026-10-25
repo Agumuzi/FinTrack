@@ -28,8 +28,13 @@ struct FinTrackMacApp: App {
                 CommandGroup(replacing: .appSettings) {
                     Button("设置…") { MacApplicationRuntime.shared.showMain(settings: true) }.keyboardShortcut(",", modifiers: .command)
                 }
+                CommandGroup(after: .toolbar) {
+                    Button("放大文字") { MacTypographyCommands.adjust(1) }.keyboardShortcut("+", modifiers: .command)
+                    Button("缩小文字") { MacTypographyCommands.adjust(-1) }.keyboardShortcut("-", modifiers: .command)
+                    Button("恢复默认字号") { MacPreferences.defaults.set(MacFontSizeTier.standard.rawValue, forKey: MacFontSizeTier.preferenceKey) }.keyboardShortcut("0", modifiers: .command)
+                }
                 CommandGroup(after: .windowArrangement) {
-                    Button("打开主窗口") { MacApplicationRuntime.shared.showMain() }.keyboardShortcut("0", modifiers: .command)
+                    Button("打开主窗口") { MacApplicationRuntime.shared.showMain() }.keyboardShortcut("0", modifiers: [.command, .shift])
                 }
             }
         #endif
@@ -49,4 +54,12 @@ struct FinTrackMacApp: App {
     }
 
     static func content() -> AnyView { AnyView(MacLedgerWorkspaceGate()) }
+}
+
+enum MacTypographyCommands {
+    static func adjust(_ direction: Int) {
+        let tiers = MacFontSizeTier.allCases
+        let index = tiers.firstIndex(of: MacUI.fontTier) ?? 1
+        MacPreferences.defaults.set(tiers[min(tiers.count - 1, max(0, index + direction))].rawValue, forKey: MacFontSizeTier.preferenceKey)
+    }
 }

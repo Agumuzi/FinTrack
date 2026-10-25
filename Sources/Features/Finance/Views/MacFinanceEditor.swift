@@ -104,7 +104,7 @@ struct MacFinanceEditor: View {
                                 ForEach(Array(reusableLogos.enumerated()), id: \.element.id) { index, asset in
                                     Button {
                                         do { try MacBankLogos.save(asset.data, bank: name); logoRevision += 1 } catch { errorMessage = MacLocalization.error(error) }
-                                    } label: { if let image = asset.image { Image(nsImage: image).resizable().scaledToFit().frame(width: 32, height: 32) } }.buttonStyle(.plain).help("使用已有银行图标 \(index + 1)").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    } label: { if let image = asset.image { Image(nsImage: image).resizable().scaledToFit().frame(width: 32, height: 32) } }.buttonStyle(MacInteractiveButtonStyle()).appHelp("使用已有银行图标 \(index + 1)").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
                             }
                         }.frame(height: 36)

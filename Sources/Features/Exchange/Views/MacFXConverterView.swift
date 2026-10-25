@@ -85,7 +85,7 @@ private struct MacFXCurrencyAmountCard: View {
                             Text(MacSettingsVisual.currencyName(code)).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }.contentShape(Rectangle())
-                }.buttonStyle(.plain).fixedSize(horizontal: true, vertical: false)
+                }.buttonStyle(MacInteractiveButtonStyle()).fixedSize(horizontal: true, vertical: false)
                     .accessibilityIdentifier("fxSelect-" + code).accessibilityValue(active ? "输入币种" : "换算结果")
                 Spacer(minLength: 4)
                 if active {
@@ -105,7 +105,7 @@ private struct MacFXCurrencyAmountCard: View {
                         .accessibilityHint("点击后以" + code + "输入")
                     Button { if let result { MacFXCopy.text(result) } } label: {
                         Image(systemName: "doc.on.doc").frame(width: 32, height: 40).contentShape(Rectangle())
-                    }.buttonStyle(.plain).disabled(result == nil).accessibilityLabel("复制" + code + "结果").accessibilityIdentifier("fxCopy-" + code)
+                    }.buttonStyle(MacInteractiveButtonStyle()).disabled(result == nil).accessibilityLabel("复制" + code + "结果").accessibilityIdentifier("fxCopy-" + code)
                 }
             }
             if active, let message = MacFXInputMessage.text(status) {
@@ -118,7 +118,7 @@ private struct MacFXCurrencyAmountCard: View {
         .padding(12).frame(maxWidth: .infinity, minHeight: active ? 72 : 64, alignment: .leading)
         .background(active ? MacUI.accent.opacity(0.12) : MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(active ? MacUI.accent.opacity(0.45) : Color.secondary.opacity(0.12)))
-        .help(details)
+        .appHelp(details)
         .contentShape(RoundedRectangle(cornerRadius: 14)).onTapGesture { activate() }
         .onChange(of: active) { _, value in if value { DispatchQueue.main.async { focused = true } } else { focused = false } }
     }
@@ -153,7 +153,7 @@ struct MacFXScrollableNumber: View {
         ViewThatFits(in:.horizontal) {
             number
             ScrollView(.horizontal,showsIndicators:true) { number }
-                .defaultScrollAnchor(.trailing).id(text).help(text + " · 金额较长，可横向滚动查看完整数值")
+                .defaultScrollAnchor(.trailing).id(text).appHelp(text + " · 金额较长，可横向滚动查看完整数值")
         }.frame(minWidth:80,maxWidth:.infinity,minHeight:40,maxHeight:40,alignment:.trailing)
             .layoutPriority(1)
             .accessibilityElement(children:.ignore).accessibilityLabel(text).accessibilityValue(text).accessibilityIdentifier(identifier)
