@@ -25,3 +25,12 @@
 .app-shot picture{display:block;line-height:0}
 .app-shot img{display:block;aspect-ratio:auto;border-radius:inherit}
 .hero-visual:after{content:"";position:absolute;inset:45% -3% -7%;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--accent) 8%,var(--page)),var(--page) 72%);filter:blur(24px)}
+
+/* Compact language switch: shared visual treatment for English and 中文. */
+.language-switch{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);background:var(--surface-alt);border-radius:999px;flex-shrink:0}
+.language-switch button{background:transparent;color:var(--muted);border:0;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:600;line-height:1.4;min-height:27px}
+.language-switch button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 5px color-mix(in srgb,var(--ink) 10%,transparent)}
+.language-switch button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:760px){.nav-actions .language-switch{padding:2px}.language-switch button{font-size:10px;padding:5px 7px;min-height:25px}}
+@media(max-width:440px){.nav-actions>.button{display:none}.nav-wrap{gap:7px}.nav-actions{gap:4px}}
+@media(max-width:350px){.nav-wrap{width:calc(100% - 22px)}.brand{font-size:16px}.brand img{width:27px;height:27px}.language-switch button{padding-inline:5px}}
