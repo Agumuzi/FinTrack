@@ -19,6 +19,8 @@ jobs:
       - name: Validate static website
         run: |
           node --check website/script.js
+          node --check website/i18n.js
+          node scripts/test-site-language.cjs
           python3 scripts/check-site.py
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
