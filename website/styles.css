@@ -88,3 +88,17 @@
 }
 @media(max-width:380px){.release-section .timeline-heading h2{font-size:27px}.timeline-arrow{width:30px;height:30px}.timeline-track{grid-auto-columns:min(82vw,285px)}}
 @media(prefers-reduced-motion:reduce){.timeline-track .release-entry:first-child::before{animation:none}.timeline-arrow{transition:none}.timeline-scroller{scroll-behavior:auto}}
+
+/* Three-language selector, including narrow Safari header widths. */
+.language-switch button{white-space:nowrap}
+@media(min-width:761px) and (max-width:970px){
+  .nav-wrap{height:70px;gap:12px}
+  .nav-actions{margin-left:auto;gap:7px}
+  .menu-toggle{display:grid;order:3;width:32px;height:32px;margin-left:2px}
+  .primary-nav{display:none;position:absolute;top:70px;left:0;right:0;margin:0;padding:12px 20px 20px;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:0 15px 20px -20px rgba(0,0,0,.2);font-size:14px}
+  .primary-nav.is-open{display:flex;flex-direction:column;gap:0;align-items:stretch}
+  .primary-nav a{padding:12px}
+}
+@media(max-width:760px){.language-switch button{padding-inline:6px}}
+@media(max-width:380px){.language-switch button{padding-inline:4px}.nav-wrap{gap:5px}}
+:root[lang=ru] .timeline-track .release-entry{overflow-wrap:break-word}

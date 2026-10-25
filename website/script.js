@@ -3,11 +3,12 @@
   const root = document.documentElement;
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   const toggle = document.querySelector('.theme-toggle');
-  const localized = (en, zh) => root.lang === 'zh-CN' ? zh : en;
+  const localized = (en, zh, ru) => root.lang === 'ru' ? ru : root.lang === 'zh-CN' ? zh : en;
+  const siteLanguage = () => root.lang === 'ru' ? 'ru' : siteLanguage();
   function dark() { return root.dataset.theme ? root.dataset.theme === 'dark' : media.matches; }
   function updateThemeButton() {
     const isDark = dark();
-    toggle.setAttribute('aria-label', isDark ? localized('Switch to light mode', '切换浅色模式') : localized('Switch to dark mode', '切换深色模式'));
+    toggle.setAttribute('aria-label', isDark ? localized('Switch to light mode', '切换浅色模式', 'Переключить на светлую тему') : localized('Switch to dark mode', '切换深色模式', 'Переключить на тёмную тему'));
     document.querySelector('meta[name="theme-color"]').content = isDark ? '#171c19' : '#f6f5f1';
     document.querySelectorAll('picture[data-product-shot] source').forEach(source => {
       source.media = isDark ? 'all' : 'not all';
@@ -26,12 +27,12 @@
   function closeMenu() {
     nav.classList.remove('is-open');
     menuButton.setAttribute('aria-expanded', 'false');
-    menuButton.setAttribute('aria-label', localized('Open navigation', '展开导航'));
+    menuButton.setAttribute('aria-label', localized('Open navigation', '展开导航', 'Открыть навигацию'));
   }
   menuButton.addEventListener('click', () => {
     const open = nav.classList.toggle('is-open');
     menuButton.setAttribute('aria-expanded', String(open));
-    menuButton.setAttribute('aria-label', open ? localized('Close navigation', '收起导航') : localized('Open navigation', '展开导航'));
+    menuButton.setAttribute('aria-label', open ? localized('Close navigation', '收起导航', 'Закрыть навигацию') : localized('Open navigation', '展开导航', 'Открыть навигацию'));
   });
   nav.addEventListener('click', event => { if (event.target.closest('a')) closeMenu(); });
   document.addEventListener('keydown', event => {
@@ -42,19 +43,23 @@
   const screens = {
     records: {
       en: {alt: 'FinTrack v1.4.1 transactions screen', description: 'Organize entries by date, category, and currency, with both original and base-currency amounts visible.'},
-      zh: {alt: 'FinTrack v1.4.1 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'}
+      zh: {alt: 'FinTrack v1.4.1 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'},
+      ru: {alt: "Экран операций FinTrack v1.4.1", description: "Упорядочивайте операции по дате, категории и валюте. Суммы видны как в исходной, так и в основной валюте."}
     },
     finance: {
       en: {alt: 'FinTrack v1.4.1 financial planning screen', description: "Manage and review deposits, loans, and recurring entries. The sample 'Logo' represents a user-provided bank image, saved by bank name and matched automatically next time."},
-      zh: {alt: 'FinTrack v1.4.1 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'}
+      zh: {alt: 'FinTrack v1.4.1 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'},
+      ru: {alt: "Экран финансового планирования FinTrack v1.4.1", description: "Управляйте вкладами, кредитами и регулярными операциями. Пример «Logo» обозначает изображение банка, добавленное пользователем: оно сохраняется по названию банка и подставляется автоматически."}
     },
     exchange: {
       en: {alt: 'FinTrack v1.4.1 exchange-rate workspace', description: 'Look up, convert, and review exchange rates. Choose separate sources for accounting and the menu bar.'},
-      zh: {alt: 'FinTrack v1.4.1 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'}
+      zh: {alt: 'FinTrack v1.4.1 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'},
+      ru: {alt: "Экран курсов валют FinTrack v1.4.1", description: "Просматривайте, конвертируйте и анализируйте курсы валют. Для учёта и строки меню можно выбрать разные источники."}
     },
     settings: {
       en: {alt: 'FinTrack v1.4.1 native backup and export screen', description: 'Keep a full native backup or exchange data with four CSV templates. Save a safety copy before restoring.'},
-      zh: {alt: 'FinTrack v1.4.1 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'}
+      zh: {alt: 'FinTrack v1.4.1 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'},
+      ru: {alt: "Экран резервного копирования и экспорта FinTrack v1.4.1", description: "Сохраняйте полную резервную копию во встроенном формате или обменивайтесь данными через четыре шаблона CSV. Перед восстановлением сохраняйте страховочную копию."}
     }
   };
   const tabs = [...document.querySelectorAll('[data-screen]')];
@@ -64,7 +69,7 @@
   let imageRequest = 0;
   function selectScreen(tab, focus = false) {
     const key = tab.dataset.screen;
-    const screen = screens[key][root.lang === 'zh-CN' ? 'zh' : 'en'];
+    const screen = screens[key][siteLanguage()];
     tabs.forEach(item => {
       const selected = item === tab;
       item.setAttribute('aria-selected', String(selected));
@@ -113,13 +118,13 @@
     const status = document.querySelector('#copy-status');
     try {
       await navigator.clipboard.writeText(value);
-      status.textContent = localized('Copied', '已复制');
+      status.textContent = localized('Copied', '已复制', 'Скопировано');
     } catch (_) {
       const range = document.createRange();
       range.selectNodeContents(document.querySelector('#checksum-value'));
       const selection = window.getSelection();
       selection.removeAllRanges(); selection.addRange(range);
-      status.textContent = localized('Please copy the selected checksum', '请复制已选中的校验值');
+      status.textContent = localized('Please copy the selected checksum', '请复制已选中的校验值', 'Скопируйте выделенную контрольную сумму');
     }
   });
 
@@ -127,12 +132,12 @@
     updateThemeButton();
     const current = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
     if (current) {
-      const details = screens[current.dataset.screen][root.lang === 'zh-CN' ? 'zh' : 'en'];
+      const details = screens[current.dataset.screen][siteLanguage()];
       description.textContent = details.description;
       image.alt = details.alt;
     }
     const isOpen = nav.classList.contains('is-open');
-    menuButton.setAttribute('aria-label', isOpen ? localized('Close navigation', '收起导航') : localized('Open navigation', '展开导航'));
+    menuButton.setAttribute('aria-label', isOpen ? localized('Close navigation', '收起导航', 'Закрыть навигацию') : localized('Open navigation', '展开导航', 'Открыть навигацию'));
     document.querySelector('#copy-status').textContent = '';
   });
 

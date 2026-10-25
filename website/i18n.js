@@ -146,6 +146,150 @@
   "Please copy the selected checksum": "请复制已选中的校验值",
   "Language switch": "语言切换"
 };
+  const russian = {
+  "Swipe or scroll to explore past releases.": "Листайте или прокручивайте, чтобы посмотреть историю версий.",
+  "Newer releases": "К новым версиям",
+  "Older releases": "К старым версиям",
+  "Release timeline": "История версий",
+  "FinTrack — Personal finance, clearly organized": "FinTrack — Личные финансы под контролем",
+  "Skip to content": "Перейти к содержимому",
+  "Features": "Возможности",
+  "Screenshots": "Скриншоты",
+  "Data & Privacy": "Данные и конфиденциальность",
+  "Releases": "Версии",
+  "Download": "Скачать",
+  "for Mac": "для Mac",
+  "FinTrack v1.4.1 is available": "Вышла версия FinTrack v1.4.1",
+  "Personal finance,": "Личные финансы —",
+  "made clear.": "всё по полочкам.",
+  "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
+  "Bring your finances together in a native workspace built for Mac.": "Управляйте финансами в удобном нативном приложении для Mac.",
+  "Download FinTrack": "Скачать FinTrack",
+  "View on GitHub": "Посмотреть на GitHub",
+  "macOS 15.0 or later": "macOS 15.0 или новее",
+  "Apple Silicon & Intel": "Apple Silicon и Intel",
+  "Actual app screens, shown with separate sample data": "Настоящие экраны приложения с отдельными демонстрационными данными",
+  "Built natively for macOS": "Нативное приложение для macOS",
+  "Track and plan in one place": "Учёт и планирование в одном месте",
+  "Your finances stay on your Mac": "Ваши финансовые данные остаются на Mac",
+  "Your complete financial workspace": "Всё для управления личными финансами",
+  "Track today.": "Учитывайте сегодняшнее.",
+  "Plan what comes next.": "Планируйте завтрашнее.",
+  "Bring transactions, currencies, and financial plans into focus.": "Объедините операции, валюты и финансовые планы в понятную систему.",
+  "01 / Everyday finances": "01 / Доходы и расходы",
+  "Every transaction has a place.": "У каждой операции — своё место.",
+  "Record income and expenses, then browse by date, category, or currency. See where your money goes through summaries and reports.": "Записывайте доходы и расходы, находите операции по дате, категории или валюте. Сводки и отчёты помогут понять, куда уходят деньги.",
+  "Income & expenses": "Доходы и расходы",
+  "Filters & reports": "Фильтры и отчёты",
+  "Menu bar shortcuts": "Быстрые действия в строке меню",
+  "02 / Assets & planning": "02 / Активы и планы",
+  "Make plans part of everyday life.": "Превратите планы в привычку.",
+  "Organize accounts and assets, manage deposits, loans, and recurring entries, and keep budgets and financial goals in view. Upload your own bank images; FinTrack remembers them by bank name and matches them automatically.": "Упорядочивайте счета и активы, управляйте вкладами, кредитами и регулярными операциями, следите за бюджетами и финансовыми целями. Загружайте собственные изображения банков: FinTrack запоминает их по названию банка и подставляет автоматически.",
+  "Deposits & loans": "Вклады и кредиты",
+  "Recurring entries": "Регулярные операции",
+  "Budgets & goals": "Бюджеты и цели",
+  "03 / Multiple currencies": "03 / Несколько валют",
+  "Every currency, accounted for.": "Точный учёт в любой валюте.",
+  "Look up and convert exchange rates, with separate data sources for accounting and the menu bar. Transactions retain their original currency and historical rate snapshots.": "Просматривайте курсы валют и выполняйте конвертацию. Источники курсов для учёта и строки меню настраиваются отдельно. Для каждой операции сохраняются исходная валюта и исторический курс.",
+  "Multi-currency entries": "Операции в разных валютах",
+  "Rates & conversion": "Курсы и конвертация",
+  "Historical snapshots": "История курсов",
+  "See it in action": "Посмотрите, как это работает",
+  "A familiar Mac.": "Знакомый Mac.",
+  "A clearer financial picture.": "Понятная картина финансов.",
+  "An open workspace with intuitive navigation.": "Просторное рабочее пространство с удобной навигацией.",
+  "Move naturally between tracking, planning, and reviewing.": "Легко переключайтесь между учётом, планированием и анализом.",
+  "Transactions": "Операции",
+  "Financial plans": "Финансовые планы",
+  "Exchange rates": "Курсы валют",
+  "Backup & export": "Резервные копии и экспорт",
+  "Organize entries by date, category, and currency, with both original and base-currency amounts visible.": "Упорядочивайте операции по дате, категории и валюте. Суммы видны как в исходной, так и в основной валюте.",
+  "FinTrack v1.4.1 · Sample ledger": "FinTrack v1.4.1 · Демонстрационный учёт",
+  "Your data, under your control": "Ваши данные — под вашим контролем",
+  "Your ledger stays on your Mac.": "Финансовые записи остаются на Mac.",
+  "You decide when to back it up.": "Когда делать копию — решаете вы.",
+  "FinTrack stores your financial ledger locally. Use native backups and CSV files to save, move, and review data when needed.": "FinTrack хранит финансовые записи локально. Встроенные резервные копии и CSV помогут сохранить, перенести и проверить данные при необходимости.",
+  "Learn about data & privacy": "О данных и конфиденциальности",
+  "A separate local ledger": "Отдельное локальное хранилище",
+  "Your ledger is stored separately from the app, so updating the application does not mean starting over.": "Финансовые данные хранятся отдельно от файлов приложения. Обновление программы не означает потерю записей.",
+  "Full backups and careful recovery": "Полные копии и безопасное восстановление",
+  "Create native backups and keep a safety copy before restoring. Use CSV for data exchange and full backups to preserve your ledger.": "Создавайте встроенные резервные копии и сохраняйте страховочную копию перед восстановлением. CSV подходит для обмена данными, а полная копия — для сохранения всей базы.",
+  "Keys stay in your local Keychain": "Ключи — в локальной Связке ключей",
+  "API keys for custom exchange-rate sources stay in your Keychain and are not transferred with ledger backups. Rate lookups contact the external providers you select.": "API-ключи пользовательских источников курсов остаются в Связке ключей и не переносятся вместе с резервной копией. Для получения курсов приложение обращается к выбранным внешним сервисам.",
+  "Start with one small entry.": "Начните с одной записи.",
+  "Start with a few entries. Check that saving, reopening, and backups work for you,": "Добавьте несколько операций и проверьте сохранение, повторный запуск и резервное копирование,",
+  "then make FinTrack part of your routine.": "а затем используйте FinTrack каждый день.",
+  "Download for macOS": "Скачать для macOS",
+  "The current build uses a fixed local signing identity and is not Apple-notarized. After downloading, you may need to allow it in macOS Privacy & Security.": "Текущая сборка подписана постоянной локальной подписью, но не прошла нотариальное заверение Apple. После загрузки может потребоваться разрешить запуск в настройках macOS «Конфиденциальность и безопасность».",
+  "Installation guide ↗": "Инструкция по установке ↗",
+  "Verify download SHA-256": "Проверить SHA-256 файла",
+  "Copy checksum": "Копировать контрольную сумму",
+  "Download checksums ↗": "Скачать файл контрольных сумм ↗",
+  "Versions & updates": "Версии и обновления",
+  "A clear starting point.": "С чего всё начиналось.",
+  "October 25, 2026": "25 октября 2026 г.",
+  "October 24, 2026": "24 октября 2026 г.",
+  "October 23, 2026": "23 октября 2026 г.",
+  "October 20, 2026": "20 октября 2026 г.",
+  "October 19, 2026": "19 октября 2026 г.",
+  "Desktop controls & scheduled reminders": "Управление приложением и запланированные напоминания",
+  "Added launch at login, background operation, system notifications, and a shortcut to convert selected amounts. Scheduled entries run at 09:00 local time; improved resizable transaction columns, chart category selection, font-size shortcuts, and settings layout.": "Добавлены запуск при входе в систему, работа в фоне, системные уведомления и горячая клавиша для конвертации выделенной суммы. Запланированные операции выполняются в 09:00 по местному времени. Улучшены изменение ширины столбцов, выбор категорий на диаграммах, клавиши изменения размера шрифта и расположение настроек.",
+  "Reading selected text and sending notifications require system permissions. Automatic popups for selections are off by default. Updates separate the download choice from installation confirmation; create a full backup before upgrading.": "Для чтения выделенного текста и уведомлений нужны системные разрешения. Автоматическое отображение при выделении по умолчанию отключено. Загрузка обновления и подтверждение установки разделены; перед обновлением создайте полную резервную копию.",
+  "Release notes": "Описание версии",
+  "Installation guide": "Инструкция по установке",
+  "More reliable amount editing & backups": "Надёжнее ввод сумм и резервное копирование",
+  "Added live thousands separators when entering amounts; fixed backspace behavior and overwriting backups with the same name. Improved loan cent handling, historical amount precision, CSV validation, transaction columns, select-all behavior, details layout, and exchange-rate history loading.": "При вводе сумм теперь сразу отображаются разделители тысяч. Исправлены работа Backspace и перезапись резервных копий с одинаковым именем. Улучшены учёт копеек по кредитам, точность исторических сумм, проверка CSV, столбцы операций, выделение всех записей, экран подробностей и загрузка истории курсов.",
+  "The release uses a fixed local signing identity. The first upgrade from an older build may prompt for Keychain permission. Create a full backup before upgrading.": "Выпуск подписан постоянной локальной подписью. При первом обновлении со старой версии может потребоваться разрешение на доступ к Связке ключей. Перед обновлением создайте полную резервную копию.",
+  "Consistent controls & display customization": "Единый интерфейс и настройка отображения",
+  "Unified finance forms, icons, colors, dates, and reminder times. Improved single- and two-column lists, multi-select transactions, and deletion by category. Added macOS font selection and adopted the MIT license.": "Унифицированы финансовые формы, значки, цвета, даты и время напоминаний. Улучшены списки с одной и двумя колонками, множественный выбор операций и удаление по категориям. Добавлен выбор шрифта из macOS; проект перешёл на лицензию MIT.",
+  "Improved consistency for interest payments and automatic posting at maturity. Estimated income is flagged for review until actual receipt is confirmed. Create a full backup before upgrading.": "Повышена согласованность сумм процентов и автоматического зачисления при наступлении срока. Ожидаемый доход отмечается для проверки до подтверждения фактического поступления. Перед обновлением создайте полную резервную копию.",
+  "In-app update download fixes": "Исправления загрузки обновлений в приложении",
+  "Update packages download directly to temporary files with progress and integrity checks; timeouts, disconnections, and checksum failures receive separate messages.": "Пакеты обновлений загружаются непосредственно во временные файлы с отображением прогресса и проверкой целостности. Тайм-аут, потеря сети и ошибка проверки обрабатываются отдельно.",
+  "If an older version cannot download an update, download and verify it manually, then replace the app once. v1.2.1 uses the new download process. Create a full backup first.": "Если в старой версии не удаётся скачать обновление, загрузите и проверьте его вручную, затем один раз замените приложение. В v1.2.1 используется новый способ загрузки. Перед обновлением создайте полную резервную копию.",
+  "Responsive controls & visual consistency": "Быстрее отклик и единый внешний вид",
+  "Improved category, overview, and budget summaries. Transaction filters follow income and expense categories; refined details in narrow windows, date picking, and import/export feedback. New installs start with an empty ledger.": "Улучшены сводки по категориям, общему состоянию и бюджетам. Фильтры операций учитывают категории доходов и расходов; доработаны подробности в узких окнах, выбор даты и сообщения об импорте и экспорте. При первом запуске открывается пустая база.",
+  "Existing ledgers remain in their original location. Create a full backup before upgrading. v1.1 users can check for and download this version from the built-in signed update source.": "Существующие записи остаются в прежнем расположении. Перед обновлением создайте полную резервную копию. Пользователи v1.1 могут проверить и скачать эту версию через встроенный канал обновлений с проверкой подписи.",
+  "Category imports & updates": "Импорт категорий и обновления",
+  "CSV categories are imported into category management, and previously imported categories can be completed and edited. Fresh installs begin with an empty ledger and categories. Signed in-app updates were introduced in this version.": "Категории из CSV импортируются в управление категориями; ранее импортированные категории можно дополнить и изменить. Новая установка начинается с пустых записей и списка категорий. В этой версии появились обновления внутри приложения с проверкой подписи.",
+  "Upgrading from v1.0 requires a one-time manual download and replacement. The ledger is stored outside the app; create a full backup before updating.": "При обновлении с v1.0 потребуется один раз скачать новую версию и заменить приложение вручную. Финансовые данные хранятся отдельно от приложения; перед обновлением создайте полную резервную копию.",
+  "First official macOS release": "Первый официальный выпуск для macOS",
+  "Established the first release baseline for transactions, assets and financial plans, multiple currencies, and local backup and recovery.": "Создана основа приложения: учёт операций, активы и финансовые планы, работа с несколькими валютами, локальное резервное копирование и восстановление.",
+  "Tested on an Apple Silicon Mac. Intel hardware, full VoiceOver support, and long-term use with real financial data remain unverified. Online updates require a trusted signing source; manual updates are available through Releases.": "Проверено на Mac с Apple Silicon. Работа на реальном оборудовании Intel, полная поддержка VoiceOver и длительное использование с настоящими финансовыми данными пока не проверены. Для онлайн-обновлений нужен доверенный источник подписи; пока обновление доступно вручную через Releases.",
+  "Full changelog": "Полная история изменений",
+  "Build guide ↗": "Руководство по сборке ↗",
+  "All releases ↗": "Все версии ↗",
+  "© 2026 FinTrack · Personal finance, clearly organized.": "© 2026 FinTrack · Личные финансы под контролем.",
+  "Licensed under the": "Распространяется по лицензии",
+  "MIT License": "MIT",
+  ". Platform components and third-party assets remain subject to their own terms.": ". Для платформенных компонентов и сторонних материалов действуют их собственные условия.",
+  "FinTrack is a native macOS personal finance app for tracking income and expenses, managing assets and financial plans, handling multiple currencies, viewing reports, and keeping local backups.": "FinTrack — нативное приложение для macOS для учёта доходов и расходов, управления активами и финансовыми планами, работы с разными валютами, просмотра отчётов и создания локальных резервных копий.",
+  "A personal finance workspace made for Mac. Manage everyday transactions, currencies, assets, and plans in a familiar native interface.": "Рабочее пространство для управления личными финансами на Mac. Повседневные операции, валюты, активы и планы — в привычном нативном интерфейсе.",
+  "FinTrack home": "Главная страница FinTrack",
+  "Open navigation": "Открыть навигацию",
+  "Close navigation": "Закрыть навигацию",
+  "Main navigation": "Основная навигация",
+  "Switch to dark mode": "Переключить на тёмную тему",
+  "Switch to light mode": "Переключить на светлую тему",
+  "Change appearance": "Изменить оформление",
+  "FinTrack v1.4.1 overview showing income, expenses, assets, and financial plans": "Обзор FinTrack v1.4.1: доходы, расходы, активы и финансовые планы",
+  "Three FinTrack highlights": "Три главные особенности FinTrack",
+  "Transaction features": "Функции учёта операций",
+  "Planning features": "Функции планирования",
+  "Currency features": "Валютные функции",
+  "App screenshots": "Скриншоты приложения",
+  "FinTrack v1.4.1 transactions screen": "Экран операций FinTrack v1.4.1",
+  "FinTrack v1.4.1 financial planning screen": "Экран финансового планирования FinTrack v1.4.1",
+  "FinTrack v1.4.1 exchange-rate workspace": "Экран курсов валют FinTrack v1.4.1",
+  "FinTrack v1.4.1 native backup and export screen": "Экран резервного копирования и экспорта FinTrack v1.4.1",
+  "Manage and review deposits, loans, and recurring entries. The sample 'Logo' represents a user-provided bank image, saved by bank name and matched automatically next time.": "Управляйте вкладами, кредитами и регулярными операциями. Пример «Logo» обозначает изображение банка, добавленное пользователем: оно сохраняется по названию банка и подставляется автоматически.",
+  "Look up, convert, and review exchange rates. Choose separate sources for accounting and the menu bar.": "Просматривайте, конвертируйте и анализируйте курсы валют. Для учёта и строки меню можно выбрать разные источники.",
+  "Keep a full native backup or exchange data with four CSV templates. Save a safety copy before restoring.": "Сохраняйте полную резервную копию во встроенном формате или обменивайтесь данными через четыре шаблона CSV. Перед восстановлением сохраняйте страховочную копию.",
+  "FinTrack app icon": "Значок FinTrack",
+  "Footer navigation": "Навигация внизу страницы",
+  "Copied": "Скопировано",
+  "Please copy the selected checksum": "Скопируйте выделенную контрольную сумму",
+  "Language switch": "Переключение языка"
+};
   const root = document.documentElement;
   const textEntries = [];
   const attributes = [];
@@ -153,8 +297,8 @@
   while (walker.nextNode()) {
     const node = walker.currentNode;
     const english = node.nodeValue.trim();
-    if (Object.prototype.hasOwnProperty.call(dictionary, english)) {
-      textEntries.push({node, en: node.nodeValue, zh: node.nodeValue.replace(english, dictionary[english])});
+    if (Object.prototype.hasOwnProperty.call(dictionary, english) && Object.prototype.hasOwnProperty.call(russian, english)) {
+      textEntries.push({node, en: node.nodeValue, zh: node.nodeValue.replace(english, dictionary[english]), ru: node.nodeValue.replace(english, russian[english])});
     }
   }
   // Keep localized accessibility labels and metadata in sync with the visible text.
@@ -162,7 +306,7 @@
     for (const name of ['alt','title','aria-label','content']) {
       const english = element.getAttribute(name);
       if (english && Object.prototype.hasOwnProperty.call(dictionary, english)) {
-        attributes.push({element, name, en: english, zh: dictionary[english]});
+        attributes.push({element, name, en: english, zh: dictionary[english], ru: russian[english]});
       }
     }
   }
@@ -170,15 +314,14 @@
   let language = 'en';
   try {
     const saved = localStorage.getItem('fintrack-site-language');
-    if (saved === 'en' || saved === 'zh') language = saved;
+    if (saved === 'en' || saved === 'zh' || saved === 'ru') language = saved;
   } catch (_) {}
   function applyLanguage(next, remember = false) {
-    language = next === 'zh' ? 'zh' : 'en';
-    const chinese = language === 'zh';
-    root.lang = chinese ? 'zh-CN' : 'en';
+    language = ['en', 'zh', 'ru'].includes(next) ? next : 'en';
+    root.lang = language === 'zh' ? 'zh-CN' : language;
     root.dataset.language = language;
-    for (const entry of textEntries) entry.node.nodeValue = chinese ? entry.zh : entry.en;
-    for (const entry of attributes) entry.element.setAttribute(entry.name, chinese ? entry.zh : entry.en);
+    for (const entry of textEntries) entry.node.nodeValue = entry[language];
+    for (const entry of attributes) entry.element.setAttribute(entry.name, entry[language]);
     for (const button of buttons) {
       const active = button.dataset.langOption === language;
       button.setAttribute('aria-pressed', String(active));
