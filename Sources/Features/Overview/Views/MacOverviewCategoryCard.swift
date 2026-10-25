@@ -32,7 +32,7 @@ struct MacOverviewCategoryCard: View {
                                                 Text(MacOverviewStyle.category(row.id)).lineLimit(1).truncationMode(.tail)
                                                 Text((total > 0 ? row.amount / total : 0).formatted(.percent.precision(.fractionLength(0)))).foregroundStyle(.secondary).fixedSize()
                                                 Spacer(minLength:2)
-                                                Text(MacOverviewStyle.money(row.amount) + " " + MacSettingsVisual.symbol(currency)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).fixedSize(horizontal:true,vertical:false)
+                                                Text(MacOverviewStyle.money(row.amount) + " " + MacSettingsVisual.symbol(currency)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.55).layoutPriority(1)
                                             }.appFont(.caption).padding(.horizontal,7).padding(.vertical,6)
                                                 .background(active == row.id ? MacUI.accent.opacity(0.13) : .clear,in:RoundedRectangle(cornerRadius:7)).contentShape(Rectangle())
                                         }.buttonStyle(MacInteractiveButtonStyle()).id(row.id)
