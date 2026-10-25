@@ -82,6 +82,13 @@ final class MacSelectionConversion: ObservableObject {
             }
         }
     }
+    func dismiss() { window?.close() }
+    #if FINTRACK_LOCAL_VALIDATION
+    func presentFixture(_ text: String) {
+        guard MacPreferences.isTesting, let parsed = MacSelectedAmountParser.parse(text) else { return }
+        present(MacSelectionPrompt(parsed:parsed,automatic:false),activate:true)
+    }
+    #endif
     func requestAccessibility() {
         guard !MacPreferences.isTesting else { return }
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
@@ -168,6 +175,11 @@ private struct MacSelectionPrompt: View {
     @State private var result = ""
     @State private var details = ""
     @State private var working = false
+    init(parsed: MacSelectedAmountParser.Parsed, automatic: Bool) {
+        self.parsed = parsed; self.automatic = automatic
+        let choices = parsed.currencies.isEmpty ? Array(Set(MacFXCatalog.codes + ["USD","EUR","CNY","RUB","TRY","JPY","GBP"])).sorted() : parsed.currencies
+        _source = State(initialValue: choices.first ?? "USD")
+    }
     private var target: String { MacPreferences.defaults.string(forKey: "base_currency") ?? "USD" }
     private var options: [String] { parsed.currencies.isEmpty ? Array(Set(MacFXCatalog.codes + ["USD","EUR","CNY","RUB","TRY","JPY","GBP"])).sorted() : parsed.currencies }
     var body: some View {
@@ -179,13 +191,13 @@ private struct MacSelectionPrompt: View {
             if !result.isEmpty { Text(result).font(.title2).textSelection(.enabled).accessibilityIdentifier("selectionConversionResult") }
             Text(details).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             HStack {
+                Button("关闭") { MacSelectionConversion.shared.dismiss() }.keyboardShortcut(.cancelAction)
                 Button(working ? "换算中…" : "换算") { Task { await convert() } }.disabled(working || source.isEmpty)
                 Spacer()
                 Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(result,forType:.string) }.disabled(result.isEmpty || working)
             }
         }.padding(24).frame(width:440)
-        .onAppear { source = options.first ?? "USD" }
-        .task { if parsed.currencies.count == 1 && parsed.amounts.count == 1 { source = parsed.currencies[0]; await convert() } }
+        .task { if parsed.currencies.count == 1 && parsed.amounts.count == 1 { await convert() } }
         .onChange(of: source) { _, _ in result = ""; details = "" }
         .onChange(of: amountIndex) { _, _ in result = ""; details = "" }
     }

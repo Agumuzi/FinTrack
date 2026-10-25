@@ -170,6 +170,11 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
             await MacApplicationRuntime.shared.entries.start()
             MacAppServices.shared.start()
             MacSelectionConversion.shared.start()
+            #if FINTRACK_LOCAL_VALIDATION
+            if let text = ProcessInfo.processInfo.environment["FINTRACK_SELECTION_FIXTURE"] {
+                MacSelectionConversion.shared.presentFixture(text)
+            }
+            #endif
         }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
