@@ -9,7 +9,7 @@
           "name": "FinTrack",
           "glass": false,
           "position": {
-            "scale": 1,
+            "scale": 1.25,
             "translation-in-points": [
               0,
               0
@@ -30,8 +30,6 @@
     }
   ],
   "supported-platforms": {
-    "squares": [
-      "macOS"
-    ]
+    "squares": "shared"
   }
 }
