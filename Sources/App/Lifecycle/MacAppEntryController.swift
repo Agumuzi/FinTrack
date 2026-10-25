@@ -154,6 +154,7 @@ final class MacApplicationRuntime: ObservableObject {
 
 final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
     private var typographyMonitor: Any?
+    func applicationWillFinishLaunching(_ notification: Notification) { MacNotificationDelegate.shared.install() }
     func applicationDidFinishLaunching(_ notification: Notification) {
         typographyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection([.command,.shift,.option,.control])

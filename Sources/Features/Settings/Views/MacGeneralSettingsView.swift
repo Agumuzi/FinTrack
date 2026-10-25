@@ -30,7 +30,7 @@ struct MacGeneralSettingsView: View {
     @ObservedObject private var entries = MacApplicationRuntime.shared.entries
     @AppStorage("v141_background") private var background = true
     @AppStorage("v141_show_help") private var showHelp = true
-    @State private var notificationStatus = ""
+    @ObservedObject private var permissions = MacPermissionCoordinator.shared
     @State private var notificationError: String?
     var body: some View {
         MacSettingsFlowLayout(columns: wide ? 2 : 1, spacing: 14) {
@@ -44,7 +44,7 @@ struct MacGeneralSettingsView: View {
             confirmationCard
             storageCard
         }
-        .task { size = databaseSize(); notificationStatus = await MacNotifications.authorizationLabel(); appServices.refreshLoginStatus() }
+        .task { size = databaseSize(); await permissions.refresh(); appServices.refreshLoginStatus() }
         .onChange(of: remindRecurring) { _, enabled in updateNotifications(requestPermission: enabled) }
         .onChange(of: remindGoals) { _, enabled in updateNotifications(requestPermission: enabled) }
         .onChange(of: remindBudgets) { _, enabled in updateNotifications(requestPermission: enabled) }
@@ -86,6 +86,7 @@ MacSettingsCard(title: "应用与交互", icon: "app.badge", subtitle: "设置�
                     MacSettingsToggleRow(title: "启动时打开上次访问的页面", value: $resume).accessibilityIdentifier("settingsResumePage")
                     MacSettingsToggleRow(title: "显示悬停说明", value: $showHelp).accessibilityIdentifier("settingsShowHelp")
                     if let message = appServices.loginMessage { Text(message).appFont(.caption).foregroundStyle(.orange) }
+                    HStack { Text("启动与权限引导"); Spacer(); Button("重新打开引导") { MacPermissionCoordinator.shared.open() }.accessibilityIdentifier("reopenPermissionsGuide") }
                     if let message = entries.message { Text(message).appFont(.caption).foregroundStyle(.orange) }
                 }
     }
@@ -99,7 +100,7 @@ MacSettingsCard(title: "危险操作确认", icon: "exclamationmark.triangle.fil
     }
     private var remindersCard: some View {
 MacSettingsCard(title: "提醒与通知", icon: "bell", headerColor: .purple) {
-                    Text(notificationStatus).appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("systemNotificationStatus")
+                    Text(permissions.notificationText).appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("systemNotificationStatus")
                     HStack {
                         Button("允许系统通知…") { updateNotifications(requestPermission: true) }.accessibilityIdentifier("authorizeSystemNotifications")
                         Spacer()
@@ -132,7 +133,7 @@ MacSettingsCard(title: "存储与性能", icon: "externaldrive", subtitle: "管�
                 else { try await MacNotifications.schedule(in: context) }
                 notificationError = nil
             } catch { notificationError = error.localizedDescription }
-            notificationStatus = await MacNotifications.authorizationLabel()
+            await permissions.refresh()
         }
     }
     private func databaseSize() -> String {

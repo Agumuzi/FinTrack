@@ -14,7 +14,14 @@ struct MacUpdateRelease: Codable, Sendable {
 @MainActor
 final class MacUpdateService: ObservableObject {
     static let shared = MacUpdateService()
-    nonisolated static let officialManifestURL = "https://agumuzi.github.io/FinTrack/updates/latest.json"
+    nonisolated static let officialManifestURL = "https://agumuzi.github.io/FinTrack/updates/dmg/latest.json"
+    nonisolated static let legacyManifestURL = "https://agumuzi.github.io/FinTrack/updates/latest.json"
+    private static var activeManifestURL: String {
+        #if FINTRACK_LOCAL_VALIDATION
+        if MacPreferences.isTesting, ProcessInfo.processInfo.environment["FINTRACK_V142_LEGACY_FEED_TEST"] == "1" { return legacyManifestURL }
+        #endif
+        return officialManifestURL
+    }
     nonisolated static let officialPublicKey = "GV97/PaIi/JO1WKGFTsEuJ+jpHfkyBUkuyd6OIxjMtA="
     @Published private(set) var status = "尚未检查更新"
     @Published private(set) var busy = false
@@ -23,7 +30,9 @@ final class MacUpdateService: ObservableObject {
     @Published private(set) var checkedAt: Date?
     private var trustedConfiguration: String?
     private var downloadID: UUID?
-    private static var configurationIdentity: String { officialManifestURL + "|" + officialPublicKey }
+    private var requestedFromNotification = false
+    var handlingNotification: Bool { requestedFromNotification }
+    private static var configurationIdentity: String { activeManifestURL + "|" + officialPublicKey }
     struct SignedManifest: Codable { var payload: Data; var signature: Data }
     static var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "未知" }
     static var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知" }
@@ -51,9 +60,15 @@ final class MacUpdateService: ObservableObject {
         return release
     }
     func reset() { release = nil; archive = nil; checkedAt = nil; trustedConfiguration = nil; status = "更新源已更改，请重新检查" }
-    func check() async {
+    func openFromNotification() {
+        MacApplicationRuntime.shared.showMain()
+        if release != nil && !busy { MacUpdatePrompt.shared.show(archive == nil ? .offer : .ready); return }
+        requestedFromNotification = true
+        if !busy { Task { await check() } }
+    }
+    func check(automatic: Bool = false) async {
         guard !busy else { return }
-        guard Self.configured, let url = Self.validatedURL(Self.officialManifestURL),
+        guard Self.configured, let url = Self.validatedURL(Self.activeManifestURL),
               let key = Data(base64Encoded: Self.officialPublicKey)
         else { status = "尚未配置签名发布源，当前使用本地安装包更新"; return }
         let identity = Self.configurationIdentity
@@ -63,12 +78,30 @@ final class MacUpdateService: ObservableObject {
             guard identity == Self.configurationIdentity else { throw MacSettingsFailure.invalid("更新源已更改，请重新检查") }
             let item = try Self.verify(data, publicKey: key)
             checkedAt = Date(); MacPreferences.defaults.set(Date(), forKey: "v2_update_last_check")
-            guard item.build > (Int(Self.build) ?? 0) else { status = "当前已是此发布源的最新版本"; return }
+            guard item.build > (Int(Self.build) ?? 0) else {
+                status = "当前已是此发布源的最新版本"
+                if requestedFromNotification { MacPreferences.defaults.set("about",forKey:"v2_settings_page"); MacApplicationRuntime.shared.showMain(settings:true) }
+                requestedFromNotification = false; return
+            }
             guard ProcessInfo.processInfo.operatingSystemVersionString.count > 0,
-                  Self.isCompatible(item.minimumOS) else { status = "新版本需要 macOS \(item.minimumOS) 或更高版本"; return }
+                  Self.isCompatible(item.minimumOS) else {
+                status = "新版本需要 macOS \(item.minimumOS) 或更高版本"
+                if requestedFromNotification { MacPreferences.defaults.set("about",forKey:"v2_settings_page"); MacApplicationRuntime.shared.showMain(settings:true) }
+                requestedFromNotification = false; return
+            }
             trustedConfiguration = identity; release = item; status = "发现新版本 \(item.version)（\(item.build)）"
-            MacUpdatePrompt.shared.show(.offer)
-        } catch { status = "检查失败：\(safe(error))" }
+            if automatic && !requestedFromNotification {
+                do {
+                    if try await MacNotifications.notifyUpdate(item) { status += " · 已发送系统通知" }
+                    else { status += " · 请允许系统通知以接收更新提醒" }
+                } catch { status += " · 通知未能发送，可在此下载更新" }
+            } else { MacUpdatePrompt.shared.show(.offer) }
+            requestedFromNotification = false
+        } catch {
+            status = "检查失败：\(safe(error))"
+            if requestedFromNotification { MacPreferences.defaults.set("about",forKey:"v2_settings_page"); MacApplicationRuntime.shared.showMain(settings:true) }
+            requestedFromNotification = false
+        }
     }
     static func isCompatible(_ minimum: String) -> Bool {
         let parts = minimum.split(separator: ".").compactMap { Int($0) }
@@ -84,7 +117,9 @@ final class MacUpdateService: ObservableObject {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates/" + UUID().uuidString)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let file = folder.appendingPathComponent("FinTrack-update.zip")
+            let ext = url.pathExtension.lowercased()
+            guard ["dmg","zip"].contains(ext) else { throw MacUpdatePackageFailure.format }
+            let file = folder.appendingPathComponent("FinTrack-update."+ext)
             let transfer = MacUpdateArchiveDownload(destination: file, limit: 300 * 1024 * 1024) { [weak self] percent in
                 Task { @MainActor [weak self] in
                     guard let self, self.busy, self.downloadID == operationID, self.trustedConfiguration == identity,
@@ -103,28 +138,22 @@ final class MacUpdateService: ObservableObject {
             MacUpdatePrompt.shared.show(.ready)
         } catch {
             try? FileManager.default.removeItem(at: folder)
-            status = "下载失败：\(safe(error))"
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { status = "下载已取消，可以重新下载" }
+            else { status = "下载失败：\(safe(error))" }
         }
     }
     /// Prepare and validate the complete replacement before terminating the running app.
-    func installAndRelaunch() throws {
+    func installAndRelaunch() async throws {
         guard !MacPreferences.isTesting, trustedConfiguration == Self.configurationIdentity, let archive, let release,
               Bundle.main.bundleURL.pathExtension == "app" else { throw MacSettingsFailure.invalid("没有可安装的已验证更新") }
         let fm = FileManager.default, root = archive.deletingLastPathComponent()
-        guard MacNativeBackup.digest(try Data(contentsOf: archive)) == release.sha256 else { throw MacSettingsFailure.invalid("安装包内容已发生变化") }
-        let listing = try run("/usr/bin/unzip", ["-Z1", archive.path])
-        let entries = listing.split(separator: "\n").map(String.init)
-        guard !entries.isEmpty, entries.count <= 5000, entries.allSatisfy({ !$0.hasPrefix("/") && !$0.split(separator: "/").contains("..") && ($0.hasPrefix("FinTrack.app/") || $0.hasPrefix("__MACOSX/")) }) else { throw MacSettingsFailure.invalid("安装包结构不符合要求") }
-        let extracted = root.appendingPathComponent("extracted")
-        try fm.createDirectory(at: extracted, withIntermediateDirectories: true)
-        _ = try run("/usr/bin/ditto", ["-x", "-k", archive.path, extracted.path])
-        let candidate = extracted.appendingPathComponent("FinTrack.app")
-        _ = try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", candidate.path])
-        guard let info = NSDictionary(contentsOf: candidate.appendingPathComponent("Contents/Info.plist")),
-              info["CFBundleIdentifier"] as? String == Bundle.main.bundleIdentifier,
-              String(describing: info["CFBundleVersion"] ?? "") == String(release.build),
-              info["CFBundleShortVersionString"] as? String == release.version
-        else { throw MacSettingsFailure.invalid("更新包身份或版本不匹配") }
+        guard !busy, let bundleIdentifier=Bundle.main.bundleIdentifier else { throw MacSettingsFailure.invalid("更新正在处理中") }
+        busy = true; status = "正在准备安装…"; defer { busy = false }
+        let candidate: URL
+        do {
+            candidate = try await Task.detached(priority:.userInitiated) { try MacUpdatePackage.prepare(archive,release:release,bundleIdentifier:bundleIdentifier) }.value
+        } catch { status = "安装准备失败，请重试或手动安装。"; throw error }
+        guard trustedConfiguration == Self.configurationIdentity, self.release?.sha256 == release.sha256 else { throw MacSettingsFailure.invalid("可用更新已变化，请重新检查") }
         let current = Bundle.main.bundleURL
         guard fm.isWritableFile(atPath: current.deletingLastPathComponent().path) else { throw MacSettingsFailure.invalid("应用目录不可写，请将应用放在用户可写目录后再安装") }
         let helper = root.appendingPathComponent("install.sh")
@@ -167,7 +196,7 @@ final class MacUpdateService: ObservableObject {
                 let interval: TimeInterval = d.string(forKey: "v2_update_frequency") == "daily" ? 86400 : d.string(forKey: "v2_update_frequency") == "monthly" ? 30 * 86400 : 7 * 86400
                 let last = d.object(forKey: "v2_update_last_check") as? Date ?? .distantPast
                 if Date().timeIntervalSince(last) >= interval {
-                    await check()
+                    await check(automatic:true)
                 }
             }
             do { try await Task.sleep(for: .seconds(3600)) } catch { return }

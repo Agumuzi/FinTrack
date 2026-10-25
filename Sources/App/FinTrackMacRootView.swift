@@ -106,6 +106,8 @@ struct FinTrackMacRootView: View {
         .background(MacOverviewStyle.navigation)
         .environmentObject(operationFeedback)
         .modifier(MacOperationFeedbackPresenter(center:operationFeedback))
+        .modifier(MacUpdateSheetPresenter())
+        .modifier(MacPermissionSheetPresenter())
         .overlay {
             if showsAccount {
                 ZStack(alignment: .bottomLeading) {

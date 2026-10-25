@@ -4,6 +4,7 @@ import AppKit
 struct MacAboutSettingsView: View {
     var wide: Bool
     @ObservedObject private var updater = MacUpdateService.shared
+    @ObservedObject private var permissions = MacPermissionCoordinator.shared
     @AppStorage("v2_update_auto") private var automatic = false
     @AppStorage("v2_update_frequency") private var frequency = "weekly"
     @State private var showsLicense = false
@@ -40,10 +41,15 @@ struct MacAboutSettingsView: View {
                     }.appPadding(14).background(.blue.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
                     HStack(spacing: MacUI.space(12)) {
                         Image(systemName: "clock.arrow.circlepath").appIconFont(19, weight: .regular, design: .default).frame(width: MacUI.space(25))
-                        VStack(alignment: .leading, spacing: MacUI.space(4)) { Text("自动检查更新").appFont(.body, weight: .medium, design: .default); Text("选择检查新版本的频率。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
+                        VStack(alignment: .leading, spacing: MacUI.space(4)) { Text("自动检查更新").appFont(.body, weight: .medium, design: .default); Text("发现新版本时发送系统通知，点击通知查看更新。").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
                         Spacer(minLength: 0)
                         Toggle("自动检查更新", isOn: $automatic).labelsHidden().toggleStyle(.switch).tint(.blue).disabled(!canConfigure)
                         MacSettingsMenu(selection: $frequency, options: [("每天","daily"), ("每周","weekly"), ("每月","monthly")]).frame(width: MacUI.space(95)).disabled(!canConfigure)
+                    }
+                    HStack {
+                        Text("更新提醒：" + permissions.notificationText).appFont(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("权限设置") { permissions.open() }.accessibilityIdentifier("updatePermissionGuide")
                     }
                     if let message { Text(message).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.green) }
                     if let error { Text(error).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.red) }
@@ -77,7 +83,15 @@ struct MacAboutSettingsView: View {
                 }
             }
         }
-        .onChange(of: automatic) { _, enabled in if enabled { Task { await updater.check() } } }
+        .task { await permissions.refresh() }
+        .onChange(of: automatic) { _, enabled in
+            if enabled {
+                Task {
+                    do { try await MacPermissionCoordinator.shared.requestNotifications() } catch { message = error.localizedDescription }
+                    await updater.check(automatic:true)
+                }
+            } else { MacNotifications.cancelUpdateNotices() }
+        }
         .sheet(isPresented: $showsLicense) {
             MacFormShell(width: 620) { Text("MIT 开源许可证").appFont(.dialogTitle, weight: .semibold) } fields: {
                 ScrollView {

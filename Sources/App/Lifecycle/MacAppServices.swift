@@ -34,6 +34,9 @@ final class MacAppServices: ObservableObject {
     }
     func setLoginEnabled(_ enabled: Bool) {
         guard !MacPreferences.isTesting else { loginMessage = "测试副本不修改系统登录项。"; return }
+        if enabled, (try? Bundle.main.bundleURL.resourceValues(forKeys:[.volumeIsReadOnlyKey]).volumeIsReadOnly) == true {
+            loginMessage = "请先将 FinTrack 拖到应用程序文件夹，再开启登录启动。"; return
+        }
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             refreshLoginStatus()
