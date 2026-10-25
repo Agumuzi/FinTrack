@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import AppKit
 
 struct MacOverviewCategoryCard: View {
     var type: TransactionType
@@ -18,10 +19,37 @@ struct MacOverviewCategoryCard: View {
         OverviewCard(help: "点击饼图区块定位分类，点击分类查看账目", height: 270) {
             VStack(alignment:.leading,spacing:12) {
                 HStack { Text(title).appFont(.body,weight:.semibold).accessibilityIdentifier(prefix+"CategoryTitle"); Spacer(); Text("\(rows.count) 个类别").appFont(.caption).foregroundStyle(.secondary) }
+                if !rows.isEmpty && !centerFits {
+                    Text("合计 " + MacOverviewStyle.money(total) + " " + MacSettingsVisual.symbol(currency)).appFont(.caption).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).accessibilityIdentifier(prefix+"CategoryTotal")
+                }
                 if rows.isEmpty { ContentUnavailableView(type == .income ? "该期间暂无收入" : "该期间暂无支出",systemImage:"chart.pie").frame(height:chartSize) }
                 else {
-                    HStack(alignment:.center,spacing:16) {
-                        chart.padding(.top,26).padding(.bottom,10)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment:.center,spacing:16) {
+                            chart.padding(.top,26).padding(.bottom,10)
+                            legend
+                        }.frame(minWidth: chartSize + 16 + legendMinimum)
+                        VStack(spacing:12) {
+                            chart.padding(.top,26).padding(.bottom,10)
+                            legend
+                        }
+
+                    }
+                }
+            }
+        }
+        .onChange(of:rows.map { $0.id + ":" + String($0.amount) }) { _, _ in selected = nil; hovered = nil }
+    }
+    private var centerFits: Bool {
+        let font = MacInterfaceFonts.font(size:MacUI.fontSize(.section,tier:MacUI.fontTier),weight:.semibold)
+        return (MacOverviewStyle.money(total) as NSString).size(withAttributes:[.font:font]).width <= chartSize*0.55
+    }
+    private var legendMinimum: CGFloat {
+        let font = MacInterfaceFonts.font(size:MacUI.fontTier.captionSize)
+        let amount = rows.map { (MacOverviewStyle.money($0.amount) + " " + MacSettingsVisual.symbol(currency) as NSString).size(withAttributes:[.font:font]).width }.max() ?? 0
+        return max(190,amount+110)
+    }
+    private var legend: some View {
                         ScrollViewReader { reader in
                             ScrollView {
                                 LazyVStack(spacing:4) {
@@ -32,7 +60,7 @@ struct MacOverviewCategoryCard: View {
                                                 Text(MacOverviewStyle.category(row.id)).lineLimit(1).truncationMode(.tail)
                                                 Text((total > 0 ? row.amount / total : 0).formatted(.percent.precision(.fractionLength(0)))).foregroundStyle(.secondary).fixedSize()
                                                 Spacer(minLength:2)
-                                                Text(MacOverviewStyle.money(row.amount) + " " + MacSettingsVisual.symbol(currency)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.55).layoutPriority(1)
+                                                Text(MacOverviewStyle.money(row.amount) + " " + MacSettingsVisual.symbol(currency)).monospacedDigit().lineLimit(1).fixedSize(horizontal:true,vertical:false)
                                             }.appFont(.caption).padding(.horizontal,7).padding(.vertical,6)
                                                 .background(active == row.id ? MacUI.accent.opacity(0.13) : .clear,in:RoundedRectangle(cornerRadius:7)).contentShape(Rectangle())
                                         }.buttonStyle(MacInteractiveButtonStyle()).id(row.id)
@@ -47,11 +75,6 @@ struct MacOverviewCategoryCard: View {
                                 withAnimation(reduceMotion ? nil : .easeOut(duration:0.18)) { reader.scrollTo(id,anchor:.center) }
                             }
                         }
-                    }
-                }
-            }
-        }
-        .onChange(of:rows.map { $0.id + ":" + String($0.amount) }) { _, _ in selected = nil; hovered = nil }
     }
     private func color(_ row: MacOverviewData.Bucket) -> Color { MacAccent.color(MacCategoryCatalog.style(name:row.id,type:type.rawValue).color) }
     private var chart: some View {
@@ -62,7 +85,9 @@ struct MacOverviewCategoryCard: View {
         }.chartLegend(.hidden).frame(width:chartSize,height:chartSize)
             .chartBackground { _ in
                 VStack(spacing:3) {
-                    Text(MacOverviewStyle.money(total)).accessibilityIdentifier(prefix+"CategoryTotal").appFont(.section,weight:.semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.45)
+                    if centerFits {
+                        Text(MacOverviewStyle.money(total)).appFont(.section,weight:.semibold).monospacedDigit().fixedSize()
+                    } else { Text("分类合计").appFont(.caption) }
                     Text(currency).appFont(.caption).foregroundStyle(.secondary)
                 }.frame(width:chartSize*0.60)
             }
