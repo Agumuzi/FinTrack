@@ -137,7 +137,7 @@
   });
 
 
-  // Horizontal release history: touch/trackpad swipe remains native, arrows advance a card.
+  // Release timeline: scroll a shared rail; milestone nodes stay aligned on one line.
   const timeline = document.querySelector('#release-timeline');
   if (timeline) {
     const entries = [...timeline.querySelectorAll('.release-entry')];
