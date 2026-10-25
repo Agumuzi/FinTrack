@@ -3,6 +3,10 @@
 (() => {
   'use strict';
   const dictionary = {
+  "Swipe or scroll to explore past releases.": "左右滑动，浏览历史版本。",
+  "Newer releases": "较新版本",
+  "Older releases": "较早版本",
+  "Release timeline": "版本时间轴",
   "FinTrack — Personal finance, clearly organized": "FinTrack — 让个人财务，清楚有序",
   "Skip to content": "跳到正文",
   "Features": "功能",

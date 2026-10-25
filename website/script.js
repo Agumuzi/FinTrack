@@ -136,6 +136,52 @@
     document.querySelector('#copy-status').textContent = '';
   });
 
+
+  // Horizontal release history: touch/trackpad swipe remains native, arrows advance a card.
+  const timeline = document.querySelector('#release-timeline');
+  if (timeline) {
+    const entries = [...timeline.querySelectorAll('.release-entry')];
+    const previous = document.querySelector('.timeline-prev');
+    const next = document.querySelector('.timeline-next');
+    const position = document.querySelector('#timeline-position');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    function activeIndex() {
+      const left = timeline.scrollLeft;
+      let best = 0;
+      let distance = Infinity;
+      entries.forEach((entry, index) => {
+        const delta = Math.abs(entry.offsetLeft - entries[0].offsetLeft - left);
+        if (delta < distance) {distance = delta;best = index;}
+      });
+      return best;
+    }
+    function updateTimeline() {
+      const index = activeIndex();
+      const end = Math.max(0, timeline.scrollWidth - timeline.clientWidth);
+      previous.disabled = timeline.scrollLeft <= 4;
+      next.disabled = timeline.scrollLeft >= end - 4;
+      position.textContent = String(index + 1).padStart(2, '0') + ' / ' + String(entries.length).padStart(2, '0');
+    }
+    function scrollToEntry(index) {
+      const item = entries[Math.max(0, Math.min(entries.length - 1, index))];
+      if (!item) return;
+      const target = item.offsetLeft - entries[0].offsetLeft;
+      timeline.scrollTo({left: target, behavior: reduceMotion.matches ? 'auto' : 'smooth'});
+    }
+    previous.addEventListener('click', () => scrollToEntry(activeIndex() - 1));
+    next.addEventListener('click', () => scrollToEntry(activeIndex() + 1));
+    timeline.addEventListener('scroll', updateTimeline, {passive:true});
+    window.addEventListener('resize', updateTimeline, {passive:true});
+    timeline.addEventListener('keydown', event => {
+      if (event.target !== timeline) return;
+      if (event.key === 'ArrowRight') {event.preventDefault();scrollToEntry(activeIndex() + 1);}
+      if (event.key === 'ArrowLeft') {event.preventDefault();scrollToEntry(activeIndex() - 1);}
+      if (event.key === 'Home') {event.preventDefault();scrollToEntry(0);}
+      if (event.key === 'End') {event.preventDefault();scrollToEntry(entries.length - 1);}
+    });
+    updateTimeline();
+  }
+
   if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     root.classList.add('js-motion');
     const observer = new IntersectionObserver(entries => entries.forEach(entry => {
