@@ -4,7 +4,7 @@
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   const toggle = document.querySelector('.theme-toggle');
   const localized = (en, zh, ru) => root.lang === 'ru' ? ru : root.lang === 'zh-CN' ? zh : en;
-  const siteLanguage = () => root.lang === 'ru' ? 'ru' : siteLanguage();
+  const siteLanguage = () => root.lang === 'ru' ? 'ru' : root.lang === 'zh-CN' ? 'zh' : 'en';
   function dark() { return root.dataset.theme ? root.dataset.theme === 'dark' : media.matches; }
   function updateThemeButton() {
     const isDark = dark();
