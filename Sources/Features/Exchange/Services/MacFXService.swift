@@ -112,7 +112,10 @@ final class MacNoRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable
 
 @MainActor
 enum MacFXService {
-    static var testingProtocolClasses: [AnyClass]?
+    static var testingProtocolClasses: [AnyClass]? {
+        didSet { transport.invalidate(); transport = MacFXHTTP(protocols: MacPreferences.isTesting ? testingProtocolClasses : nil) }
+    }
+    private static var transport = MacFXHTTP()
     static func retryAfter(_ value: String?, now: Date = Date()) -> TimeInterval? {
         guard let value else { return nil }
         if let seconds = Double(value), seconds.isFinite { return max(0, seconds) }
@@ -141,7 +144,7 @@ enum MacFXService {
         try MacFXSecrets.save("", id: source.id)
         try MacSettingsStore.save(sources.filter { $0.id != source.id }, key: "v2_fx_sources")
     }
-    static func value(_ root: Any, path: String) -> Any? {
+    nonisolated static func value(_ root: Any, path: String) -> Any? {
         var node: Any? = root
         for part in path.split(separator: ".") {
             if let dict = node as? [String: Any] { node = dict[String(part)] }
@@ -151,6 +154,10 @@ enum MacFXService {
         return node
     }
     static func decode(_ data: Data, source: MacFXSource, from: String, to: String, date: String?, preserveRawRate: Bool = false) throws -> (Double, String?) {
+        let value = try rawDecoded(data, source: source, from: from, to: to, date: date, preserveRawRate: preserveRawRate)
+        return (preserveRawRate ? value.0 : try MacCurrency.rate(String(value.0)), value.1)
+    }
+    nonisolated static func rawDecoded(_ data: Data, source: MacFXSource, from: String, to: String, date: String?, preserveRawRate: Bool = true) throws -> (Double, String?) {
         let root = try JSONSerialization.jsonObject(with: data)
         if let provider = source.provider {
             guard let root = root as? [String: Any], root["status"] as? String != "error", root["error"] == nil else {
@@ -177,7 +184,7 @@ enum MacFXService {
             let actualDate = formatter.string(from: Date(timeIntervalSince1970: timestamp))
             if let date, date != actualDate { throw MacSettingsFailure.invalid("报价日期与历史记账日期不符") }
             guard rawRate.isFinite, rawRate > 0 else { throw MacFXNetworkFailure.invalid }
-            return (preserveRawRate ? rawRate : try MacCurrency.rate(String(rawRate)), actualDate)
+            return (rawRate, actualDate)
         }
         let path = source.ratePath.replacingOccurrences(of: "{base}", with: from).replacingOccurrences(of: "{quote}", with: to)
             .replacingOccurrences(of: "{baseLower}", with: from.lowercased()).replacingOccurrences(of: "{quoteLower}", with: to.lowercased())
@@ -199,7 +206,7 @@ enum MacFXService {
                   actualDate <= MacFXDates.tag(Date(), calendar: calendar) else { throw MacSettingsFailure.invalid("报价日期无效或晚于当前日期") }
         }
         if let date { guard actualDate == date else { throw MacSettingsFailure.invalid("数据源未返回所请求日期，不能用于历史记账") } }
-        return (preserveRawRate ? rate : try MacCurrency.rate(String(rate)), actualDate)
+        return (rate, actualDate)
     }
     static func fetch(_ source: MacFXSource, from: String, to: String, date: Date = Date(), keyOverride: String? = nil) async throws -> MacFXQuote {
         try source.validate()
@@ -214,28 +221,19 @@ enum MacFXService {
         let (rate, actualDate) = try decode(data, source: source, from: from, to: to, date: historical ? tag : nil)
         return MacFXQuote(from: from, to: to, rate: rate, source: source.name, sourceID: source.id, date: actualDate, retrievedAt: Date())
     }
+    static func publicData(_ url: String) async throws -> Data {
+        try await requestData(MacFXSource(name: "系统数据源", urlTemplate: url), from: "USD", to: "CNY", date: Date(), keyOverride: "")
+    }
     static func requestData(_ source: MacFXSource, from: String, to: String, date: Date, keyOverride: String? = nil, dateTagOverride: String? = nil) async throws -> Data {
         let tag = dateTagOverride ?? MacExchangeRates.dateTag(date)
         let key = try keyOverride ?? MacFXSecrets.read(source.id)
         let url = try source.resolved(from: from, to: to, date: tag, key: key)
         var request = URLRequest(url: url); request.timeoutInterval = 12
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let config = URLSessionConfiguration.ephemeral; config.urlCache = nil; config.httpCookieStorage = nil
-        if MacPreferences.isTesting, let protocols = testingProtocolClasses { config.protocolClasses = protocols }
-        let session = URLSession(configuration: config, delegate: MacNoRedirect(), delegateQueue: nil)
-        defer { session.invalidateAndCancel() }
-        do {
-            let (stream, response) = try await session.bytes(for: request)
-            guard let http = response as? HTTPURLResponse else { throw MacFXNetworkFailure.invalid }
-            guard (200..<300).contains(http.statusCode) else { throw MacFXNetworkFailure.http(http.statusCode, retryAfter: retryAfter(http.value(forHTTPHeaderField: "Retry-After"))) }
-            var data = Data()
-            for try await byte in stream { data.append(byte); if data.count > 2 * 1024 * 1024 { throw MacSettingsFailure.invalid("响应超过 2 MB 限制") } }
-            return data
-        } catch let error as MacSettingsFailure { throw error }
-        catch let error as MacFXNetworkFailure { throw error }
-        catch { throw MacFXNetworkFailure.unavailable }
+        return try await transport.data(for: request)
     }
-    private static func positiveNumber(_ value: Any?) -> Double? {
+
+    nonisolated private static func positiveNumber(_ value: Any?) -> Double? {
         let result: Double?
         if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() { result = number.doubleValue }
         else if let text = value as? String { result = Double(text) }

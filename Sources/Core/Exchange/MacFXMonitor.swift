@@ -7,6 +7,8 @@ nonisolated struct MacFXProvider {
     let name: String
     let supportsHistory: Bool
     let dayCalendar: Calendar
+    var rangeAvailable = false
+    var rangeFetch: (@Sendable (MacFXPair, String, String) async throws -> [MacFXHistoryPoint])? = nil
     let fetch: (MacFXPair, MacFXRequestDate, MacFXPurpose, String) async throws -> MacFXEvidenceQuote
 }
 
@@ -108,11 +110,31 @@ final class MacFXMonitor: ObservableObject {
     func sourceName(_ quote: MacFXEvidenceQuote) -> String { providerList().first { $0.id == quote.identity.sourceID }?.name ?? "旧来源缓存" }
     func historyProvider(_ pair: MacFXPair) -> MacFXProvider? {
         // Chart history is a separate daily reference, never a live-price baseline.
-        providerList().first { MacFXSourceScope.isSystem($0.id) && $0.supportsHistory }
+        let all = providerList().filter { MacFXSourceScope.isSystem($0.id) && $0.supportsHistory }
+        return all.first { $0.rangeAvailable && MacFXRangeClient.supports(pair, source: $0.id) } ?? all.first
+    }
+    func supportsRange(_ request: MacFXHistoryRequest) -> Bool {
+        providerList().contains { $0.id == request.sourceID && $0.revision == request.revision && $0.rangeAvailable && MacFXRangeClient.supports(request.pair, source: $0.id) }
+    }
+    func historyRange(_ request: MacFXHistoryRequest, start: String, end: String) async throws -> [MacFXHistoryPoint] {
+        guard let source = providerList().first(where: { $0.id == request.sourceID && $0.revision == request.revision }),
+              MacFXRangeClient.supports(request.pair, source: source.id),
+              end <= MacFXDates.tag(now(), calendar: source.dayCalendar) else { throw MacFXContractFailure.invalidEvidence }
+        let key = source.id + source.revision
+        if let until = cooldown[key], now() < until { throw MacFXNetworkFailure.cooling }
+        do {
+            guard let rangeFetch = source.rangeFetch else { throw MacFXContractFailure.unavailable }
+            return try await rangeFetch(request.pair, start, end)
+        } catch {
+            if case MacFXNetworkFailure.http(let code, let retry) = error, code == 429 || code == 401 {
+                cooldown[key] = now().addingTimeInterval(code == 401 ? 1800 : max(1, retry ?? 900))
+            }
+            throw error
+        }
     }
     /// Shares source cooldown with live monitoring, but never accepts into its cache.
     func historyPoint(pair: MacFXPair, day: String, sourceID: String, revision: String, cycle: String) async throws -> MacFXHistoryPoint {
-        guard let source = historyProvider(pair), source.id == sourceID, source.revision == revision else { throw MacFXContractFailure.unavailable }
+        guard let source = providerList().first(where: { $0.id == sourceID && $0.revision == revision && $0.supportsHistory }) else { throw MacFXContractFailure.unavailable }
         guard MacFXDates.day(day) != nil, day <= MacFXDates.tag(now(), calendar: source.dayCalendar) else { throw MacFXContractFailure.invalidEvidence }
         let value = try await fetch(source, pair: pair, requested: .day(day), purpose: .monitorHistory, cycle: cycle)
         guard value.identity == MacFXRequestIdentity(purpose: .monitorHistory, pair: pair, sourceID: sourceID, sourceRevision: revision, requested: .day(day)),
@@ -265,24 +287,34 @@ final class MacFXMonitor: ObservableObject {
     }
     private func backfill(pair: MacFXPair, current: MacFXEvidenceQuote, providers: [MacFXProvider], cycle: String,
                           requestGeneration: Int, clock: Date, calendar: Calendar) async {
-        guard MacFXDates.localDay(current.quoteTime, calendar: calendar) == MacFXDates.tag(clock, calendar: calendar),
-              let previousDay = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: clock)),
-              let source = providers.first(where: { $0.id == current.identity.sourceID && $0.revision == current.identity.sourceRevision }), source.supportsHistory else { return }
-        let previousTag = MacFXDates.tag(previousDay, calendar: calendar)
-        if cache.observations.contains(where: { MacFXComparison.sameDefinition(current, $0) && MacFXComparison.usable($0) && MacFXDates.localDay($0.quoteTime, calendar: calendar) == previousTag }) { return }
-        let tag = MacFXDates.tag(previousDay, calendar: source.dayCalendar)
-        let identity = MacFXRequestIdentity(purpose: .monitorPreviousDay, pair: pair, sourceID: source.id, sourceRevision: source.revision, requested: .day(tag))
-        if let last = baselineAttempts[identity], clock.timeIntervalSince(last) < 300 { return }
-        if let until = cooldown[source.id + source.revision], clock < until { return }
-        baselineAttempts[identity] = clock
-        do {
-            let value = try await fetch(source, pair: pair, requested: .day(tag), purpose: .monitorPreviousDay, cycle: cycle)
-            guard generation == requestGeneration, value.identity == identity,
-                  MacFXDates.localDay(value.quoteTime, calendar: calendar) == previousTag else { return }
-            _ = cache.accept(value, now: now(), calendar: calendar)
-        } catch {
-            if case MacFXNetworkFailure.http(429, let retry) = error { cooldown[source.id + source.revision] = now().addingTimeInterval(max(1, retry ?? 900)) }
-            // Failure is a negative-cache entry, never a zero or a different source.
+        guard let source = providers.first(where: { $0.id == current.identity.sourceID && $0.revision == current.identity.sourceRevision }), source.supportsHistory,
+              let currentTag = MacFXDates.publicationDay(current.quoteTime, calendar: source.dayCalendar),
+              let currentDay = MacFXDates.day(currentTag, calendar: source.dayCalendar) else { return }
+        if cache.observations.contains(where: { MacFXComparison.sameDefinition(current, $0) && MacFXComparison.usable($0) && MacFXComparison.newer(current, than: $0) }) { return }
+        // Instant quotes retain the existing local previous-day contract. Daily
+        // sources query relative to their actual latest publication, not today.
+        let daily: Bool = { if case .day = current.quoteTime { return true }; return false }()
+        for offset in 1...(daily ? 10 : 1) {
+            guard generation == requestGeneration,
+                  let previousDay = source.dayCalendar.date(byAdding: .day, value: -offset, to: currentDay) else { return }
+            let tag = MacFXDates.tag(previousDay, calendar: source.dayCalendar)
+            let identity = MacFXRequestIdentity(purpose: .monitorPreviousDay, pair: pair, sourceID: source.id, sourceRevision: source.revision, requested: .day(tag))
+            if let last = baselineAttempts[identity], clock.timeIntervalSince(last) < 300 { continue }
+            if let until = cooldown[source.id + source.revision], clock < until { return }
+            baselineAttempts[identity] = clock
+            do {
+                let value = try await fetch(source, pair: pair, requested: .day(tag), purpose: .monitorPreviousDay, cycle: cycle)
+                guard generation == requestGeneration, value.identity == identity,
+                      MacFXDates.publicationDay(value.quoteTime, calendar: source.dayCalendar) == tag,
+                      MacFXComparison.sameDefinition(current, value), MacFXComparison.newer(current, than: value) else { continue }
+                var updated = cache
+                if updated.accept(value, now: now(), calendar: calendar) { cache = updated; revision += 1; persist(cache) }
+                return
+            } catch {
+                if case MacFXNetworkFailure.http(429, let retry) = error { cooldown[source.id + source.revision] = now().addingTimeInterval(max(1, retry ?? 900)); return }
+                if case MacFXNetworkFailure.unavailable = error { return }
+                // A non-publication day can be skipped, never filled with a copy.
+            }
         }
     }
 }

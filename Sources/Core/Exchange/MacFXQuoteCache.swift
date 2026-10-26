@@ -16,7 +16,15 @@ nonisolated struct MacFXQuoteCache: Codable {
         if case .instant(let date, let zone) = quote.quoteTime {
             guard TimeZone(identifier: zone) != nil, date.timeIntervalSince1970.isFinite, date <= now.addingTimeInterval(300) else { return false }
         }
-        if case .day(let text, _) = quote.quoteTime { guard MacFXDates.day(text) != nil else { return false } }
+        if case .day(let text, let zone) = quote.quoteTime {
+            guard MacFXDates.day(text) != nil else { return false }
+            // Unknown legacy timezone is display-only; a known source day must
+            // never claim a future publication in its own calendar.
+            if let tz = TimeZone(identifier: zone) {
+                var sourceCalendar = MacFXDates.utc; sourceCalendar.timeZone = tz
+                guard text <= MacFXDates.tag(now, calendar: sourceCalendar) else { return false }
+            }
+        }
         var end = quote.identity.pair.base
         for leg in quote.legs {
             guard leg.pair.base == end, !leg.sourceID.isEmpty, !leg.sourceRevision.isEmpty,

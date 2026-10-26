@@ -50,6 +50,7 @@ final class MacFXApplication: ObservableObject {
     private let accountingTransport: MacFXProviderAdapter
     var menuPair: MacFXPair?
     private var observers: [AnyCancellable] = []
+    private var preferencesFingerprint: [Data?] = []
     private var catalogSignature: String
     @Published private(set) var settingsError: String?
 
@@ -73,7 +74,7 @@ final class MacFXApplication: ObservableObject {
             if let data = try? JSONEncoder().encode(value) { MacPreferences.defaults.set(data, forKey: Self.cacheKey) }
         })
         query = MacFXQuerySession(currency: initial.referenceCurrency)
-        history = MacFXHistoryService(data: MacPreferences.defaults.data(forKey: MacFXHistoryService.storageKey), persist: { data in
+        history = MacFXHistoryService(data: MacPreferences.defaults.data(forKey: MacFXHistoryService.storageKey), legacyData: MacPreferences.defaults.data(forKey: MacFXHistoryService.legacyStorageKey), persist: { data in
             MacPreferences.defaults.set(data, forKey: MacFXHistoryService.storageKey)
         })
         catalogSignature = codes.joined(separator: ":")
@@ -140,6 +141,9 @@ final class MacFXApplication: ObservableObject {
         settingsError = nil; reload()
     }
     func reload() {
+        let fingerprint = [MacFXConfiguration.storageKey, "v2_currencies", "v2_disabled_currencies", "v2_fx_sources", "v3_fx_source_revisions"].map { MacPreferences.defaults.data(forKey: $0) }
+        guard fingerprint != preferencesFingerprint else { return }
+        preferencesFingerprint = fingerprint
         let config = MacSettingsStore.load(MacFXConfiguration.storageKey, fallback: monitor.configuration)
         monitor.configure(config)
         let signature = MacFXCatalog.codes.joined(separator: ":")
