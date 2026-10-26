@@ -456,7 +456,7 @@ struct MacRecordSection: View {
             .accessibilityIdentifier("transactionCount")
     }
     private var sortPicker: some View {
-        MacSettingsMenu(selection: $recordSort, options: ["最新优先", "最早优先", "金额从高到低"].map { ($0, $0) }).frame(width: MacUI.space(132)).accessibilityIdentifier("recordSort")
+        MacSettingsMenu(selection: $recordSort, options: ["最新优先", "最早优先", "金额从高到低"].map { ($0, $0) }).frame(width: max(132, MacUI.fontTier.bodySize * 7 + 32)).accessibilityIdentifier("recordSort")
     }
     private var batchMenu: some View {
         Menu("批量操作\(batchSelection.isEmpty ? "" : "（\(batchSelection.count)）")") {

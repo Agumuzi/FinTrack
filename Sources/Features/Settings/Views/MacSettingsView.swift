@@ -36,6 +36,8 @@ enum MacSettingsPage: String, CaseIterable, Identifiable {
 }
 
 struct MacSettingsView: View {
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var layoutCaptionPoints = 12
     @Binding var previewCurrency: String
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var fontTierValue = MacFontSizeTier.standard.rawValue
     @Environment(\.modelContext) private var context
@@ -77,13 +79,14 @@ struct MacSettingsView: View {
     }
 
     var body: some View {
+        let _ = layoutBodyPoints; let _ = layoutCaptionPoints
         GeometryReader { geometry in
             let compactMenu = geometry.size.width < MacUI.space(900)
-            let menuWidth: CGFloat = geometry.size.width < MacUI.space(850) ? MacUI.space(190) : MacUI.space(230)
+            let menuWidth: CGFloat = max(230, 24 + MacUI.fontTier.bodySize * 8)
             HStack(spacing: MacUI.space(0)) {
                 if !compactMenu { navigation.frame(width: menuWidth); Divider() }
                 let contentWidth = geometry.size.width - (compactMenu ? 0 : menuWidth) - 44
-                let minimumColumn: CGFloat = MacUI.fontTier.bodySize >= 18 ? 460 : 420
+                let minimumColumn: CGFloat = max(420, 230 + MacUI.fontTier.bodySize * 12)
                 let wide = contentWidth >= 2 * minimumColumn + 16
                 if page == .currency {
                     VStack(alignment:.leading,spacing:0) {

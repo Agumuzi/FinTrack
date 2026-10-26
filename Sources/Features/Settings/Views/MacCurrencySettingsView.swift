@@ -161,7 +161,7 @@ struct MacCurrencySettingsView: View {
             }
             HStack {
                 Text("货币"); Spacer()
-                Text("状态").frame(width:80); Color.clear.frame(width:28,height:1)
+                Text("状态").frame(width:max(80,MacUI.fontTier.bodySize * 4.5)); Color.clear.frame(width:28,height:1)
             }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal,10).frame(minHeight:32)
             VStack(spacing:0) {
                 ForEach(directoryCodes,id:\.self) { code in
@@ -189,7 +189,7 @@ struct MacCurrencySettingsView: View {
             if code == baseCurrency { Image(systemName: "pin.fill").foregroundStyle(.secondary).frame(width: 16) }
             else { Image(systemName: "line.3.horizontal").foregroundStyle(.secondary).frame(width: 16, height: 32).contentShape(Rectangle()).onDrag { directoryDraft = MacCurrencyDirectory.ordered(codes, base: baseCurrency); draggedCurrency = code; return NSItemProvider(object: ("FinTrackCurrency:" + code) as NSString) } }
             currencyChoice(code).frame(maxWidth:.infinity,alignment:.leading)
-            currencyStatus(code).frame(width:80)
+            currencyStatus(code).frame(width:max(80,MacUI.fontTier.bodySize * 4.5))
             currencyActions(code).frame(width:28)
         }.padding(.horizontal,10).padding(.vertical,6).frame(minHeight:44)
             .background(selected == code ? MacSettingsVisual.accent.opacity(0.045) : .clear)
@@ -198,7 +198,7 @@ struct MacCurrencySettingsView: View {
         Button { selected = code; section = "历史记录" } label: {
             HStack(spacing:10) {
                 MacCurrencyFlag(code:code,width:26).fixedSize()
-                Text(code).appFont(.body,weight:.semibold).frame(width:48,alignment:.leading)
+                Text(code).appFont(.body,weight:.semibold).lineLimit(1).frame(width:max(48,MacUI.fontTier.bodySize * 3),alignment:.leading)
                 Text(MacSettingsVisual.currencyName(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength:0)
             }.contentShape(Rectangle())

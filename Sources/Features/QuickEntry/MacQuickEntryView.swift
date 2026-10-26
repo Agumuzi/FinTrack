@@ -33,25 +33,14 @@ struct MacQuickEntryView: View {
             MacEntryTypeSwitcher(type:Binding(get:{draft.type},set:{draft.income = $0 == .income}),prefix:"menu")
             ScrollView {
                 VStack(alignment:.leading,spacing:MacUI.space(16)) {
-                    HStack(alignment:.top,spacing:MacUI.space(14)) {
-                        MacEntryField(title:"金额") {
-                            HStack(spacing:MacUI.space(3)) {
-                                Text(draft.income ? "+" : "−").foregroundStyle(.secondary)
-                                MacNumericInput(text: $draft.amount, identifier: "menuAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), submit: save, large: true).frame(minHeight: 36)
-                                    .appFont(.amount,weight:.medium).appMinHeight(36)
-                                    .accessibilityLabel("金额").accessibilityIdentifier("menuAmount").onSubmit(save)
-                            }.appFont(.amount,weight:.medium).appPadding(.horizontal,14).appMinHeight(44)
-                                .background(MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:9))
-                                .overlay(RoundedRectangle(cornerRadius:9).strokeBorder(amountFocused ? Color.blue : .gray.opacity(0.25),lineWidth:amountFocused ? 2 : 1))
-                        }
-                        MacEntryField(title:"货币") {
-                            MacEditableCurrencyMenu(currency:$draft.currency,custom:$draft.customCurrencyEntry,codes:currencyChoices,identifier:"menuCurrency",textIdentifier:"menuCurrencyText")
-                        }.frame(width:MacCurrencyMenuStyle.width)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: 14) { amountField.frame(minWidth: 140); currencyField }
+                        VStack(alignment: .leading, spacing: 16) { amountField; currencyField }
                     }
                     MacEntryField(title: "分类") {
                         MacIconMenu(selection: Binding(get: { draft.categoryID?.uuidString ?? "" }, set: { draft.categoryID = UUID(uuidString: $0) }), options: [MacIconMenuOption(title: "请选择分类", value: "", symbol: "tag")] + validCategories.map { row in
                             MacIconMenuOption(title: MacOverviewStyle.category(row.name), value: row.id.uuidString, image: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: row.name, type: draft.type.rawValue), name: row.name))
-                        }, identifier: "menuCategory", accessibilityTitle: "选择分类", width: 340).disabled(validCategories.isEmpty)
+                        }, identifier: "menuCategory", accessibilityTitle: "选择分类", width: 340, fillsAvailableWidth: true).disabled(validCategories.isEmpty)
                     }
                     MacEntryField(title:"交易日期") {
                         Button { datePicker = true } label: {
@@ -103,13 +92,11 @@ struct MacQuickEntryView: View {
             VStack(alignment:.leading,spacing:10) {
                 if let error = draft.error { Text(error).appFont(.caption,weight:.regular).foregroundStyle(.red).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("menuEntryError") }
                 if let message = draft.savedMessage { Text(message).appFont(.caption,weight:.regular).foregroundStyle(.green).accessibilityIdentifier("menuEntrySaved") }
-                HStack(spacing:MacUI.space(12)) {
-                    Toggle("保存后继续添加",isOn:$draft.continueAdding).toggleStyle(.checkbox).appFont(.body,weight:.regular).accessibilityIdentifier("menuKeepAdding")
-                    Spacer(minLength:4)
-                    Button("取消") { runtime.closePanel() }.accessibilityIdentifier("menuCancelEntry").keyboardShortcut(.cancelAction)
-                    Button("保存") { save() }.buttonStyle(MacStandardButtonStyle(primary:true))
-                        .disabled(draft.isSaving || draft.fetching || base == nil).accessibilityIdentifier("menuSaveEntry").keyboardShortcut(.return,modifiers:.command)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { keepAdding; Spacer(minLength: 4); footerButtons }
+                    VStack(alignment: .leading, spacing: 10) { keepAdding; HStack { Spacer(); footerButtons } }
                 }
+
             }
         }.appFont(.body).buttonStyle(MacStandardButtonStyle()).tint(MacUI.accent)
         .task {
@@ -125,6 +112,32 @@ struct MacQuickEntryView: View {
         .onChange(of:draft.date) { _, _ in draft.invalidateQuote() }
         .onChange(of:base) { _, _ in draft.invalidateQuote(); draft.useBankAmount = false; draft.bankAmount = "" }
         .onChange(of:datePicker) { _, shown in if !shown { dateFocused = true } }
+    }
+    private var amountField: some View {
+        MacEntryField(title: "金额") {
+            HStack(spacing: 3) {
+                Text(draft.income ? "+" : "−").foregroundStyle(.secondary)
+                MacNumericInput(text: $draft.amount, identifier: "menuAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), submit: save, large: true)
+                    .frame(minHeight: max(36,MacUI.fontSize(.amount,tier:MacUI.fontTier)+8)).accessibilityLabel("金额").accessibilityIdentifier("menuAmount")
+            }.appFont(.amount, weight: .medium).padding(.horizontal,14).frame(minHeight:44)
+                .background(MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:9))
+                .overlay(RoundedRectangle(cornerRadius:9).strokeBorder(amountFocused ? Color.blue : .gray.opacity(0.25),lineWidth:amountFocused ? 2 : 1))
+        }
+    }
+    private var currencyField: some View {
+        MacEntryField(title: "货币") {
+            MacEditableCurrencyMenu(currency:$draft.currency,custom:$draft.customCurrencyEntry,codes:currencyChoices,identifier:"menuCurrency",textIdentifier:"menuCurrencyText")
+        }.frame(width:MacCurrencyMenuStyle.width + max(0,MacUI.fontTier.bodySize-16)*5)
+    }
+    private var keepAdding: some View {
+        Toggle("保存后继续添加",isOn:$draft.continueAdding).toggleStyle(.checkbox).appFont(.body).accessibilityIdentifier("menuKeepAdding")
+    }
+    private var footerButtons: some View {
+        HStack(spacing:12) {
+            Button("取消") { runtime.closePanel() }.accessibilityIdentifier("menuCancelEntry").keyboardShortcut(.cancelAction)
+            Button("保存") { save() }.buttonStyle(MacStandardButtonStyle(primary:true))
+                .disabled(draft.isSaving || draft.fetching || base == nil).accessibilityIdentifier("menuSaveEntry").keyboardShortcut(.return,modifiers:.command)
+        }.fixedSize()
     }
     private var currencyChoices: [String] { Array(Set(MacFXCatalog.codes + [base ?? preferred,draft.currency])).filter { !$0.isEmpty }.sorted() }
     private func save() {

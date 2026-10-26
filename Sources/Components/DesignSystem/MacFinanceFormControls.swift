@@ -48,6 +48,7 @@ struct MacNumericInput: NSViewRepresentable {
     @AppStorage("v2_grouping", store: MacPreferences.defaults) private var grouping = "comma"
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var tier = "standard"
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     @Environment(\.isEnabled) private var enabled
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: MacNumericInput

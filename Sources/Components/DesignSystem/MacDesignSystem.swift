@@ -56,7 +56,7 @@ enum MacUI {
     }
     static func space(_ value: CGFloat) -> CGFloat { value }
     static func filterColumnWidth(available: CGFloat, wide: Bool) -> CGFloat {
-        let preferred: CGFloat = wide ? 205 : 185
+        let preferred: CGFloat = (wide ? 205 : 185) + max(0, fontTier.bodySize - 16) * 4
         return min(preferred, max(145, available * 0.36))
     }
     enum TextRole: CGFloat { case caption = 12, label = 14, body = 16, section = 18, dialogTitle = 20, pageTitle = 24, amount = 28 }
@@ -78,7 +78,7 @@ enum MacUI {
         let content = window?.contentLayoutRect.size ?? screen
         let width = content.width > 1 ? min(content.width, screen.width) : screen.width
         let height = content.height > 1 ? min(content.height, screen.height) : screen.height
-        return CGSize(width: max(1, width), height: max(1, height))
+        return CGSize(width: max(1, width / MacInterfaceZoom.factor), height: max(1, height / MacInterfaceZoom.factor))
     }
     static func rootWindow(for window: NSWindow?) -> NSWindow? {
         var result = window
@@ -322,29 +322,32 @@ struct MacFormShell<Header: View, Fields: View, Footer: View>: View {
     @ViewBuilder var header: Header
     @ViewBuilder var fields: Fields
     @ViewBuilder var footer: Footer
-    @State private var measurements: [String: CGFloat] = [:]
     @State private var available = MacUI.available
     var body: some View {
         let padding: CGFloat = 20, gap: CGFloat = 16
         let maximum = MacUI.dialogHeight(available: available.height)
-        let reserved = (measurements["header"] ?? 56) + (measurements["footer"] ?? 44) + 2 * padding + 2 * gap
-        let bodyHeight = min(measurements["fields"] ?? 280, max(40, maximum - reserved))
-        VStack(alignment: .leading, spacing: gap) {
-            header.fixedSize(horizontal: false, vertical: true).shellMeasure("header")
-            ScrollView {
-                fields.frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
-                    .padding(2).shellMeasure("fields")
-            }.frame(height: bodyHeight).accessibilityIdentifier("formFieldsScroll")
-            footer.fixedSize(horizontal: false, vertical: true).shellMeasure("footer")
-        }.padding(padding).frame(width: MacUI.dialogWidth(width, available: available.width))
+        ViewThatFits(in: .vertical) {
+            VStack(alignment: .leading, spacing: gap) {
+                header
+                fields.frame(maxWidth: .infinity, alignment: .leading)
+                footer
+            }.fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: gap) {
+                header.fixedSize(horizontal: false, vertical: true)
+                ScrollView { fields.frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true).padding(2) }
+                    .accessibilityIdentifier("formFieldsScroll")
+                footer.fixedSize(horizontal: false, vertical: true)
+            }.frame(height: max(100, maximum - padding * 2))
+        }.frame(maxHeight: max(100, maximum - padding * 2))
+            .padding(padding).frame(width: MacUI.dialogWidth(width, available: available.width))
             .background(MacOverviewStyle.card).appFont(.body).tint(MacUI.accent).controlSize(.regular).buttonStyle(MacStandardButtonStyle())
             .overlay(alignment: .topLeading) {
                 MacWindowAvailabilityReader { size in if available != size { available = size } }
                     .frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
-            }
-            .onPreferenceChange(MacShellMeasurements.self) { if $0 != measurements { measurements = $0 } }
+            }.interfaceZoom()
     }
 }
+
 /// Compact confirmations and secondary editors use the same bounded, intrinsic sizing.
 private struct MacDialogModifier: ViewModifier {
     var width: CGFloat
@@ -358,7 +361,7 @@ private struct MacDialogModifier: ViewModifier {
             .overlay(alignment: .topLeading) {
                 MacWindowAvailabilityReader { size in if available != size { available = size } }
                     .frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
-            }
+            }.interfaceZoom()
             .onPreferenceChange(MacShellMeasurements.self) { if let value = $0["dialog"], abs(height - value) > 0.5 { height = value } }
     }
 }
@@ -384,7 +387,7 @@ private struct MacPanelModifier: ViewModifier {
             .overlay(alignment: .topLeading) {
                 MacWindowAvailabilityReader { size in if available != size { available = size } }
                     .frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
-            }
+            }.interfaceZoom()
     }
 }
 extension View { func appPanel(width: CGFloat, height: CGFloat) -> some View { modifier(MacPanelModifier(width: width, height: height)) } }

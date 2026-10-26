@@ -59,11 +59,10 @@ MacSettingsCard(title: "日期与时间", icon: "calendar", subtitle: "设置日
     }
     private var moneyCard: some View {
 MacSettingsCard(title: "金额与货币显示", icon: "banknote", subtitle: "设置金额的显示格式和精度，不改变保存值。", headerColor: .orange) {
-                    MacSettingsRow(label: "默认货币精度") { MacSettingsMenu(selection: $decimals, options: (0...4).map { ("\($0) 位小数", $0) }).accessibilityIdentifier("settingsDecimals") }
-                    MacSettingsRow(label: "千位分隔符") { MacSettingsMenu(selection: $grouping, options: [("逗号","comma"), ("空格","space"), ("不分隔","none")]).accessibilityIdentifier("generalGroupingMenu") }
-                    MacSettingsRow(label: "负数显示方式") { MacSettingsMenu(selection: $negative, options: [("减号前缀","minus"), ("括号","parentheses")]).accessibilityIdentifier("generalNegativeMenu") }
-                    MacSettingsRow(label: "零值显示") { MacSettingsMenu(selection: $zero, options: [("数字","number"), ("短横线","dash")]).accessibilityIdentifier("generalZeroDisplayMenu") }
-                    Text("预览：" + MacDisplayPreferences.money(-12345.6789, decimals: decimals, grouping: grouping, negative: negative, zero: zero)).appFont(.caption, weight: .regular, design: .monospaced).foregroundStyle(.secondary).accessibilityIdentifier("settingsMoneyPreview")
+                    MacSettingsRow(label: "默认货币精度") { MacSettingsMenu(selection: $decimals, options: (0...4).map { (MacDisplayPreferences.money(12345.6789, decimals: $0, grouping: grouping, negative: negative, zero: zero), $0) }).accessibilityIdentifier("settingsDecimals") }
+                    MacSettingsRow(label: "千位分隔符") { MacSettingsMenu(selection: $grouping, options: [("12,345.68","comma"), ("12 345.68","space"), ("12345.68","none")]).accessibilityIdentifier("generalGroupingMenu") }
+                    MacSettingsRow(label: "负数显示方式") { MacSettingsMenu(selection: $negative, options: [("−12,345.68","minus"), ("(12,345.68)","parentheses")]).accessibilityIdentifier("generalNegativeMenu") }
+                    MacSettingsRow(label: "零值显示") { MacSettingsMenu(selection: $zero, options: [("0.00","number"), ("—","dash")]).accessibilityIdentifier("generalZeroDisplayMenu") }
                 }
     }
     private var listCard: some View {

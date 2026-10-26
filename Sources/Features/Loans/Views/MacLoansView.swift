@@ -3,6 +3,9 @@ import SwiftData
 import Charts
 
 struct MacLoansView: View {
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var layoutCaptionPoints = 12
+    @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var layoutTier = "standard"
     let bookCurrency: String?
     @Environment(\.modelContext) private var context
     @Query private var loans: [LoanRule]
@@ -39,7 +42,16 @@ struct MacLoansView: View {
     @State private var now = Date()
     @AppStorage("v13_loans_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
     @State private var transientWidth: Double?
-    private var listWidth: Double { transientWidth ?? (listColumns == 2 ? doubleListWidth : singleListWidth) }
+    private var automaticListWidth: Double { MacFinanceSplitSizing.minimumListWidth(columns: listColumns, bodySize: MacUI.fontTier.bodySize, titles: active.map(\.title)) }
+    private var listWidth: Double {
+        if let transientWidth { return transientWidth }
+        let key = listColumns == 2 ? "v13_loans_double_list_width" : "v13_loans_single_list_width"
+        let deltaKey = "v144_loans_list_delta_" + String(listColumns)
+        if let delta = MacPreferences.defaults.object(forKey: deltaKey) as? NSNumber { return max(300, automaticListWidth + delta.doubleValue) }
+        guard MacPreferences.defaults.object(forKey: key) != nil else { return automaticListWidth }
+        let originalAutomatic = MacFinanceSplitSizing.minimumListWidth(columns: listColumns, bodySize: 16, titles: active.map(\.title))
+        return max(300, (listColumns == 2 ? doubleListWidth : singleListWidth) + automaticListWidth - originalAutomatic)
+    }
     private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { transientWidth = $0 }) }
     private var active: [LoanRule] { loans.filter { $0.deletedAt == nil } }
     private var audits: [UUID: MacLoansData.Audit] {
@@ -51,18 +63,21 @@ struct MacLoansView: View {
     private var selected: LoanRule? { visible.first { $0.id == selectedID } }
 
     var body: some View {
+        let _ = layoutBodyPoints; let _ = layoutCaptionPoints
         GeometryReader { geometry in
-            let wide = geometry.size.width >= MacUI.space(1000)
-            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: wide)
-            let maximum = max(300, Double(geometry.size.width - filterWidth - 340))
+            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(1000))
+            let detailMinimum = MacFinanceSplitSizing.detailMinimum(bodySize: MacUI.fontTier.bodySize)
+            let wide = geometry.size.width - filterWidth >= 300 + detailMinimum + 10
+            let maximum = max(300, Double(geometry.size.width - filterWidth - detailMinimum - 10))
             HStack(spacing: MacUI.space(0)) {
                 filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).accessibilityIdentifier("loansListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
                     MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
-                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }; transientWidth = nil
-                    }
+                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }
+                        MacPreferences.defaults.set(value - automaticListWidth, forKey: "v144_loans_list_delta_" + String(listColumns)); transientWidth = nil
+                    }.accessibilityIdentifier("loansListDivider")
                     if let selected { presentedDetail(selected).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一笔贷款", systemImage: "banknote", description: Text("查看还款计划和实际记录。")).frame(maxWidth: .infinity) }
                 }
@@ -137,7 +152,7 @@ struct MacLoansView: View {
                 ContentUnavailableView(active.isEmpty ? "还没有贷款" : "没有匹配的贷款", systemImage: "banknote", description: Text(active.isEmpty ? "点击左上方 + 新增贷款。" : "试试其他筛选条件。"))
                     .accessibilityIdentifier("loansEmptyState").frame(maxHeight: .infinity)
             } else {
-                ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
+                ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                     ForEach(visible, id: \.id) { loan in
                         Button { selectedID = loan.id; if !wide { showsDetails = true } } label: { row(loan) }
                             .buttonStyle(MacInteractiveButtonStyle())
@@ -157,7 +172,7 @@ struct MacLoansView: View {
             HStack(alignment: .top, spacing: MacUI.space(10)) {
                 Image(systemName: "banknote").appFont(.section, weight: .semibold).foregroundStyle(MacOverviewStyle.accent)
                     .frame(width: MacUI.space(36), height: MacUI.space(36)).background(MacOverviewStyle.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 9))
-                VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(loan.title).appFont(.section, weight: .semibold).lineLimit(2); Text("\(MacOverviewStyle.category(loan.category)) · \(MacLoansData.method(loan.method))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
+                VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(loan.title).appFont(.section, weight: .semibold).fixedSize(horizontal: false, vertical: true); Text("\(MacOverviewStyle.category(loan.category)) · \(MacLoansData.method(loan.method))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
             }
             HStack { Text(money(loan.principal, loan)).appFont(.section, weight: .semibold, design: .default).monospacedDigit(); Spacer(minLength: 0) }

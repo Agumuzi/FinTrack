@@ -15,6 +15,9 @@ struct OverviewCard<Content: View>: View {
 }
 
 struct MacOverviewView: View {
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var layoutCaptionPoints = 12
+    @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var layoutTier = "standard"
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     let bookCurrency: String?
     // This page only sends navigation actions. Observing section changes also
@@ -72,6 +75,7 @@ struct MacOverviewView: View {
     private func goalPresentation(_ goal: Goal) -> MacGoalPresentation { goalPresentations[goal.id.uuidString] ?? .init() }
 
     var body: some View {
+        let _ = layoutBodyPoints; let _ = layoutCaptionPoints
         GeometryReader { geometry in
             let categoryScopeRows = self.categoryScopeRows
             let incomes = MacOverviewData.categories(categoryScopeRows, type: .income)
@@ -255,17 +259,13 @@ struct MacOverviewView: View {
         // One read-only result per render, with no persistent cache or invalidation policy.
         let totals = self.totals, previous = self.previous, snapshot = self.snapshot
         let tier = MacUI.fontTier
-        let font = MacInterfaceFonts.font(size: MacUI.fontSize(.amount, tier: tier), weight: .semibold, monospacedDigits: true)
-        let currencyFont = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: tier), weight: .medium)
-        let amounts = [totals.income, totals.expense, totals.net, snapshot.availableAssets + snapshot.frozenDepositPrincipal]
-        let textWidth = amounts.map { (MacOverviewStyle.money($0) as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
-        let currencyWidth = (currency as NSString).size(withAttributes: [.font: currencyFont]).width
         let spacing = MacUI.space(13)
-        let minimumCardWidth = max(MacUI.space(220), textWidth + currencyWidth + MacUI.space(54))
+        // Geometry is independent of the amount text's ideal width. Unbounded
+        // text widths must never feed back into the grid's proposed width.
+        let minimumCardWidth = max(240, 220 + (tier.bodySize - 16) * 7)
         let columnCount = contentWidth >= minimumCardWidth * 4 + spacing * 3 ? 4
             : contentWidth >= minimumCardWidth * 2 + spacing ? 2 : 1
-        let cellMinimum = columnCount == 1 ? min(minimumCardWidth, max(1, contentWidth)) : minimumCardWidth
-        let columns = Array(repeating: GridItem(.flexible(minimum: cellMinimum), spacing: spacing), count: columnCount)
+        let columns = Array(repeating: GridItem(.flexible(minimum: 0), spacing: spacing), count: columnCount)
         return LazyVGrid(columns: columns, spacing: spacing) {
             metric("支出", value: totals.expense, prior: previous?.expense, icon: "arrow.down.right", color: MacOverviewStyle.expense, id: "overviewExpense", detail: .expense) {
                 var records = scope; records.type = .expense; workspace.showRecords(records)
@@ -280,7 +280,7 @@ struct MacOverviewView: View {
     private func metric(_ title: String, value: Double, prior: Double?, icon: String, color: Color, id: String,
                         current: Bool = false, detail: MacOverviewMetric? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            OverviewCard(help: current ? "查看当前资产、负债和净资产口径" : "查看该期间的\(title)账目", height: 114) {
+            OverviewCard(help: current ? "查看当前资产、负债和净资产口径" : "查看该期间的\(title)账目", height: max(114, MacUI.fontSize(.amount, tier: MacUI.fontTier) + MacUI.fontTier.bodySize + MacUI.fontTier.captionSize + 56)) {
                 VStack(alignment: .leading, spacing: MacUI.space(8)) {
                     HStack(spacing: MacUI.space(9)) {
                         Image(systemName: icon).appFont(.body, weight: .medium, design: .default).foregroundStyle(color)
@@ -290,7 +290,7 @@ struct MacOverviewView: View {
                     }
                     HStack(alignment: .firstTextBaseline, spacing: MacUI.space(5)) {
                         Spacer(minLength: 0)
-                        Text(bookCurrency == nil ? "—" : MacOverviewStyle.money(value)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().fixedSize(horizontal: true, vertical: false)
+                        Text(bookCurrency == nil ? "—" : MacOverviewStyle.money(value)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                         Text(MacSettingsVisual.symbol(currency)).appFont(.body, weight: .medium, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: true, vertical: false)
                     }.accessibilityElement(children: .combine).accessibilityIdentifier(id)
                     if current {
