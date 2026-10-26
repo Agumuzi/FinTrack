@@ -19768,6 +19768,98 @@
           }
         }
       }
+    },
+    "较上一可用公布日（%@ → %@）": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Since previous available publication (%@ → %@)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "К предыдущей доступной публикации (%@ → %@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较上一可用公布日（%@ → %@）"
+          }
+        }
+      }
+    },
+    "较前次有效报价": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Since previous valid quote"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "К предыдущей действительной котировке"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "较前次有效报价"
+          }
+        }
+      }
+    },
+    "Currency API · 旧缓存": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency API · previous cache"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency API · прежний кэш"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency API · 旧缓存"
+          }
+        }
+      }
+    },
+    "无可比数据：缺少同源上一可用公布日报价": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No comparison: no earlier available publication from the same source"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет сравнения: отсутствует предыдущая публикация того же источника"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可比数据：缺少同源上一可用公布日报价"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

@@ -33,7 +33,7 @@ final class MacFXProviderAdapter {
             return try await self.fetchFree(pair: pair, requested: requested, purpose: purpose, cycle: cycle)
         }
         let alternatives = system.providers().map { original in
-            MacFXProvider(id:original.id,revision:original.revision,name:mock ? "系统数据源 · 隔离演示" : "系统数据源",supportsHistory:original.supportsHistory,dayCalendar:original.dayCalendar) { [weak self] pair,requested,purpose,cycle in
+            MacFXProvider(id:original.id,revision:original.revision,name:mock ? "系统数据源 · 隔离演示" : "系统数据源",supportsHistory:original.supportsHistory,dayCalendar:original.dayCalendar,rangeAvailable:!mock && original.rangeAvailable,rangeFetch:mock ? nil : original.rangeFetch) { [weak self] pair,requested,purpose,cycle in
                 guard let self, purpose != .accountingDay else { throw MacFXContractFailure.invalidEvidence }
                 if self.mock { return self.mockQuote(pair:pair,sourceID:original.id,revision:original.revision,requested:requested,purpose:purpose) }
                 return try await original.fetch(pair,requested,purpose,cycle)
@@ -49,11 +49,11 @@ final class MacFXProviderAdapter {
     private func payload(key: String, cycle: String, operation: @escaping () async throws -> Data) async throws -> Data {
         // Concurrent chart/live cycles must not evict one another's in-flight batch.
         let batchKey = cycle + "/" + key
-        if let task = payloads[batchKey] { return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() } }
+        if let task = payloads[batchKey] { return try await task.value }
         networkRequestCount += 1
         let task = Task { try await operation() }; payloads[batchKey] = task; payloadOrder.append(batchKey)
         while payloadOrder.count > 128 { payloads.removeValue(forKey: payloadOrder.removeFirst()) }
-        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+        return try await task.value
     }
     private func tag(_ requested: MacFXRequestDate) -> String {
         if case .day(let tag) = requested { return tag }; return "latest"
@@ -74,25 +74,27 @@ final class MacFXProviderAdapter {
         let data = try await payload(key: source.id.uuidString + revision + day + group, cycle: cycle) {
             try await MacFXService.requestData(source, from: pair.base, to: pair.quote, date: Date(), dateTagOverride: day == "latest" ? MacFXDates.tag(Date()) : day)
         }
-        let (rate, actualDay) = try MacFXService.decode(data, source: source, from: pair.base, to: pair.quote,
+        return try await Task.detached(priority: .utility) { [source] in
+        let (rate, actualDay) = try MacFXService.rawDecoded(data, source: source, from: pair.base, to: pair.quote,
                                                       date: day == "latest" ? nil : day, preserveRawRate: true)
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let time: MacFXQuoteTime
-        if source.provider != nil, let timestamp = number(root?["timestamp"]) { time = .instant(Date(timeIntervalSince1970: timestamp), timeZoneID: "UTC") }
+        if source.provider != nil, let timestamp = Self.number(root?["timestamp"]) { time = .instant(Date(timeIntervalSince1970: timestamp), timeZoneID: "UTC") }
         else if let actualDay { time = .day(actualDay, timeZoneID: source.dateTimeZoneID ?? "unknown") }
         else { time = .unknown }
         let batch = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         var legs: [MacFXQuoteLeg] = []
         if source.provider == "openExchangeRates", let rates = root?["rates"] as? [String: Any] {
-            if pair.base != "USD", let denominator = number(rates[pair.base]), MacFXMath.validRate(1 / denominator) {
+            if pair.base != "USD", let denominator = Self.number(rates[pair.base]), MacFXMath.validRate(1 / denominator) {
                 legs.append(MacFXQuoteLeg(pair: try MacFXPair(base: pair.base, quote: "USD"), sourceID: source.id.uuidString, sourceRevision: revision, quoteTime: time, batchID: batch, unitRate: 1 / denominator))
             }
-            if pair.quote != "USD", let numerator = number(rates[pair.quote]) {
+            if pair.quote != "USD", let numerator = Self.number(rates[pair.quote]) {
                 legs.append(MacFXQuoteLeg(pair: try MacFXPair(base: "USD", quote: pair.quote), sourceID: source.id.uuidString, sourceRevision: revision, quoteTime: time, batchID: batch, unitRate: numerator))
             }
         }
         return MacFXEvidenceQuote(identity: .init(purpose: purpose, pair: pair, sourceID: source.id.uuidString, sourceRevision: revision, requested: requested),
                                   unitRate: rate, quoteTime: time, retrievedAt: Date(), legs: legs)
+        }.value
     }
     private func fetchFree(pair:MacFXPair,requested:MacFXRequestDate,purpose:MacFXPurpose,cycle:String) async throws -> MacFXEvidenceQuote {
         let day = tag(requested), base = pair.base.lowercased(), quote = pair.quote.lowercased()
@@ -109,19 +111,26 @@ final class MacFXProviderAdapter {
                 try Task.checkCancellation()
                 do {
                     let value = try await MacFXService.requestData(MacFXSource(name:"系统数据源",urlTemplate:template),from:pair.base,to:pair.quote,date:Date(),keyOverride:"",dateTagOverride:day)
-                    guard let root = try JSONSerialization.jsonObject(with:value) as? [String:Any], let actual = root["date"] as? String, MacFXDates.day(actual) != nil,
-                          actual <= MacFXDates.tag(Date(),calendar:MacFXDates.utc), day == "latest" || actual == day,
-                          let rates = root[base] as? [String:Any], self.number(rates[quote]) != nil else { throw MacFXNetworkFailure.invalid }
+                    let (_, actual) = try await Task.detached(priority: .utility) {
+                        try Self.freeDocument(value, base: base, quote: quote, requested: day)
+                    }.value
                     if best == nil || actual > best!.1 { best = (value,actual) }
                     if day != "latest" || actual == MacFXDates.tag(Date(),calendar:MacFXDates.utc) { break }
                 } catch { try Task.checkCancellation(); last = error }
             }
             guard let best else { throw last }; return best.0
         }
-        guard let root = try JSONSerialization.jsonObject(with:data) as? [String:Any], let actual = root["date"] as? String,
-              let rates = root[base] as? [String:Any], let rate = number(rates[quote]) else { throw MacFXNetworkFailure.invalid }
+        let (rate, actual) = try await Task.detached(priority: .utility) {
+            try Self.freeDocument(data, base: base, quote: quote, requested: day)
+        }.value
         if day == "latest" { guard actual >= MacFXDates.tag(Date().addingTimeInterval(-14*86400),calendar:MacFXDates.utc) else { throw MacFXNetworkFailure.invalid } }
         return MacFXEvidenceQuote(identity:.init(purpose:purpose,pair:pair,sourceID:"free",sourceRevision:"currency-api-v1-utc-publication-day",requested:requested),unitRate:rate,quoteTime:.day(actual,timeZoneID:"UTC"),retrievedAt:Date(),legs:[])
+    }
+    nonisolated private static func freeDocument(_ data: Data, base: String, quote: String, requested: String) throws -> (Double, String) {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let actual = root["date"] as? String,
+              MacFXDates.day(actual) != nil, actual <= MacFXDates.tag(Date(), calendar: MacFXDates.utc), requested == "latest" || actual == requested,
+              let rates = root[base] as? [String: Any], let rate = Self.number(rates[quote]) else { throw MacFXNetworkFailure.invalid }
+        return (rate, actual)
     }
     func selectedProviders(_ policy:String) -> [MacFXProvider] {
         let all = providers(), builtIn = all.filter { MacFXSourceScope.isSystem($0.id) }
@@ -162,7 +171,7 @@ final class MacFXProviderAdapter {
         for provider in selectedProviders("free") { if let value = try? await provider.fetch(pair,.latest,.monitorCurrent,cycle), MacFXQuoteCache.valid(value) { return value } }
         throw MacFXNetworkFailure.unavailable
     }
-    private func number(_ raw: Any?) -> Double? {
+    nonisolated private static func number(_ raw: Any?) -> Double? {
         let value: Double?
         if let n = raw as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { value = n.doubleValue }
         else if let s = raw as? String { value = Double(s) } else { value = nil }

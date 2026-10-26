@@ -34,6 +34,15 @@ nonisolated enum MacFXDates {
         case .unknown: return nil
         }
     }
+    /// Day-granularity quotes retain their source publication label. They do
+    /// not become an artificial local-midnight market timestamp.
+    static func publicationDay(_ time: MacFXQuoteTime, calendar: Calendar) -> String? {
+        if case .day(let text, let zone) = time {
+            guard TimeZone(identifier: zone) != nil, day(text) != nil else { return nil }
+            return text
+        }
+        return localDay(time, calendar: calendar)
+    }
     static func label(_ time: MacFXQuoteTime) -> String {
         switch time {
         case .instant(let date, let zone):
@@ -53,6 +62,11 @@ nonisolated struct MacFXComparison {
         guard a.identity.pair == b.identity.pair, a.identity.sourceID == b.identity.sourceID,
               a.identity.sourceRevision == b.identity.sourceRevision else { return false }
         func path(_ q: MacFXEvidenceQuote) -> [String] { q.legs.map { $0.pair.key + ":" + $0.sourceID + ":" + $0.sourceRevision } }
+        switch (a.quoteTime, b.quoteTime) {
+        case (.day(_, let az), .day(_, let bz)): guard az == bz else { return false }
+        case (.instant, .instant): break
+        default: return false
+        }
         return path(a) == path(b)
     }
     static func usable(_ q: MacFXEvidenceQuote) -> Bool {
@@ -74,6 +88,11 @@ nonisolated struct MacFXComparison {
         let baseline: MacFXEvidenceQuote?, caption: String
         if automatic {
             baseline = previous; caption = "较前次有效报价"
+        } else if case .day(let published, _) = current.quoteTime {
+            baseline = history.filter { sameDefinition(current, $0) && usable($0) && newer(current, than: $0) }
+                .max { (MacFXDates.instant($0.quoteTime) ?? .distantPast) < (MacFXDates.instant($1.quoteTime) ?? .distantPast) }
+            let day = baseline.flatMap { MacFXDates.publicationDay($0.quoteTime, calendar: calendar) } ?? "—"
+            caption = "较上一可用公布日（" + day + " → " + published + "）"
         } else {
             guard let day = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: now)) else { return Self(reason: "无可比数据：日期无效") }
             let today = MacFXDates.tag(now, calendar: calendar), yesterday = MacFXDates.tag(day, calendar: calendar)
@@ -85,7 +104,7 @@ nonisolated struct MacFXComparison {
             caption = "较前一自然日（\(yesterday) · \(calendar.timeZone.identifier)）"
         }
         guard let baseline, usable(baseline), newer(current, than: baseline) else {
-            return Self(reason: automatic ? "等待可比的前次有效报价" : "无可比数据：缺少同源前一自然日报价")
+            return Self(reason: automatic ? "等待可比的前次有效报价" : "无可比数据：缺少同源上一可用公布日报价")
         }
         let difference = current.unitRate - baseline.unitRate, percent = (current.unitRate / baseline.unitRate - 1) * 100
         guard difference.isFinite, percent.isFinite else { return Self(reason: "变化超出可表示范围") }

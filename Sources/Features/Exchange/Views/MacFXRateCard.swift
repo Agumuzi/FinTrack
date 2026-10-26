@@ -17,6 +17,14 @@ struct MacFXRateCard: View {
     private var range: MacFXHistoryRange { query.cardRanges[pair.key] ?? .month }
     private var input: MacFXConverterState { query.cardInput(pair) }
     private var comparison: MacFXComparison { service.comparison(pair) }
+    private var comparisonCaption: String {
+        guard let change = comparison.change else { return "" }
+        if !service.configuration.automatic, let current = quote,
+           case .day(let end, _) = current.quoteTime, case .day(let start, _) = change.baseline.quoteTime {
+            return String(format: MacLocalization.value("较上一可用公布日（%@ → %@）"), start, end)
+        }
+        return MacLocalization.value(change.caption)
+    }
     private var valueText: String { quote.map { MacFXMath.formatted($0.unitRate * Double(units), digits: digits, grouping: grouping != "none", groupingSeparator: grouping == "space" ? " " : ",") } ?? "—" }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -81,11 +89,11 @@ struct MacFXRateCard: View {
                 .foregroundStyle(change.difference < 0 ? Color.red : .green)
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background((change.difference < 0 ? Color.red : .green).opacity(0.10), in: Capsule())
-                .appHelp(change.caption + String(format: " · %+.2f%%", change.percent))
-                .accessibilityLabel(change.caption + String(format: " · %+.2f%%", change.percent))
+                .appHelp(comparisonCaption + String(format: " · %+.2f%%", change.percent))
+                .accessibilityLabel(comparisonCaption + String(format: " · %+.2f%%", change.percent))
                 .appFont(.caption, weight: .semibold).fixedSize()
         } else {
-            Text("暂无可比数据").appFont(.caption, weight: .regular).foregroundStyle(.secondary).appHelp(comparison.reason).fixedSize()
+            Text("暂无可比数据").appFont(.caption, weight: .regular).foregroundStyle(.secondary).appHelp(MacLocalization.value(comparison.reason)).fixedSize()
         }
     }
     private var modes: some View {
@@ -155,7 +163,7 @@ struct MacFXRateCard: View {
                 Text(MacFXDates.label(quote.quoteTime))
                 Text("获取时间：" + MacDisplayPreferences.time(quote.retrievedAt))
                 if let change = comparison.change {
-                    Text(change.caption + String(format: " · %+.2f%%", change.percent)); Text("基准：" + MacFXDates.label(change.baseline.quoteTime))
+                    Text(comparisonCaption + String(format: " · %+.2f%%", change.percent)); Text("基准：" + MacFXDates.label(change.baseline.quoteTime))
                 } else { Text(comparison.reason) }
                 ForEach(Array(quote.legs.enumerated()), id: \.offset) { _, leg in Text(leg.pair.key + " · " + MacFXDates.label(leg.quoteTime)) }
             }

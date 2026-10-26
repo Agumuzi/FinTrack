@@ -7,11 +7,12 @@ struct MacFXTrendCardView: View {
     @ObservedObject var service: MacFXMonitor
     @ObservedObject var history: MacFXHistoryService
     private var request: MacFXHistoryRequest? { history.request(pair: pair, range: range, monitor: service) }
-    private var result: MacFXHistoryResult? { request.flatMap { history.results[$0] } }
-    private var points: [MacFXHistoryPoint] { (result?.points ?? []).filter { ($0.unitRate * multiplier).isFinite && $0.unitRate * multiplier < Double.greatestFiniteMagnitude / 2 } }
+    private var result: MacFXHistoryResult? { request.flatMap { history.result(for: $0) } }
+    private var plot: MacFXHistoryPlot { result?.plot ?? MacFXHistoryPlot([]) }
+    private var points: [MacFXHistoryPlot.Point] { plot.points }
     private var multiplier: Double { Double(service.configuration.displayUnits) }
-    private var minY: Double { (points.map(\.unitRate).min() ?? 0) * multiplier }
-    private var maxY: Double { (points.map(\.unitRate).max() ?? 1) * multiplier }
+    private var minY: Double { plot.minimum * multiplier }
+    private var maxY: Double { plot.maximum * multiplier }
     private var padding: Double { max((maxY - minY) * 0.12, abs(maxY) * 0.001, 1e-12) }
     private var color: Color { (points.last?.unitRate ?? 0) >= (points.first?.unitRate ?? 0) ? .green : .red }
     private var yTicks: [Double] { Array(Set([minY, (minY + maxY) / 2, maxY])).sorted() }
@@ -19,10 +20,10 @@ struct MacFXTrendCardView: View {
         VStack(alignment: .leading, spacing: 7) {
             Group {
                 if points.count >= 2 {
-                    Chart(Array(points.enumerated()), id: \.offset) { index, point in
-                        AreaMark(x: .value("报价日", point.date), yStart: .value("基线", max(0, minY - padding)), yEnd: .value("汇率", point.unitRate * multiplier), series: .value("连续区间", segment(index)))
+                    Chart(points) { point in
+                        AreaMark(x: .value("报价日", point.date), yStart: .value("基线", max(0, minY - padding)), yEnd: .value("汇率", point.unitRate * multiplier), series: .value("连续区间", point.segment))
                             .foregroundStyle(LinearGradient(colors: [color.opacity(0.16), color.opacity(0.01)], startPoint: .top, endPoint: .bottom))
-                        LineMark(x: .value("报价日", point.date), y: .value("汇率", point.unitRate * multiplier), series: .value("连续区间", segment(index)))
+                        LineMark(x: .value("报价日", point.date), y: .value("汇率", point.unitRate * multiplier), series: .value("连续区间", point.segment))
                             .foregroundStyle(color).lineStyle(StrokeStyle(lineWidth: 2))
                         PointMark(x: .value("报价日", point.date), y: .value("汇率", point.unitRate * multiplier)).foregroundStyle(color).symbolSize(8)
                     }
@@ -51,17 +52,12 @@ struct MacFXTrendCardView: View {
     private var summary: String {
         guard let result else { return "" }
         var text = result.completedDays < result.totalDays ? "加载 \(result.completedDays)/\(result.totalDays) · " : ""
-        text += result.sourceName + (range.rawValue > 31 ? " · 采样" : "") + (result.fromCache ? " · 缓存" : "")
+        text += MacLocalization.value(result.sourceName) + (result.points.count > points.count ? " · 采样" : "") + (result.fromCache ? " · 缓存" : "")
         if let first = points.first, let last = points.last {
             text += " · " + first.day + "～" + last.day.suffix(5)
             if points.count >= 2 { text += String(format: " · 区间变化 %+.2f%%", (last.unitRate / first.unitRate - 1) * 100) }
         }
         if result.failedDays > 0 { text += " · 缺\(result.failedDays)个日期" }
         return text
-    }
-    private func segment(_ index: Int) -> Int {
-        guard index > 0 else { return 0 }
-        let maximumGap = Double(max(1, Int(ceil(Double(range.rawValue - 1) / 30)))) * 86400 * 1.6
-        return (1...index).filter { points[$0].date.timeIntervalSince(points[$0 - 1].date) > maximumGap }.count
     }
 }
