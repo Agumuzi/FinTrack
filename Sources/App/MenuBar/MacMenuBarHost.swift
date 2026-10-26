@@ -11,6 +11,7 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
     private var insertion: AnyCancellable?
     private var subscriptions: [AnyCancellable] = []
     private var labelQueued = false
+    private var lastIconKey: String?
     private unowned let runtime: MacApplicationRuntime
 
     init(runtime: MacApplicationRuntime) {
@@ -38,7 +39,7 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
     private func setInserted(_ inserted: Bool) {
         if !inserted {
             close()
-            if let item { NSStatusBar.system.removeStatusItem(item); self.item = nil }
+            if let item { NSStatusBar.system.removeStatusItem(item); self.item = nil; lastIconKey = nil }
             return
         }
         guard item == nil else { return }
@@ -59,10 +60,17 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         guard !MacApplicationRuntime.isPrototype, let button = item?.button else { return }
         let config = runtime.entries.configuration, app = MacFXApplication.shared
         app.menuPair = config.displayPair
-        button.image = config.information == .rate ? nil : MacMenuBarLabel.image(config.iconStyle)
-        button.imagePosition = .imageLeft
-        button.font = .monospacedDigitSystemFont(ofSize:MacUI.fontSize(.caption,tier:MacUI.fontTier),weight:.medium)
-        button.title = config.information == .icon ? "" : MacMenuBarLabel.text(configuration: config, monitor: app.monitor)
+        let iconKey = config.information == .rate ? "none" : config.iconStyle.rawValue
+        if lastIconKey != iconKey {
+            button.image = config.information == .rate ? nil : MacMenuBarLabel.image(config.iconStyle)
+            button.imagePosition = .imageLeft
+            lastIconKey = iconKey
+        }
+        let fontSize = min(14,max(10,MacUI.fontSize(.caption,tier:MacUI.fontTier)))
+        if button.font?.pointSize != fontSize { button.font = .monospacedDigitSystemFont(ofSize:fontSize,weight:.medium) }
+        if popover.isShown { resizePanel() }
+        let title = config.information == .icon ? "" : MacMenuBarLabel.text(configuration: config, monitor: app.monitor)
+        if button.title != title { button.title = title }
         guard MacPreferences.defaults.object(forKey: "v141_show_help") as? Bool != false else { button.toolTip = nil; return }
         if let pair = config.displayPair, let quote = app.monitor.quote(pair) {
             button.toolTip = "FinTrack · " + pair.key + "\n每1单位：" + String(quote.unitRate) + "\n" + app.monitor.sourceName(quote) + "\n" + MacFXDates.label(quote.quoteTime) + (app.monitor.isCached(pair) ? "\n缓存" : "")
@@ -73,13 +81,22 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         if popover.isShown { close(); return }
         guard let button = item?.button else { return }
         runtime.session.opened(configuration: runtime.entries.configuration)
-        let available = button.window?.screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 800
-        let requested = ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720
-        popover.contentSize = NSSize(width: MacApplicationRuntime.isPrototype ? 480 : 408, height: min(CGFloat(requested), max(280, available - 32)))
+        resizePanel()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         runtime.panelWindow = popover.contentViewController?.view.window
         NSApp.activate(ignoringOtherApps: true)
         runtime.panelWindow?.makeKey()
+    }
+    private func resizePanel() {
+        let available = item?.button?.window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size ?? CGSize(width:1280,height:800)
+        let logical = MacMenuBarPanel.logicalSize(available: available), factor = MacInterfaceZoom.factor
+        let size = MacApplicationRuntime.isPrototype ? NSSize(width:480,height:min(720,available.height-32)) : NSSize(width:logical.width*factor,height:logical.height*factor)
+        if popover.contentSize != size {
+            let window = popover.contentViewController?.view.window
+            let wasKey = window?.isKeyWindow == true
+            popover.contentSize = size
+            if wasKey, popover.isShown { window?.makeKey() }
+        }
     }
     func close() { if popover.isShown { popover.performClose(nil) } }
 }

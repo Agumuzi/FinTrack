@@ -25,6 +25,8 @@ final class MacUpdateService: ObservableObject {
     nonisolated static let officialPublicKey = "GV97/PaIi/JO1WKGFTsEuJ+jpHfkyBUkuyd6OIxjMtA="
     @Published private(set) var status = "尚未检查更新"
     @Published private(set) var busy = false
+    @Published private(set) var installing = false
+    @Published private(set) var installError: String?
     @Published private(set) var release: MacUpdateRelease?
     @Published private(set) var archive: URL?
     @Published private(set) var checkedAt: Date?
@@ -142,52 +144,78 @@ final class MacUpdateService: ObservableObject {
             else { status = "下载失败：\(safe(error))" }
         }
     }
+    private static var installationAllowed: Bool {
+        if !MacPreferences.isTesting { return true }
+        #if FINTRACK_LOCAL_VALIDATION
+        return ProcessInfo.processInfo.environment["FINTRACK_TEST_REAL_INSTALL"] == "1" && Bundle.main.bundleURL.path.hasPrefix("/private/tmp/FinTrack-V13-v144-")
+        #else
+        return false
+        #endif
+    }
+    #if FINTRACK_LOCAL_VALIDATION
+    func loadInstallationFixture() {
+        struct Fixture: Decodable { let archive: String; let release: MacUpdateRelease }
+        guard Self.installationAllowed, let path = ProcessInfo.processInfo.environment["FINTRACK_TEST_UPDATE_FIXTURE"],
+              path.hasPrefix("/private/tmp/FinTrack-V13-v144-"), let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let fixture = try? JSONDecoder().decode(Fixture.self, from: data), fixture.release.build > (Int(Self.build) ?? 0),
+              fixture.archive.hasPrefix(FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates/").path) else { return }
+        release = fixture.release; archive = URL(fileURLWithPath: fixture.archive)
+        trustedConfiguration = Self.configurationIdentity; status = "隔离安装验证已就绪"
+        MacUpdatePrompt.shared.show(.ready)
+    }
+    #endif
     /// Prepare and validate the complete replacement before terminating the running app.
     func installAndRelaunch() async throws {
-        guard !MacPreferences.isTesting, trustedConfiguration == Self.configurationIdentity, let archive, let release,
+        guard Self.installationAllowed, trustedConfiguration == Self.configurationIdentity, let archive, let release,
               Bundle.main.bundleURL.pathExtension == "app" else { throw MacSettingsFailure.invalid("没有可安装的已验证更新") }
         let fm = FileManager.default, root = archive.deletingLastPathComponent()
         guard !busy, let bundleIdentifier=Bundle.main.bundleIdentifier else { throw MacSettingsFailure.invalid("更新正在处理中") }
-        busy = true; status = "正在准备安装…"; defer { busy = false }
-        let candidate: URL
+        busy = true; installing = true; installError = nil; status = "正在准备安装，请稍候…"
         do {
-            candidate = try await Task.detached(priority:.userInitiated) { try MacUpdatePackage.prepare(archive,release:release,bundleIdentifier:bundleIdentifier) }.value
-        } catch { status = "安装准备失败，请重试或手动安装。"; throw error }
-        guard trustedConfiguration == Self.configurationIdentity, self.release?.sha256 == release.sha256 else { throw MacSettingsFailure.invalid("可用更新已变化，请重新检查") }
-        let current = Bundle.main.bundleURL
-        guard fm.isWritableFile(atPath: current.deletingLastPathComponent().path) else { throw MacSettingsFailure.invalid("应用目录不可写，请将应用放在用户可写目录后再安装") }
-        let helper = root.appendingPathComponent("install.sh")
-        // Paths are passed as separate argv values, never interpolated into shell source.
-        let script = """
-        #!/bin/sh
-        set -eu
-        old_pid="$1"
-        candidate="$2"
-        target="$3"
-        previous="$4"
-        count=0
-        while kill -0 "$old_pid" 2>/dev/null; do
-          count=$((count + 1))
-          [ "$count" -lt 60 ] || exit 1
-          sleep 1
-        done
-        mv "$target" "$previous"
-        if /usr/bin/ditto "$candidate" "$target" && /usr/bin/codesign --verify --deep --strict "$target"; then
-          /usr/bin/open -n "$target"
-        else
-          rm -rf "$target"
-          mv "$previous" "$target"
-          /usr/bin/open -n "$target"
-          exit 1
-        fi
-        """
-        try Data(script.utf8).write(to: helper, options: .atomic)
-        let process = Process(); process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = [helper.path, String(ProcessInfo.processInfo.processIdentifier), candidate.path, current.path, root.appendingPathComponent("FinTrack-previous.app").path]
-        let log = root.appendingPathComponent("installation.log"); fm.createFile(atPath: log.path, contents: nil)
-        process.standardOutput = try FileHandle(forWritingTo: log); process.standardError = process.standardOutput
-        try process.run(); NSApp.terminate(nil)
+            let candidate = try await Task.detached(priority: .userInitiated) { try MacUpdatePackage.prepare(archive, release: release, bundleIdentifier: bundleIdentifier) }.value
+            guard trustedConfiguration == Self.configurationIdentity, self.release?.sha256 == release.sha256 else { throw MacSettingsFailure.invalid("可用更新已变化，请重新检查") }
+            let current = Bundle.main.bundleURL
+            guard fm.isWritableFile(atPath: current.deletingLastPathComponent().path) else { throw MacSettingsFailure.invalid("应用目录不可写，请将应用放在用户可写目录后再安装") }
+            let handoff = try MacUpdateInstallation.writeHelper(root: root, target: current, release: release)
+            status = "正在退出 FinTrack，随后替换并重新启动…"
+            // Termination while an attached SwiftUI sheet is active can be deferred.
+            // End that sheet first, and retain the install lock until process exit.
+            let sheet = MacApplicationRuntime.shared.mainWindow?.attachedSheet
+            MacUpdatePrompt.shared.dismiss()
+            for _ in 0..<60 {
+                if sheet?.sheetParent == nil { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            guard sheet?.sheetParent == nil else { throw MacSettingsFailure.invalid("更新窗口未能关闭，请重试。") }
+            let process = Process(); process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = [handoff.helper.path, String(ProcessInfo.processInfo.processIdentifier), candidate.path, current.path, root.path, handoff.ticket.path, handoff.token]
+            #if FINTRACK_LOCAL_VALIDATION
+            if Self.installationAllowed { process.arguments?.append(ProcessInfo.processInfo.environment["FINTRACK_V13_TEST_STORE_PATH"] ?? "") }
+            #endif
+            let log = root.appendingPathComponent("installation.log"); fm.createFile(atPath: log.path, contents: nil)
+            process.standardOutput = try FileHandle(forWritingTo: log); process.standardError = process.standardOutput
+            try process.run()
+            // Do not quit until the independent helper owns the target lock and
+            // has verified its replacement on the destination filesystem.
+            let stateFile = root.appendingPathComponent("installation-state")
+            var helperReady = false
+            for _ in 0..<600 {
+                if (try? String(contentsOf: stateFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)) == "waiting_for_exit" { helperReady = true; break }
+                if !process.isRunning { break }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            guard helperReady else {
+                if process.isRunning { process.terminate() }
+                throw MacSettingsFailure.invalid("安装助手未能准备好，现有应用未修改。请重试或使用 DMG 手动安装。")
+            }
+            NSApp.terminate(nil)
+        } catch {
+            installing = false; busy = false; installError = error.localizedDescription; status = "安装未完成：" + error.localizedDescription
+            MacUpdatePrompt.shared.show(.ready)
+            throw error
+        }
     }
+
     func runAutomaticChecks() async {
         guard !MacPreferences.isTesting else { return }
         while !Task.isCancelled {

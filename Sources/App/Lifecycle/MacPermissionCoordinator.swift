@@ -42,9 +42,9 @@ final class MacPermissionCoordinator: ObservableObject {
         let optedInTest = ProcessInfo.processInfo.environment["FINTRACK_PERMISSIONS_INTRO_TEST"] == "1"
         guard !MacPreferences.isTesting || optedInTest else { return }
         guard !MacPreferences.defaults.bool(forKey:Self.introKey), MacUpdatePrompt.shared.stage == nil, !MacUpdateService.shared.handlingNotification else { return }
-        presented = true
+        Task { await refresh(); if !MacPreferences.defaults.bool(forKey: Self.introKey) { presented = true } }
     }
-    func open() { MacApplicationRuntime.shared.showMain(); presented = true; Task { await refresh() } }
+    func open() { MacApplicationRuntime.shared.showMain(); Task { await refresh(); presented = true } }
     func finish() { MacPreferences.defaults.set(true,forKey:Self.introKey); presented = false }
     func requestNotifications() async throws {
         guard !MacPreferences.isTesting else { message = "测试副本不修改系统通知权限。"; return }

@@ -15,7 +15,7 @@ enum MacSettingsStore {
         defaults.set(try JSONEncoder().encode(value), forKey: key)
     }
     static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey,
-        "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size", MacCustomTypography.bodyKey, MacCustomTypography.captionKey,
+        "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size", MacCustomTypography.bodyKey, MacCustomTypography.captionKey, MacInterfaceZoom.key,
         MacInterfaceFonts.preferenceKey, "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
         "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "notifications_enabled", "selection_conversion_enabled", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
         "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear", "v2_remind_recurring", "v2_remind_goals",
@@ -43,7 +43,7 @@ enum MacSettingsStore {
         let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed",
             "notifications_enabled", "selection_conversion_enabled", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
             "v2_remind_recurring", "v2_remind_goals", "v2_remind_budgets", "v2_update_auto", "v2_update_download"]
-        let integerChoices: [String: Set<Int>] = ["v2_decimals": Set(0...4), "v2_week_start": [1, 2],
+        let integerChoices: [String: Set<Int>] = [MacInterfaceZoom.key: Set(stride(from: 50, through: 150, by: 10)),"v2_decimals": Set(0...4), "v2_week_start": [1, 2],
             "v2_page_size": [25, 50, 100], "v2_chart_months": [3, 6, 12]]
         for (key, value) in values {
             let valid: Bool

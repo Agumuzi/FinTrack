@@ -51,11 +51,14 @@ struct MacIconMenu: View {
     var options: [MacIconMenuOption]
     var identifier: String
     var accessibilityTitle: String
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     var width: CGFloat = MacCurrencyMenuStyle.width
     var compact = false
+    var fillsAvailableWidth = false
     var body: some View {
-        PopupRepresentable(selection:$selection,options:options,width:width,accessibilityTitle:accessibilityTitle,identifier:identifier,compact:compact)
-            .frame(width:compact ? 30 : width,height:MacInterfaceFonts.controlHeight(MacCurrencyMenuStyle.height))
+        PopupRepresentable(selection:$selection,options:options,width:width + max(0, MacUI.fontTier.bodySize - 16) * 5,accessibilityTitle:accessibilityTitle,identifier:identifier,compact:compact)
+            .frame(width: fillsAvailableWidth ? nil : (compact ? 30 : width + max(0, MacUI.fontTier.bodySize - 16) * 5),height:MacInterfaceFonts.controlHeight(MacCurrencyMenuStyle.height))
+            .frame(maxWidth: fillsAvailableWidth ? .infinity : nil)
     }
     static func fittedRect(_ size: NSSize, in slot: NSRect) -> NSRect {
         guard size.width > 0, size.height > 0 else { return slot }
@@ -73,6 +76,7 @@ struct MacIconMenu: View {
         @Environment(\.isEnabled) private var enabled
         @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
         @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier = "standard"
+        @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
         final class Coordinator: NSObject {
             var choose: ((Int) -> Void)?
             var optionSignature: [String] = []
@@ -143,7 +147,8 @@ struct MacIconMenu: View {
             let size = MacUI.fontSize(.body,tier:MacFontSizeTier(rawValue:tier) ?? .standard)
             let font = MacInterfaceFonts.font(size:size,weight:.semibold), menuFont = MacInterfaceFonts.font(size:size,weight:.regular)
             if popup.font != font { popup.font = font }
-            if popup.menu?.font != menuFont { popup.menu?.font = menuFont }
+            let scaledMenuFont = MacInterfaceFonts.font(size:size * MacInterfaceZoom.factor,weight:.regular)
+            if popup.menu?.font != scaledMenuFont { popup.menu?.font = scaledMenuFont }
             popup.isEnabled = enabled; popup.setAccessibilityIdentifier(identifier)
             popup.setAccessibilityLabel(accessibilityTitle); popup.setAccessibilityValue(options.first { $0.value == selection }?.title ?? selection)
             popup.target = context.coordinator; popup.action = #selector(Coordinator.selected(_:)); popup.needsDisplay = true
@@ -185,7 +190,7 @@ struct MacEditableCurrencyMenu: View {
                     MacCurrencyFlag(code:currency.uppercased(),width:24)
                         .fixedSize().layoutPriority(1).accessibilityIdentifier(identifier + "Flag")
                     TextField("代码",text:$currency).textFieldStyle(.plain).appFont(.body,weight:.semibold)
-                        .frame(width:76,height:32)
+                        .frame(width:max(76,MacUI.fontTier.bodySize * 3),height:MacInterfaceFonts.controlHeight(32))
                         .focused($focused).accessibilityLabel("其他货币代码").accessibilityIdentifier(textIdentifier)
                     Button { custom = false } label: { Image(systemName:"chevron.down").frame(width:24,height:32) }
                         .fixedSize()

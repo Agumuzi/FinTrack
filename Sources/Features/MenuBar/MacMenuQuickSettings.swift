@@ -49,7 +49,7 @@ struct MacMenuQuickSettings: View {
                     Button("退出 FinTrack", systemImage: "power", role: .destructive) { NSApp.terminate(nil) }.accessibilityIdentifier("menuQuit").frame(maxWidth: .infinity, alignment: .leading)
                 }
             }.labelStyle(MacMenuActionLabelStyle()).frame(minHeight: 80)
-        }.buttonStyle(MacInteractiveButtonStyle()).appFont(.body,weight:.regular).padding(16).frame(width:340).frame(maxHeight:.infinity)
+        }.buttonStyle(MacInteractiveButtonStyle()).appFont(.body,weight:.regular).padding(16).frame(maxWidth:.infinity,maxHeight:.infinity)
             .onAppear { interval = String(service.configuration.intervalMinutes) }
             .onChange(of:service.configuration.intervalMinutes) { _, value in interval = String(value) }
             .onExitCommand(perform:close)

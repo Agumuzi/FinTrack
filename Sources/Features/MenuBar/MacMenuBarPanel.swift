@@ -12,11 +12,17 @@ struct MacMenuBarPanel: View {
     @AppStorage("color_theme_mode", store: MacPreferences.defaults) private var theme = "system"
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var tier = "standard"
     @AppStorage("v2_accent", store: MacPreferences.defaults) private var accent = "terracotta"
-    private var height: CGFloat {
-        min(CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720), max(280, (runtime.panelWindow?.screen?.visibleFrame.height ?? NSScreen.main?.visibleFrame.height ?? 800) - 32))
+    @AppStorage(MacInterfaceZoom.key, store: MacPreferences.defaults) private var zoom = 100
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
+    static func logicalSize(available: CGSize) -> CGSize {
+        let factor = MacInterfaceZoom.factor
+        let requested = CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720)
+        return CGSize(width: min(408 + max(0, MacUI.fontTier.bodySize - 16) * 8, max(1,(available.width - 32) / factor)),
+                      height: min(requested, max(1,(available.height - 32) / factor)))
     }
     var body: some View {
-        let _ = accent
+        let _ = accent; let _ = zoom; let _ = bodyPoints
+        let size = Self.logicalSize(available: runtime.panelWindow?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size ?? CGSize(width:1280,height:800))
         VStack(spacing: 0) {
             HStack {
                 Image(nsImage: FinTrackMacApp.menuIcon)
@@ -29,7 +35,7 @@ struct MacMenuBarPanel: View {
                                 Group {
                                     if session.page == .rates { MacFXPairPicker { _ in adding = false } }
                                     else { MacFXCurrencyPicker(service:service) { adding = false } }
-                                }
+                                }.interfaceZoom()
                             }
                         tool("arrow.clockwise",title:"更新汇率",identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
                             .disabled(service.busy).appHelp(service.busy ? "正在更新…" : service.status)
@@ -58,12 +64,12 @@ struct MacMenuBarPanel: View {
             }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(session.page == .quickEntry ? MacOverviewStyle.card : .clear)
 
-        }.frame(width: 408, height: height).background(MacOverviewStyle.canvas).tint(MacUI.accent)
+        }.frame(width: size.width, height: size.height).background(MacOverviewStyle.canvas).tint(MacUI.accent)
             .accessibilityElement(children: .contain).accessibilityIdentifier("menuPanelContent")
             .background(MacMenuBarWindowProbe { runtime.panelWindow = $0 })
             .background(MacMenuPanelKeyboard { if quickSettings { quickSettings = false } else { runtime.closePanel() } })
             .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
-            .defaultAppStorage(MacPreferences.defaults)
+            .defaultAppStorage(MacPreferences.defaults).interfaceZoom()
             .onAppear { if session.page == .quickEntry { ledger.load() } }
             .onChange(of: session.page) { _, page in adding = false; quickSettings = false; if page == .quickEntry { ledger.load() } }
     }

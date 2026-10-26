@@ -52,7 +52,7 @@ private struct MacUpdatePromptView: View {
     var stage: MacUpdatePrompt.Stage
     @ObservedObject private var updater = MacUpdateService.shared
     @State private var error: String?
-    private var title: String { stage == .ready ? "更新已就绪" : stage == .downloading ? "正在准备更新" : "发现新版本" }
+    private var title: String { stage == .ready ? (updater.installing ? "正在安装更新" : "更新已就绪") : stage == .downloading ? "正在准备更新" : "发现新版本" }
     var body: some View {
         MacFormShell(width:560) {
             HStack(spacing:12) {
@@ -73,10 +73,10 @@ private struct MacUpdatePromptView: View {
                     if updater.busy { ProgressView().controlSize(.small).tint(MacUI.accent) }
                     Text(updater.status).appFont(.body).accessibilityIdentifier("updateDownloadStatus")
                 } else {
-                    Label("安装包已下载并校验",systemImage:"checkmark.shield").appFont(.body,weight:.medium).foregroundStyle(.green)
+                    Label(updater.installing ? "正在准备替换应用，请勿重复操作" : "安装包已下载并校验",systemImage:"checkmark.shield").appFont(.body,weight:.medium).foregroundStyle(.green)
                     Text("安装后会重新启动 FinTrack。您也可以稍后再安装，账本与设置会保留。").appFont(.body)
                     if updater.busy { ProgressView(); Text(updater.status).appFont(.caption).foregroundStyle(.secondary) }
-                    if let error { Text(error).appFont(.caption).foregroundStyle(.red) }
+                    if let message = updater.installError ?? error { Text(message).appFont(.caption).foregroundStyle(.red) }
                 }
             }
         } footer: {

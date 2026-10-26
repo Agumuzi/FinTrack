@@ -179,7 +179,7 @@ final class MacSelectionConversion: ObservableObject {
         panel.onEscape = { [weak self] in self?.dismiss() }
         let background = MacSelectionPopoverBackground(); background.onExit = { [weak self] in self?.pointerEvent(.mouseMoved) }; background.material = .popover; background.state = .active; background.blendingMode = .behindWindow
         background.wantsLayer = true; background.layer?.cornerRadius = 16; background.layer?.masksToBounds = true
-        let hosting = NSHostingView(rootView: MacSelectionPopoverView(session: value, dismiss: { [weak self] in self?.dismiss() }).defaultAppStorage(MacPreferences.defaults))
+        let hosting = NSHostingView(rootView: MacSelectionPopoverView(session: value, dismiss: { [weak self] in self?.dismiss() }).defaultAppStorage(MacPreferences.defaults).interfaceZoom())
         hosting.translatesAutoresizingMaskIntoConstraints = false; background.addSubview(hosting)
         NSLayoutConstraint.activate([hosting.leadingAnchor.constraint(equalTo: background.leadingAnchor), hosting.trailingAnchor.constraint(equalTo: background.trailingAnchor), hosting.topAnchor.constraint(equalTo: background.topAnchor), hosting.bottomAnchor.constraint(equalTo: background.bottomAnchor)])
         panel.contentView = background; window = panel
@@ -199,7 +199,8 @@ final class MacSelectionConversion: ObservableObject {
         case .loading, .failure: size = CGSize(width: 360, height: 112); panel.acceptsKeyboard = false
         }
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(anchor) }) ?? NSScreen.main else { return }
-        panel.setFrame(MacSelectionPopoverGeometry.frame(size: size, pointer: anchor, visible: screen.visibleFrame), display: true)
+        let scaled = CGSize(width: size.width * MacInterfaceZoom.factor, height: size.height * MacInterfaceZoom.factor)
+        panel.setFrame(MacSelectionPopoverGeometry.frame(size: scaled, pointer: anchor, visible: screen.visibleFrame), display: true)
     }
     private func pointerEvent(_ type: NSEvent.EventType) {
         guard let window else { return }

@@ -4,6 +4,9 @@ import AppKit
 import UniformTypeIdentifiers
 
 struct MacDepositsView: View {
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var layoutCaptionPoints = 12
+    @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var layoutTier = "standard"
     let bookCurrency: String?
     @Environment(\.modelContext) private var context
     @Query private var deposits: [DepositRecord]
@@ -34,7 +37,16 @@ struct MacDepositsView: View {
     @State private var now = Date()
     @AppStorage("v13_deposit_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
     @State private var transientWidth: Double?
-    private var listWidth: Double { transientWidth ?? (listColumns == 2 ? doubleListWidth : singleListWidth) }
+    private var automaticListWidth: Double { MacFinanceSplitSizing.minimumListWidth(columns: listColumns, bodySize: MacUI.fontTier.bodySize, titles: active.map(\.bankName)) }
+    private var listWidth: Double {
+        if let transientWidth { return transientWidth }
+        let key = listColumns == 2 ? "v13_deposit_double_list_width" : "v13_deposit_single_list_width"
+        let deltaKey = "v144_deposit_list_delta_" + String(listColumns)
+        if let delta = MacPreferences.defaults.object(forKey: deltaKey) as? NSNumber { return max(300, automaticListWidth + delta.doubleValue) }
+        guard MacPreferences.defaults.object(forKey: key) != nil else { return automaticListWidth }
+        let originalAutomatic = MacFinanceSplitSizing.minimumListWidth(columns: listColumns, bodySize: 16, titles: active.map(\.bankName))
+        return max(300, (listColumns == 2 ? doubleListWidth : singleListWidth) + automaticListWidth - originalAutomatic)
+    }
     private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { transientWidth = $0 }) }
     private var active: [DepositRecord] { deposits.filter { $0.deletedAt == nil } }
     private var visible: [DepositRecord] {
@@ -45,18 +57,21 @@ struct MacDepositsView: View {
     private var currencies: [String] { Array(Set(active.map(\.originalCurrency))).sorted() }
 
     var body: some View {
+        let _ = layoutBodyPoints; let _ = layoutCaptionPoints
         GeometryReader { geometry in
-            let wide = geometry.size.width >= MacUI.space(950)
-            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: wide)
+            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(950))
+            let detailMinimum = MacFinanceSplitSizing.detailMinimum(bodySize: MacUI.fontTier.bodySize)
+            let wide = geometry.size.width - filterWidth >= 300 + detailMinimum + 10
             HStack(spacing: MacUI.space(0)) {
                 filters.frame(width: filterWidth)
                 Divider()
-                let maximum = max(300, Double(geometry.size.width - filterWidth - 340))
-                list(wide: wide).frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                let maximum = max(300, Double(geometry.size.width - filterWidth - detailMinimum - 10))
+                list(wide: wide).accessibilityIdentifier("depositListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
                     MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
-                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }; transientWidth = nil
-                    }
+                        if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }
+                        MacPreferences.defaults.set(value - automaticListWidth, forKey: "v144_deposit_list_delta_" + String(listColumns)); transientWidth = nil
+                    }.accessibilityIdentifier("depositListDivider")
                     if let selected { presentedDetail(selected, compact: false).frame(maxWidth: .infinity, maxHeight: .infinity) }
                     else { ContentUnavailableView("选择一笔存款", systemImage: "building.columns", description: Text("在列表中查看本金、期限与结息记录。")).frame(maxWidth: .infinity) }
                 }
@@ -160,7 +175,7 @@ struct MacDepositsView: View {
     private func filterButton(_ title: String, count: Int? = nil, selected: Bool, icon: String? = nil, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: MacUI.space(7)) {
-                if let icon { Image(systemName: icon).frame(width: MacUI.space(16)) }
+                if let icon { Image(systemName: icon).frame(width: max(16, MacUI.fontTier.captionSize + 5)) }
                 Text(title).lineLimit(2); Spacer(minLength: 2)
                 if let count { Text("\(count)").monospacedDigit().foregroundStyle(.secondary) }
             }.appFont(.caption, weight: .regular, design: .default).appPadding(.horizontal, 9).appPadding(.vertical, 9)
@@ -182,7 +197,7 @@ struct MacDepositsView: View {
                     .accessibilityIdentifier("depositsEmptyState").frame(maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: listColumns == 2 ? 2 : 1), spacing: 10) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: listColumns == 2 ? 2 : 1), spacing: 10) {
                         ForEach(visible, id: \.id) { deposit in
                             Button { selectedID = deposit.id; if !wide { showsDetails = true } } label: { row(deposit) }
                                 .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("depositRow-\(deposit.bankName)")
@@ -196,14 +211,17 @@ struct MacDepositsView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 MacBankIcon(bank: deposit.bankName, size: 32, revision: logoRevision)
-                VStack(alignment: .leading, spacing: 3) { Text(deposit.bankName).appFont(.body, weight: .semibold).lineLimit(1); Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary).lineLimit(1) }
-                Spacer(minLength: 0); badge(deposit)
+                VStack(alignment: .leading, spacing: 3) { Text(deposit.bankName).appFont(.body, weight: .semibold).fixedSize(horizontal: false, vertical: true); Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                Spacer(minLength: 0)
             }
             Text("\(MacOverviewStyle.money(deposit.originalPrincipal)) \(deposit.originalCurrency)").appFont(.section, weight: .semibold).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-            ViewThatFits(in: .horizontal) {
-                HStack { Text(String(format: "%.2f%%", deposit.annualInterestRate) + (MacFinanceNotes.visible(deposit.note).isEmpty ? "" : " · " + MacFinanceNotes.visible(deposit.note))).lineLimit(1); Spacer(minLength: 4); Text(MacDateDisplay.string(deposit.maturityDate)) }
-                VStack(alignment: .leading, spacing: 3) { Text(String(format: "%.2f%%", deposit.annualInterestRate) + (MacFinanceNotes.visible(deposit.note).isEmpty ? "" : " · " + MacFinanceNotes.visible(deposit.note))).lineLimit(1); Text(MacDateDisplay.string(deposit.maturityDate)) }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(format: "%.2f%%", deposit.annualInterestRate))
+                if !MacFinanceNotes.visible(deposit.note).isEmpty { Text(MacFinanceNotes.visible(deposit.note)).fixedSize(horizontal: false, vertical: true) }
+                Text(MacDateDisplay.string(deposit.maturityDate))
+                badge(deposit)
             }.appFont(.caption).foregroundStyle(.secondary)
+
         }.padding(12).frame(maxWidth: .infinity, minHeight: 104, alignment: .leading).contentShape(Rectangle()).macFinanceSelectableRow(selected: selectedID == deposit.id)
     }
     private func badge(_ deposit: DepositRecord) -> some View {
@@ -237,12 +255,31 @@ struct MacDepositsView: View {
         }
     }
     private func detailHeader(_ deposit: DepositRecord) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                detailIdentity(deposit).fixedSize(horizontal: true, vertical: true)
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 8) { badge(deposit); detailActions(deposit) }
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                detailIdentity(deposit)
+                ViewThatFits(in: .horizontal) {
+                    HStack { badge(deposit); Spacer(minLength: 8); detailActions(deposit) }
+                    VStack(alignment: .leading, spacing: 8) { badge(deposit); detailActions(deposit) }
+                }
+            }
+        }
+    }
+    private func detailIdentity(_ deposit: DepositRecord) -> some View {
         HStack(alignment: .top, spacing: 12) {
             MacBankIcon(bank: deposit.bankName, size: 46, revision: logoRevision)
-            VStack(alignment: .leading, spacing: 5) { Text(deposit.bankName).appFont(.dialogTitle, weight: .semibold).lineLimit(2).accessibilityIdentifier("depositDetailTitle"); Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary) }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 8) {
-                badge(deposit)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(deposit.bankName).appFont(.dialogTitle, weight: .semibold).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("depositDetailTitle")
+                Text(MacDepositsData.mode(deposit)).appFont(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+    private func detailActions(_ deposit: DepositRecord) -> some View {
                 HStack(spacing: 8) {
                     Button("编辑", systemImage: "pencil") { editing = .deposit(deposit) }.accessibilityIdentifier("editFinance-" + deposit.id.uuidString).disabled(bookCurrency == nil || posting)
                     Menu {
@@ -252,8 +289,7 @@ struct MacDepositsView: View {
                         Divider(); Button("移除存款…", role: .destructive) { removing = deposit }.accessibilityIdentifier("depositRemove")
                     } label: { Image(systemName: "ellipsis").frame(width: 28, height: 30).contentShape(Rectangle()) }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityIdentifier("depositMore").disabled(posting)
                 }
-            }
-        }
+
     }
     private func summaryCard(_ deposit: DepositRecord) -> some View {
         card {

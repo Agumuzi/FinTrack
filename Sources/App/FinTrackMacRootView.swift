@@ -87,7 +87,7 @@ struct FinTrackMacRootView: View {
                     }
                 }
                 .id(workspace.section)
-                .frame(width: max(1, geometry.size.width - MacUI.space(compact ? 68 : 184) - MacUI.space(24)), height: max(1, geometry.size.height - MacUI.space(46)))
+                .frame(width: max(1, geometry.size.width - MacUI.space(compact ? 68 : 184 + max(0, MacUI.fontTier.bodySize - 16) * 4) - MacUI.space(24)), height: max(1, geometry.size.height - MacUI.space(46)))
                 .background(MacOverviewStyle.canvas)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .appPadding(.trailing, 8).appPadding(.bottom, 8)
@@ -105,7 +105,7 @@ struct FinTrackMacRootView: View {
             #endif
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(MacOverviewStyle.navigation)
         .environmentObject(operationFeedback)
         .modifier(MacOperationFeedbackPresenter(center:operationFeedback))
@@ -151,7 +151,7 @@ struct FinTrackMacRootView: View {
     }
 
     private func chromeHeader(compact: Bool) -> some View {
-        let railWidth: CGFloat = MacUI.space(compact ? 68 : 184)
+        let railWidth: CGFloat = MacUI.space(compact ? 68 : 184 + max(0, MacUI.fontTier.bodySize - 16) * 4)
         // Align the title text with the filter panel's 18pt inset.
         // Keep the compact title clear of the system window controls.
         let titleGap = max(0, railWidth - 78 - MacUI.space(72)) + (workspace.section == .insights && !compact ? 12 : 0)
@@ -185,8 +185,8 @@ struct FinTrackMacRootView: View {
                             let range = Calendar.current.dateInterval(of: .month, for: Date())!
                             let rows = transactions.filter { $0.deletedAt == nil && $0.date >= range.start && $0.date < range.end }
                             let totals = MacTransactionCRUD.totals(transactions: rows, currency: currency)
-                            Text("本月收入  \(MacOverviewStyle.money(totals.income)) \(currency)")
-                            Text("本月支出  \(MacOverviewStyle.money(totals.expense)) \(currency)")
+                            accountAmount("本月支出", value: totals.expense, currency: currency, color: MacOverviewStyle.expense)
+                            accountAmount("本月收入", value: totals.income, currency: currency, color: MacOverviewStyle.income)
                         }
                         Divider()
                         Button("设置", systemImage: "gearshape") { workspace.section = .settings; showsAccount = false }
@@ -202,11 +202,20 @@ struct FinTrackMacRootView: View {
             .onTapGesture { }
     }
 
+    private func accountAmount(_ title: String, value: Double, currency: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).appFont(.caption).foregroundStyle(.secondary)
+            Text(MacOverviewStyle.money(value) + " " + MacSettingsVisual.symbol(currency))
+                .appFont(.body, weight: .semibold).monospacedDigit().foregroundStyle(color)
+                .lineLimit(1).minimumScaleFactor(0.55)
+        }.accessibilityElement(children: .combine).accessibilityIdentifier(title == "本月支出" ? "accountMonthlyExpense" : "accountMonthlyIncome")
+    }
+
     private func navigation(compact: Bool) -> some View {
         VStack(alignment: compact ? .center : .leading, spacing: MacUI.space(8)) {
             HStack(spacing: MacUI.space(10)) {
                 MacBrandIcon(size: 30)
-                if !compact { Text("FinTrack").appFont(.section, weight: .semibold) }
+                if !compact { Text("FinTrack").appFont(.section, weight: .semibold).lineLimit(1).minimumScaleFactor(0.75) }
             }.appMinHeight(42).appPadding(.horizontal, 14).appPadding(.bottom, 8)
             nav(.overview, id: "navOverview", compact: compact)
             nav(.records, id: "navRecords", compact: compact)
@@ -223,8 +232,8 @@ struct FinTrackMacRootView: View {
                     }
                     if !compact {
                         VStack(alignment: .leading, spacing: MacUI.space(3)) {
-                            Text(displayName).appFont(.body, weight: .medium, design: .default)
-                            Text(currency ?? "需要核对币种").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                            Text(displayName).appFont(.body, weight: .medium, design: .default).lineLimit(1).minimumScaleFactor(0.65)
+                            Text(currency ?? "需要核对币种").appFont(.caption, weight: .regular).lineLimit(1).minimumScaleFactor(0.65).foregroundStyle(.secondary)
                         }
                         Spacer(); Image(systemName: "chevron.up").appFont(.caption, weight: .regular)
                     }
@@ -235,7 +244,7 @@ struct FinTrackMacRootView: View {
 
         }
         .appPadding(.horizontal, 8).appPadding(.top, 14).appPadding(.bottom, 12)
-        .frame(width: MacUI.space(compact ? 68 : 184))
+        .frame(width: MacUI.space(compact ? 68 : 184 + max(0, MacUI.fontTier.bodySize - 16) * 4))
         .background(MacOverviewStyle.navigation)
     }
     private func nav(_ section: MacWorkspaceSection, id: String, compact: Bool) -> some View {

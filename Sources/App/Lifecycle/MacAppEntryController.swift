@@ -159,8 +159,14 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
         typographyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection([.command,.shift,.option,.control])
             if flags.contains(.command), flags.intersection([.option,.control]).isEmpty,
-               ["=","+"].contains(event.charactersIgnoringModifiers ?? "") {
-                MacTypographyCommands.adjust(1); return nil
+               ["=","+","-","0"].contains(event.charactersIgnoringModifiers ?? "") {
+                let key = event.charactersIgnoringModifiers ?? ""
+                if key == "0" {
+                    if !flags.contains(.shift) { DispatchQueue.main.async { MacInterfaceZoom.reset() }; return nil }
+                } else {
+                    DispatchQueue.main.async { MacTypographyCommands.adjust(key == "-" ? -1 : 1) }
+                    return nil
+                }
             }
             return event
         }
@@ -171,7 +177,9 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
             await MacApplicationRuntime.shared.entries.start()
             MacAppServices.shared.start()
             MacSelectionConversion.shared.start()
+            Task.detached(priority: .utility) { MacUpdateInstallation.confirmLaunch() }
             #if FINTRACK_LOCAL_VALIDATION
+            MacUpdateService.shared.loadInstallationFixture()
             if let text = ProcessInfo.processInfo.environment["FINTRACK_SELECTION_FIXTURE"] {
                 MacSelectionConversion.shared.presentFixture(text)
             }

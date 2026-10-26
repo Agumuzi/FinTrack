@@ -203,7 +203,7 @@ struct MacSettingsRow<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         HStack(spacing: MacUI.space(14)) {
-            Text(label).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(1).frame(width: MacUI.space(labelWidth), alignment: .leading)
+            Text(label).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).frame(width: MacUI.space(labelWidth * max(1, MacUI.fontTier.bodySize / 16)), alignment: .leading)
             content.frame(maxWidth: .infinity, alignment: .trailing)
         }.appMinHeight(40).frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -265,7 +265,9 @@ private struct MacSettingsPopupButton<Value: Hashable>: NSViewRepresentable {
         return button
     }
 
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     func updateNSView(_ button: NSPopUpButton, context: Context) {
+        let _ = bodyPoints
         button.isEnabled = isEnabled
         let titles = options.map { $0.0 }, values = options.map { AnyHashable($0.1) }
         if context.coordinator.titles != titles || context.coordinator.values != values {
@@ -280,7 +282,8 @@ private struct MacSettingsPopupButton<Value: Hashable>: NSViewRepresentable {
         let size = MacUI.fontSize(.body,tier:MacFontSizeTier(rawValue:tier) ?? .standard)
         let font = MacInterfaceFonts.font(size:size,weight:.medium), menuFont = MacInterfaceFonts.font(size:size,weight:.regular)
         if button.font != font { button.font = font }
-        if button.menu?.font != menuFont { button.menu?.font = menuFont }
+        let scaledMenuFont = MacInterfaceFonts.font(size:size * MacInterfaceZoom.factor,weight:.regular)
+        if button.menu?.font != scaledMenuFont { button.menu?.font = scaledMenuFont }
         button.cell?.alignment = .left
         button.needsDisplay = true
         button.target = context.coordinator
@@ -297,6 +300,7 @@ struct MacSettingsMenu<Value: Hashable>: View {
     @Binding var selection: Value
     var options: [(String, Value)]
     var minimumWidth: CGFloat = 0
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     private var selectedTitle: String { options.first { $0.1 == selection }?.0 ?? "请选择" }
     var body: some View {
         MacSettingsPopupButton(selection: $selection, options: options)
@@ -498,7 +502,7 @@ struct MacCalendarPickerPopover: View {
         .background(MacOverviewStyle.card)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(pickerIdentifier)
-        .background(MacPopoverKeyboardActions(cancel: { onDone?() }, done: { onDone?() }).frame(width: 0, height: 0))
+        .background(MacPopoverKeyboardActions(cancel: { onDone?() }, done: { onDone?() }).frame(width: 0, height: 0)).interfaceZoom()
         .onExitCommand { onDone?() }
         .onMoveCommand { direction in
             let stride = navigationPrecision == .day ? 7 : 3
