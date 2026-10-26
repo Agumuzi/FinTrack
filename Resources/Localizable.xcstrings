@@ -19860,6 +19860,29 @@
           }
         }
       }
+    },
+    "历史更新未完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史更新未完成"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History refresh incomplete"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновление истории не завершено"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

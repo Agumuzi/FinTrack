@@ -37,13 +37,14 @@ struct MacFXTrendCardView: View {
     }
     private var summary: String {
         guard let result else { return "" }
-        var text = result.completedDays < result.totalDays ? "加载 \(result.completedDays)/\(result.totalDays) · " : ""
+        let rangeQuery = request.map { service.supportsRange($0) } ?? false
+        var text = result.completedDays < result.totalDays ? (rangeQuery ? MacLocalization.value("正在加载历史报价") : "加载 \(result.completedDays)/\(result.totalDays)") + " · " : ""
         text += MacLocalization.value(result.sourceName) + (result.points.count > points.count ? " · 采样" : "") + (result.fromCache ? " · 缓存" : "")
         if let first = points.first, let last = points.last {
             text += " · " + first.day + "～" + last.day.suffix(5)
             if points.count >= 2 { text += String(format: " · 区间变化 %+.2f%%", (last.unitRate / first.unitRate - 1) * 100) }
         }
-        if result.failedDays > 0 { text += " · 缺\(result.failedDays)个日期" }
+        if result.failedDays > 0 { text += rangeQuery ? " · " + MacLocalization.value("历史更新未完成") : " · 缺\(result.failedDays)个日期" }
         return text
     }
 }
