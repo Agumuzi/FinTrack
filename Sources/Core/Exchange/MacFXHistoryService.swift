@@ -61,14 +61,14 @@ nonisolated struct MacFXHistoryPlot: Sendable {
     init(_ raw: [MacFXHistoryPoint]) {
         var points: [Point] = [], segment = 0, previous: Date?
         var minimum = Double.greatestFiniteMagnitude, maximum = 0.0
-        for point in raw where MacFXMath.validRate(point.unitRate) && point.unitRate < Double.greatestFiniteMagnitude / 2 {
+        for point in raw where MacFXMath.validRate(point.unitRate) && point.unitRate < Double.greatestFiniteMagnitude / 400 {
             let date = point.date
             if let previous, date.timeIntervalSince(previous) > 3 * 86400 { segment += 1 }
             points.append(Point(day: point.day, date: date, unitRate: point.unitRate, segment: segment))
             minimum = min(minimum, point.unitRate); maximum = max(maximum, point.unitRate); previous = date
         }
-        if points.count > 61 {
-            self.points = (0..<61).map { points[Int((Double($0) * Double(points.count - 1) / 60).rounded())] }
+        if points.count > 31 {
+            self.points = (0..<31).map { points[Int((Double($0) * Double(points.count - 1) / 30).rounded())] }
         } else { self.points = points }
         self.minimum = points.isEmpty ? 0 : minimum; self.maximum = points.isEmpty ? 1 : maximum
     }
@@ -123,10 +123,15 @@ final class MacFXHistoryService: ObservableObject {
                         guard day == row.point.day, let timeZone = TimeZone(identifier: zone) else { continue }
                         var calendar = MacFXDates.utc; calendar.timeZone = timeZone
                         guard day <= MacFXDates.tag(clock, calendar: calendar) else { continue }
-                    } else if MacFXDates.instant(row.point.quoteTime) == nil { continue }
+                    } else if let instant = MacFXDates.instant(row.point.quoteTime) {
+                        guard instant <= clock.addingTimeInterval(300) else { continue }
+                    } else { continue }
                     entries[row.key] = row
                 }
                 coverage = Array((stored?.coverage ?? []).filter { MacFXDates.day($0.start) != nil && MacFXDates.day($0.end) != nil && $0.start <= $0.end && $0.fetchedAt <= clock.addingTimeInterval(300) }.suffix(80))
+            }
+            if entries.count > 12000 {
+                entries = Dictionary(uniqueKeysWithValues: entries.values.sorted { $0.point.retrievedAt > $1.point.retrievedAt }.prefix(12000).map { ($0.key, $0) }); coverage = []
             }
             return Stored(rows: Array(entries.values), coverage: coverage)
         }
@@ -231,8 +236,8 @@ final class MacFXHistoryService: ObservableObject {
         }
         result.points.sort { $0.day < $1.day }
         if result.points.isEmpty { result.fromCache = false }
-        if entries.count > 2400 {
-            entries = Dictionary(uniqueKeysWithValues: entries.values.sorted { $0.point.retrievedAt > $1.point.retrievedAt }.prefix(2400).map { ($0.key, $0) })
+        if entries.count > 12000 {
+            entries = Dictionary(uniqueKeysWithValues: entries.values.sorted { $0.point.retrievedAt > $1.point.retrievedAt }.prefix(12000).map { ($0.key, $0) }); coverage = []
         }
         await save()
         return result
@@ -245,29 +250,40 @@ final class MacFXHistoryService: ObservableObject {
     }
     private func performRange(_ request: MacFXHistoryRequest, monitor: MacFXMonitor, job: UUID) async -> MacFXHistoryResult {
         let start = request.range.days(endingAt: request.endingDay).first ?? request.endingDay
-        let matches = coverage.filter { $0.matches(request) && $0.start <= start }
-        let covered = matches.contains { $0.end >= request.endingDay && now().timeIntervalSince($0.fetchedAt) < 12 * 3600 }
+        func shifted(_ day: String, _ offset: Int) -> String {
+            MacFXDates.day(day).flatMap { MacFXDates.utc.date(byAdding: .day, value: offset, to: $0) }.map { MacFXDates.tag($0, calendar: MacFXDates.utc) } ?? day
+        }
+        let recentBoundary = shifted(MacFXDates.tag(now(), calendar: MacFXDates.utc), -3)
+        let spans = coverage.filter { $0.matches(request) }.map { span in
+            (span.start, now().timeIntervalSince(span.fetchedAt) < 12 * 3600 ? span.end : min(span.end, recentBoundary))
+        }.filter { $0.0 <= $0.1 }.sorted { $0.0 < $1.0 }
+        var cursor = start, missing: [(String, String)] = []
+        for (first, last) in spans where last >= cursor && first <= request.endingDay {
+            if first > cursor { missing.append((cursor, min(request.endingDay, shifted(first, -1)))) }
+            cursor = max(cursor, shifted(last, 1))
+            if cursor > request.endingDay { break }
+        }
+        if cursor <= request.endingDay { missing.append((cursor, request.endingDay)) }
+        let covered = missing.isEmpty
         var result = result(for: request) ?? MacFXHistoryResult()
         result.totalDays = request.range.rawValue
         if covered { result.completedDays = result.totalDays; result.fromCache = true; result.fetchedAt = now(); return result }
         if results[request] == nil { results[request] = result }
-        let previousEnd = matches.map(\.end).max()
-        // Refresh a small recent overlap when extending a covered interval.
-        let overlap = previousEnd.flatMap { MacFXDates.day($0) }.flatMap { MacFXDates.utc.date(byAdding: .day, value: -2, to: $0) }.map { MacFXDates.tag($0, calendar: MacFXDates.utc) }
-        let fetchStart = max(start, overlap ?? start)
         do {
-            let points = try await monitor.historyRange(request, start: fetchStart, end: request.endingDay)
-            // Shared payloads may finish after their view disappeared. Preserve
-            // valid raw points, but load() never publishes a cancelled generation.
-            let valid = points.filter { point in
-                guard point.day >= fetchStart, point.day <= request.endingDay, MacFXMath.validRate(point.unitRate), point.retrievedAt <= now().addingTimeInterval(300) else { return false }
-                if case .day(let day, let zone) = point.quoteTime { return day == point.day && TimeZone(identifier: zone) != nil }
-                return false
-            }
-            guard valid.count == points.count, !valid.isEmpty else { throw MacFXNetworkFailure.invalid }
-            for point in valid {
-                let entry = Entry(pair: request.pair, sourceID: request.sourceID, revision: request.revision, point: point)
-                entries[entry.key] = entry
+            for (fetchStart, fetchEnd) in missing {
+                let points = try await monitor.historyRange(request, start: fetchStart, end: fetchEnd)
+                // Persist only verifiable points; queried non-publication days
+                // are represented by coverage, never copied/zero-valued quotes.
+                let valid = points.filter { point in
+                    guard point.day >= fetchStart, point.day <= fetchEnd, MacFXMath.validRate(point.unitRate), point.retrievedAt <= now().addingTimeInterval(300) else { return false }
+                    if case .day(let day, let zone) = point.quoteTime { return day == point.day && TimeZone(identifier: zone) != nil }
+                    return false
+                }
+                guard valid.count == points.count else { throw MacFXNetworkFailure.invalid }
+                for point in valid {
+                    let entry = Entry(pair: request.pair, sourceID: request.sourceID, revision: request.revision, point: point)
+                    entries[entry.key] = entry
+                }
             }
             coverage.removeAll { $0.matches(request) && $0.start >= start && $0.end <= request.endingDay }
             coverage.append(Coverage(pair: request.pair, sourceID: request.sourceID, revision: request.revision, start: start, end: request.endingDay, fetchedAt: now()))

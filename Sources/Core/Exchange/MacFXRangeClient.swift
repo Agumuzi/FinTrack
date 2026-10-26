@@ -10,19 +10,19 @@ actor MacFXRangeClient {
     private let load: @Sendable (String) async throws -> Data
     init(load: @escaping @Sendable (String) async throws -> Data) { self.load = load }
     private var tasks: [String: Task<Data, Error>] = [:]
+    private var cached: [String: (Data, Date)] = [:]
     private var order: [String] = []
     private var currencyIDs: [String: String] = [:]
     private func payload(_ url: String) async throws -> Data {
         if let task = tasks[url] { return try await task.value }
-        let task = Task { try await load(url) }
-        tasks[url] = task; order.append(url)
+        if let value = cached[url], Date().timeIntervalSince(value.1) < 5 { return value.0 }
+        let task = Task { try await load(url) }; tasks[url] = task
         do {
-            let result = try await task.value
-            // Share completed payloads briefly within this batch; the repository
-            // owns freshness. Bounded entries prevent ever-growing URL retention.
-            while order.count > 16 { tasks.removeValue(forKey: order.removeFirst()) }
-            return result
-        } catch { tasks[url] = nil; order.removeAll { $0 == url }; throw error }
+            let data = try await task.value; tasks[url] = nil
+            cached[url] = (data, Date()); order.removeAll { $0 == url }; order.append(url)
+            while order.count > 16 { cached.removeValue(forKey: order.removeFirst()) }
+            return data
+        } catch { tasks[url] = nil; throw error }
     }
     func fetch(pair: MacFXPair, source: String, start: String, end: String) async throws -> [MacFXHistoryPoint] {
         guard MacFXDates.day(start) != nil, MacFXDates.day(end) != nil, start <= end,
@@ -47,12 +47,17 @@ actor MacFXRangeClient {
             let codes = Set([pair.base, pair.quote]).subtracting(["EUR"]).sorted()
             if source == "system.ecb" {
                 let url = "https://data-api.ecb.europa.eu/service/data/EXR/D.\(codes.joined(separator: "+")).EUR.SP00.A?format=jsondata&detail=dataonly&startPeriod=\(start)&endPeriod=\(end)"
-                values = try MacFXSystemParsing.ecb(await payload(url))
+                let data = try await payload(url)
+                if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let sets = root["dataSets"] as? [[String: Any]], sets.isEmpty, root["structure"] is [String: Any] { values = [:] }
+                else { values = try MacFXSystemParsing.ecb(data) }
             } else {
                 let url = "https://api.frankfurter.dev/v2/providers/ecb/rates?base=EUR&quotes=\(codes.joined(separator: ","))&from=\(start)&to=\(end)"
-                values = try MacFXSystemParsing.frankfurter(await payload(url))
+                let data = try await payload(url)
+                if let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]], rows.isEmpty { values = [:] }
+                else { values = try MacFXSystemParsing.frankfurter(data) }
             }
         }
+        if values.isEmpty { return [] }
         let anchor = source == "system.cbr" ? "RUB" : "EUR"
         let a = values[pair.base], b = values[pair.quote]
         guard pair.base == anchor || a != nil, pair.quote == anchor || b != nil else { throw MacFXNetworkFailure.invalid }
@@ -65,9 +70,6 @@ actor MacFXRangeClient {
             guard MacFXMath.validRate(rate) else { return nil }
             return MacFXHistoryPoint(day: day, unitRate: rate, quoteTime: .day(day, timeZoneID: zone), retrievedAt: now)
         }
-        guard !result.isEmpty else { throw MacFXNetworkFailure.invalid }
-        // Completed URL payloads must not prevent the repository's later refresh.
-        tasks = tasks.filter { !order.contains($0.key) }; order = []
         return result
     }
 }
@@ -77,15 +79,17 @@ nonisolated final class MacFXCBRSeries: NSObject, XMLParserDelegate {
     private var expectedID = ""
     private var rows: [String: Double] = [:]
     private var invalid = false
+    private var seenRoot = false
     static func parse(_ data: Data, expectedID: String) throws -> [String: Double] {
         let delegate = MacFXCBRSeries(); delegate.expectedID = expectedID
         let parser = XMLParser(data: data); parser.shouldResolveExternalEntities = false
         parser.externalEntityResolvingPolicy = .never; parser.delegate = delegate
-        guard parser.parse(), !delegate.invalid, !delegate.rows.isEmpty else { throw MacFXNetworkFailure.invalid }
+        guard parser.parse(), delegate.seenRoot, !delegate.invalid else { throw MacFXNetworkFailure.invalid }
         return delegate.rows
     }
     func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String] = [:]) {
         element = name
+        if name == "ValCurs" { seenRoot = true }
         if name == "Record" { day = attributes["Date"] ?? ""; id = attributes["Id"] ?? ""; nominal = ""; value = "" }
     }
     func parser(_ parser: XMLParser, foundCharacters text: String) {
