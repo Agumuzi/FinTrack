@@ -7,7 +7,7 @@ import AppKit
 final class MacNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = MacNotificationDelegate()
     func install() { if !MacPreferences.isTesting { UNUserNotificationCenter.current().delegate = self } }
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions { [.banner, .sound, .list] }
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions { await MainActor.run { MacPermissionCoordinator.notificationsEnabled ? [.banner, .sound, .list] : [] } }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let route = response.notification.request.content.userInfo["route"] as? String ?? "recurring"
         await MainActor.run {
@@ -35,6 +35,18 @@ enum MacNotifications {
     private nonisolated static func owned(_ id: String) -> Bool {
         ["deposit-", "recurring-", "goal-", "budget-"].contains { id.hasPrefix($0) }
     }
+    static func disableAll() {
+        guard !MacPreferences.isTesting else { return }
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let pending = await center.pendingNotificationRequests()
+            let ids = pending.map(\.identifier).filter { owned($0) || $0.hasPrefix("update-") }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+            // Cancelled future occurrences must be eligible when reminders are re-enabled.
+            var history = Set(MacPreferences.defaults.stringArray(forKey: "v141_notification_history") ?? [])
+            history.subtract(ids); MacPreferences.defaults.set(Array(history).sorted(), forKey: "v141_notification_history")
+        }
+    }
     static func authorizationLabel() async -> String {
         await MacPermissionCoordinator.shared.refresh()
         return MacPermissionCoordinator.shared.notificationText
@@ -51,13 +63,15 @@ enum MacNotifications {
         return UNNotificationRequest(identifier:"update-\(release.build)",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:1,repeats:false))
     }
     @discardableResult static func notifyUpdate(_ release: MacUpdateRelease) async throws -> Bool {
-        guard !MacPreferences.isTesting else { return false }
+        guard !MacPreferences.isTesting, MacPermissionCoordinator.notificationsEnabled else { return false }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return false }
         let key = "v142_update_notice_build"
         guard MacPreferences.defaults.integer(forKey:key) < release.build else { return true }
+        guard MacPermissionCoordinator.notificationsEnabled else { return false }
         try await center.add(updateRequest(release))
+        guard MacPermissionCoordinator.notificationsEnabled else { center.removePendingNotificationRequests(withIdentifiers: ["update-\(release.build)"]); return false }
         MacPreferences.defaults.set(release.build,forKey:key)
         return true
     }
@@ -116,6 +130,7 @@ enum MacNotifications {
     }
     static func schedule(in context: ModelContext) async throws {
         guard !MacPreferences.isTesting else { return }
+        guard MacPermissionCoordinator.notificationsEnabled else { disableAll(); return }
         if scheduling { reschedule = true; return }
         scheduling = true
         defer {
@@ -138,7 +153,10 @@ enum MacNotifications {
             let content = UNMutableNotificationContent()
             content.title = plan.title; content.body = plan.body; content.sound = .default; content.userInfo = ["route": plan.route]
             let trigger: UNNotificationTrigger = plan.date <= Date() ? UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false) : UNCalendarNotificationTrigger(dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.date), repeats: false)
-            try await center.add(UNNotificationRequest(identifier: plan.id, content: content, trigger: trigger)); count += 1; notified.insert(plan.id)
+            guard MacPermissionCoordinator.notificationsEnabled else { disableAll(); return }
+            try await center.add(UNNotificationRequest(identifier: plan.id, content: content, trigger: trigger))
+            guard MacPermissionCoordinator.notificationsEnabled else { disableAll(); return }
+            count += 1; notified.insert(plan.id)
         }
         // Keep bounded occurrence identifiers only; clearing a delivered banner must not resend it.
         MacPreferences.defaults.set(Array(notified).sorted().suffix(2000).map { $0 }, forKey: "v141_notification_history")

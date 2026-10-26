@@ -8,6 +8,7 @@ enum MacFontSizeTier: String, CaseIterable, Identifiable {
     case small
     case standard
     case large
+    case custom
 
     var id: String { rawValue }
     var title: String {
@@ -15,6 +16,7 @@ enum MacFontSizeTier: String, CaseIterable, Identifiable {
         case .small: "缩小"
         case .standard: "标准"
         case .large: "放大"
+        case .custom: "自定义"
         }
     }
     var bodySize: CGFloat {
@@ -22,6 +24,7 @@ enum MacFontSizeTier: String, CaseIterable, Identifiable {
         case .small: 14
         case .standard: 16
         case .large: 18
+        case .custom: MacCustomTypography.value(MacCustomTypography.bodyKey, fallback: 16, range: MacCustomTypography.bodyRange)
         }
     }
     var captionSize: CGFloat {
@@ -29,6 +32,7 @@ enum MacFontSizeTier: String, CaseIterable, Identifiable {
         case .small: 10
         case .standard: 12
         case .large: 14
+        case .custom: MacCustomTypography.value(MacCustomTypography.captionKey, fallback: 12, range: MacCustomTypography.captionRange)
         }
     }
     var bodyAdjustment: CGFloat { bodySize - 16 }
@@ -110,11 +114,14 @@ enum MacShapeTokens {
 private struct MacFontModifier: ViewModifier {
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var selectedFontName = ""
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var selectedTier = MacFontSizeTier.standard.rawValue
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var captionPoints = 12
     var size: CGFloat
     var role: MacUI.TextRole?
     var weight: Font.Weight
     var design: Font.Design
     func body(content: Content) -> some View {
+        let _ = bodyPoints; let _ = captionPoints
         let tier = MacFontSizeTier(rawValue: selectedTier) ?? .standard
         let renderedSize = role.map { MacUI.fontSize($0, tier: tier) } ?? size
         if role != nil, !selectedFontName.isEmpty, NSFont(name: selectedFontName, size: renderedSize) != nil {

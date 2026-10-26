@@ -100,11 +100,11 @@ MacSettingsCard(title: "危险操作确认", icon: "exclamationmark.triangle.fil
     }
     private var remindersCard: some View {
 MacSettingsCard(title: "提醒与通知", icon: "bell", headerColor: .purple) {
-                    Text(permissions.notificationText).appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("systemNotificationStatus")
-                    HStack {
-                        Button("允许系统通知…") { updateNotifications(requestPermission: true) }.accessibilityIdentifier("authorizeSystemNotifications")
+                    HStack(spacing: 7) {
+                        Circle().fill(permissions.notificationsActive ? Color.green : Color.secondary.opacity(0.4)).frame(width: 7, height: 7).accessibilityHidden(true)
+                        Text(permissions.notificationsActive ? "系统通知已开启" : "系统通知未开启").appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("systemNotificationStatus")
                         Spacer()
-                        Button("系统通知设置") { if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(url) } }
+                        Toggle("启用系统通知", isOn: Binding(get: { permissions.notificationsActive }, set: { permissions.setNotificationsEnabled($0) })).labelsHidden().toggleStyle(.switch).accessibilityIdentifier("systemNotificationsToggle")
                     }
                     if let notificationError { Text(notificationError).appFont(.caption).foregroundStyle(.red) }
 

@@ -33,7 +33,10 @@ final class MacSelectionConversion: ObservableObject {
     private var mouseMonitor: Any?
     private var observer: AnyCancellable?
     private var selectionTask: Task<Void, Never>?
-    private var window: NSPanel?
+    private var window: MacSelectionFloatingPanel?
+    private var session: MacSelectionSession?
+    private var pointerMonitors: [Any] = []
+    private var anchor = CGPoint.zero
     private var busy = false
     private var lastSelection = ""
     private var secureSelection = false
@@ -58,9 +61,11 @@ final class MacSelectionConversion: ObservableObject {
     }
     func configure() {
         let d = MacPreferences.defaults, key = MacConversionHotkey.current
-        let enabled = d.object(forKey: "v141_selection_shortcut") as? Bool ?? true
-        let automatic = d.bool(forKey: "v141_selection_auto")
-        let next = "\(enabled):\(automatic):\(key.code):\(key.modifiers)"
+        let master = d.object(forKey: "selection_conversion_enabled") as? Bool ?? true
+        let enabled = master && (d.object(forKey: "v141_selection_shortcut") as? Bool ?? true)
+        let automatic = master && d.bool(forKey: "v141_selection_auto")
+        if MacPreferences.isTesting { status = "隔离测试：不注册全局快捷键"; if !master { dismiss() }; return }
+        let next = "\(master):\(enabled):\(automatic):\(key.code):\(key.modifiers)"
         guard next != signature else { return }; signature = next
         if let hotkey { UnregisterEventHotKey(hotkey); self.hotkey = nil }
         if enabled {
@@ -69,6 +74,7 @@ final class MacSelectionConversion: ObservableObject {
         } else { status = "快捷键换算已关闭" }
         if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor); self.mouseMonitor = nil }
         selectionTask?.cancel()
+        if !master { dismiss() }
         if automatic {
             mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
                 Task { @MainActor in
@@ -82,11 +88,15 @@ final class MacSelectionConversion: ObservableObject {
             }
         }
     }
-    func dismiss() { window?.close() }
+    func dismiss(clearSelection: Bool = true) {
+        session?.cancel(); session = nil
+        for monitor in pointerMonitors { NSEvent.removeMonitor(monitor) }; pointerMonitors = []
+        window?.close(); window = nil; if clearSelection { lastSelection = "" }
+    }
     #if FINTRACK_LOCAL_VALIDATION
     func presentFixture(_ text: String) {
         guard MacPreferences.isTesting, let parsed = MacSelectedAmountParser.parse(text) else { return }
-        present(MacSelectionPrompt(parsed:parsed,automatic:false),activate:true)
+        present(parsed)
     }
     #endif
     func requestAccessibility() {
@@ -131,7 +141,7 @@ final class MacSelectionConversion: ObservableObject {
         return nil
     }
     func convertSelection(automatic: Bool) async {
-        guard !busy else { return }
+        guard !busy, MacPreferences.defaults.object(forKey: "selection_conversion_enabled") as? Bool != false else { return }
         guard AXIsProcessTrusted() else {
             if !automatic { status = "需要辅助功能权限才能读取选中金额。"; requestAccessibility() }
             return
@@ -142,74 +152,58 @@ final class MacSelectionConversion: ObservableObject {
         guard !secureSelection else { return }
         if !automatic && (text?.isEmpty ?? true) { text = await copyFallback() }
         guard let text, !text.isEmpty, let parsed = MacSelectedAmountParser.parse(text) else {
-            if automatic { lastSelection = ""; window?.close() }
+            if automatic { dismiss() }
             if !automatic { showMessage("未识别到金额", "请选择一个金额，例如 1234 USD、€299 或 599.99 土耳其里拉。") }
             return
         }
         let signature = "\(NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0):\(text)"
         if automatic && signature == lastSelection { return }
         lastSelection = signature
-        if automatic {
-            present(MacSelectionPrompt(parsed: parsed, automatic: true), activate: false)
-        } else { present(MacSelectionPrompt(parsed: parsed, automatic: false), activate: true) }
+        present(parsed)
     }
-    private func showMessage(_ title: String, _ message: String) {
-        present(VStack(alignment: .leading, spacing: 14) { Text(title).font(.headline); Text(message); Button("关闭") { self.window?.close() } }.padding(24), activate: true)
-    }
-    private func present<V: View>(_ view: V, activate: Bool) {
-        window?.close()
-        let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:440,height:320), styleMask: [.titled,.closable,.utilityWindow,.nonactivatingPanel], backing: .buffered, defer: false)
+    private func showMessage(_ title: String, _ message: String) { status = title + "：" + message }
+    private func present(_ parsed: MacSelectedAmountParser.Parsed) {
+        dismiss(clearSelection: false)
+        anchor = NSEvent.mouseLocation
+        let board = MacPreferences.isTesting ? NSPasteboard(name: NSPasteboard.Name("dev.agumuzi.fintrack.tests.selection")) : NSPasteboard.general
+        let clipboardVersion = board.changeCount
+        let value = MacSelectionSession(parsed: parsed, target: MacPreferences.defaults.string(forKey: "base_currency") ?? "USD", monitor: MacFXApplication.shared.monitor) { text in
+            guard board.changeCount == clipboardVersion else { return false }
+            board.clearContents(); return board.setString(text, forType: .string)
+        }
+        session = value
+        let panel = MacSelectionFloatingPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = "选区金额换算"; panel.isReleasedWhenClosed = false; panel.level = .floating
-        panel.collectionBehavior = [.moveToActiveSpace,.fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: view.defaultAppStorage(MacPreferences.defaults))
-        panel.center(); panel.orderFrontRegardless(); window = panel
-        if activate { panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+        panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]; panel.hidesOnDeactivate = false
+        panel.backgroundColor = .clear; panel.isOpaque = false; panel.hasShadow = true; panel.acceptsMouseMovedEvents = true
+        panel.onEscape = { [weak self] in self?.dismiss() }
+        let background = MacSelectionPopoverBackground(); background.onExit = { [weak self] in self?.pointerEvent(.mouseMoved) }; background.material = .popover; background.state = .active; background.blendingMode = .behindWindow
+        background.wantsLayer = true; background.layer?.cornerRadius = 16; background.layer?.masksToBounds = true
+        let hosting = NSHostingView(rootView: MacSelectionPopoverView(session: value, dismiss: { [weak self] in self?.dismiss() }).defaultAppStorage(MacPreferences.defaults))
+        hosting.translatesAutoresizingMaskIntoConstraints = false; background.addSubview(hosting)
+        NSLayoutConstraint.activate([hosting.leadingAnchor.constraint(equalTo: background.leadingAnchor), hosting.trailingAnchor.constraint(equalTo: background.trailingAnchor), hosting.topAnchor.constraint(equalTo: background.topAnchor), hosting.bottomAnchor.constraint(equalTo: background.bottomAnchor)])
+        panel.contentView = background; window = panel
+        value.phaseChanged = { [weak self, weak value] in guard let self, let value, self.session === value else { return }; self.anchor = NSEvent.mouseLocation; self.layout(value) }
+        value.begin(); layout(value); panel.orderFrontRegardless()
+        if panel.acceptsKeyboard { panel.makeKeyAndOrderFront(nil) }
+        let types: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDown, .rightMouseDown, .keyDown]
+        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown]) { [weak self] event in Task { @MainActor in self?.pointerEvent(event.type) } } { pointerMonitors.append(monitor) }
+        if let monitor = NSEvent.addLocalMonitorForEvents(matching: types) { [weak self] event in if event.type == .keyDown && event.keyCode == 53 { self?.dismiss(); return nil }; self?.pointerEvent(event.type); return event } { pointerMonitors.append(monitor) }
     }
-}
-
-private struct MacSelectionPrompt: View {
-    let parsed: MacSelectedAmountParser.Parsed
-    let automatic: Bool
-    @State private var amountIndex = 0
-    @State private var source = ""
-    @State private var result = ""
-    @State private var details = ""
-    @State private var working = false
-    init(parsed: MacSelectedAmountParser.Parsed, automatic: Bool) {
-        self.parsed = parsed; self.automatic = automatic
-        let choices = parsed.currencies.isEmpty ? Array(Set(MacFXCatalog.codes + ["USD","EUR","CNY","RUB","TRY","JPY","GBP"])).sorted() : parsed.currencies
-        _source = State(initialValue: choices.first ?? "USD")
+    private func layout(_ value: MacSelectionSession) {
+        guard let panel = window else { return }
+        let size: CGSize
+        switch value.phase {
+        case .choose: size = CGSize(width: 460, height: CGFloat(value.parsed.amounts.count > 1 ? 270 : 230) + min(86, CGFloat(max(0, (value.suggested.count + 5) / 6 - 1)) * 34)); panel.acceptsKeyboard = true
+        case .result: size = CGSize(width: 390, height: 132); panel.acceptsKeyboard = false
+        case .loading, .failure: size = CGSize(width: 360, height: 112); panel.acceptsKeyboard = false
+        }
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(anchor) }) ?? NSScreen.main else { return }
+        panel.setFrame(MacSelectionPopoverGeometry.frame(size: size, pointer: anchor, visible: screen.visibleFrame), display: true)
     }
-    private var target: String { MacPreferences.defaults.string(forKey: "base_currency") ?? "USD" }
-    private var options: [String] { parsed.currencies.isEmpty ? Array(Set(MacFXCatalog.codes + ["USD","EUR","CNY","RUB","TRY","JPY","GBP"])).sorted() : parsed.currencies }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("换算为 \(target)").font(.headline)
-            if parsed.amounts.count > 1 { Picker("金额解释", selection: $amountIndex) { ForEach(parsed.amounts.indices, id:\.self) { Text(NSDecimalNumber(decimal: parsed.amounts[$0]).stringValue).tag($0) } }.disabled(working) }
-            Picker(parsed.currencies.isEmpty ? "选择原币" : "原币", selection: $source) { ForEach(options,id:\.self) { Text($0).tag($0) } }.disabled(working)
-            Text(NSDecimalNumber(decimal: parsed.amounts[amountIndex]).stringValue + " " + source).textSelection(.enabled)
-            if !result.isEmpty { Text(result).font(.title2).textSelection(.enabled).accessibilityIdentifier("selectionConversionResult") }
-            Text(details).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            HStack {
-                Button("关闭") { MacSelectionConversion.shared.dismiss() }.keyboardShortcut(.cancelAction)
-                Button(working ? "换算中…" : "换算") { Task { await convert() } }.disabled(working || source.isEmpty)
-                Spacer()
-                Button("复制结果") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(result,forType:.string) }.disabled(result.isEmpty || working)
-            }
-        }.padding(24).frame(width:440)
-        .task { if parsed.currencies.count == 1 && parsed.amounts.count == 1 { await convert() } }
-        .onChange(of: source) { _, _ in result = ""; details = "" }
-        .onChange(of: amountIndex) { _, _ in result = ""; details = "" }
-    }
-    private func convert() async {
-        working = true; defer { working = false }
-        guard let pair = try? MacFXPair(base:source,quote:target) else { return }
-        let monitor = MacFXApplication.shared.monitor
-        if source != target { await monitor.refresh(reason:.manual,extraPairs:[pair]) }
-        guard let route = MacFXMath.resolve(from:source,to:target,quotes:monitor.quotes) else { details = "没有可用汇率，请稍后重试或检查数据源。"; result = ""; return }
-        let value = NSDecimalNumber(decimal:parsed.amounts[amountIndex]).multiplying(by:NSDecimalNumber(value:route.unitRate))
-        guard value != .notANumber, value.doubleValue.isFinite else { details = "金额超出范围"; return }
-        result = MacFXMath.formatted(value.doubleValue,digits:2,grouping:true) + " " + target
-        details = route.legs.isEmpty ? "同币种 · 1:1" : route.legs.map { MacFXApplication.shared.sourceLabel($0.sourceID) + " · " + MacFXDates.label($0.quoteTime) }.joined(separator:"\n")
+    private func pointerEvent(_ type: NSEvent.EventType) {
+        guard let window else { return }
+        if type == .keyDown { return }
+        if !window.frame.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation) { dismiss() }
     }
 }

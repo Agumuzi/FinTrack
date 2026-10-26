@@ -46,6 +46,9 @@ struct FinTrackMacRootView: View {
     @AppStorage("base_currency") private var preferredCurrency = "USD"
     @AppStorage("v2_density") private var interfaceDensity = "comfortable"
     @AppStorage("v2_accent") private var interfaceAccent = "terracotta"
+    @AppStorage("v2_avatar", store: MacPreferences.defaults) private var accountAvatar = Data()
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var captionPoints = 12
     @AppStorage("v2_display_name") private var displayName = "我的账本"
     @State private var showsAccount = false
     @Environment(\.modelContext) private var context
@@ -213,7 +216,11 @@ struct FinTrackMacRootView: View {
             Spacer()
             HStack { Button { showsAccount.toggle() } label: {
                 HStack(spacing: MacUI.space(10)) {
-                    Image(systemName: "person.crop.circle").appFont(.dialogTitle, weight: .semibold)
+                    if let image = NSImage(data: accountAvatar) {
+                        Image(nsImage: image).resizable().scaledToFill().frame(width: 28, height: 28).clipShape(Circle()).accessibilityIdentifier("accountAvatarImage")
+                    } else {
+                        Image(systemName: "person.crop.circle").appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("accountAvatarPlaceholder")
+                    }
                     if !compact {
                         VStack(alignment: .leading, spacing: MacUI.space(3)) {
                             Text(displayName).appFont(.body, weight: .medium, design: .default)
@@ -223,7 +230,7 @@ struct FinTrackMacRootView: View {
                     }
                 }.appPadding(12).frame(maxWidth: .infinity).contentShape(Rectangle())
             }.buttonStyle(MacInteractiveButtonStyle()).appHelp("账本与设置").accessibilityLabel("账本与设置")
-                .accessibilityIdentifier("accountMenu")
+                .accessibilityIdentifier("accountMenu").accessibilityValue(NSImage(data: accountAvatar) == nil ? "默认头像" : "自定义头像")
             }
 
         }

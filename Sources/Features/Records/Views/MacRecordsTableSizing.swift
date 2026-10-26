@@ -11,6 +11,8 @@ struct MacRecordsTableSizing: NSViewRepresentable {
     var compact: Bool
     var selecting: Bool
     var revision: String
+    var titles: [String] = []
+    var onRowClick: (Int) -> Void = { _ in }
 
     final class Probe: NSView {
         var update: (() -> Void)?
@@ -31,6 +33,7 @@ struct MacRecordsTableSizing: NSViewRepresentable {
         var dragColumn: Int?
         var dragStart = CGPoint.zero
         var dragWidths: [CGFloat] = []
+        var pressedRow: Int?
         #if FINTRACK_LOCAL_VALIDATION
         var dragEvents = 0
         #endif
@@ -62,6 +65,17 @@ struct MacRecordsTableSizing: NSViewRepresentable {
                     MainActor.assumeIsolated { self?.columnResized(notification) }
                 })
             }
+            if !(found.headerView is MacStableRecordsHeader) {
+                let header = MacStableRecordsHeader(frame: found.headerView?.frame ?? NSRect(x: 0, y: 0, width: found.bounds.width, height: 32))
+                found.headerView = header
+            }
+            if let header = found.headerView as? MacStableRecordsHeader {
+                header.titles = parent.titles; header.headerFont = MacInterfaceFonts.font(size: MacUI.fontTier.bodySize, weight: .medium)
+                let height = max(28, ceil(header.headerFont.ascender - header.headerFont.descender) + 12)
+                if abs(header.frame.height - height) > 0.5 { header.setFrameSize(NSSize(width: header.frame.width, height: height)); scroll.tile() }
+                header.needsDisplay = true
+                header.window?.invalidateCursorRects(for: header)
+            }
             if eventMonitor == nil {
                 eventMonitor = NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.leftMouseDragged,.leftMouseUp]) { [weak self] event in
                     guard let self, let table = self.table, event.window === table.window, let header = table.headerView else { return event }
@@ -71,9 +85,28 @@ struct MacRecordsTableSizing: NSViewRepresentable {
                     MacRecordSizingDiagnostics.shared.text = "dragEvents=\(self.dragEvents) event=\(event.type.rawValue) point=\(point) bounds=\(header.bounds) rects=\(table.tableColumns.indices.map { header.headerRect(ofColumn:$0).maxX }) widths=\(table.tableColumns.map(\.width))"
                     #endif
                     if event.type == .leftMouseDown {
-                        guard header.bounds.contains(point), let index = table.tableColumns.indices.dropLast().first(where: { abs(header.headerRect(ofColumn:$0).maxX-point.x) <= 10 }) else { return event }
-                        self.dragColumn = index; self.dragStart = point; self.dragWidths = table.tableColumns.map(\.width)
+                        if !header.bounds.contains(point) {
+                            let row = table.row(at: table.convert(event.locationInWindow, from: nil))
+                            self.pressedRow = row >= 0 ? row : nil
+                            return event
+                        }
+                        self.pressedRow = nil
+                        if self.parent.selecting && header.headerRect(ofColumn: 0).contains(point) { return event }
+                        if let index = table.tableColumns.indices.dropLast().first(where: { abs(header.headerRect(ofColumn: $0).maxX - point.x) <= 7 }) {
+                            self.dragColumn = index; self.dragStart = point; self.dragWidths = table.tableColumns.map(\.width)
+                        }
+                        // Non-sortable headers do not enter AppKit's highlighted/pressed
+                        // cell tracking, which replaces SwiftUI's custom font while held.
                         return nil
+                    }
+                    if event.type == .leftMouseDragged && self.dragColumn == nil { self.pressedRow = nil }
+                    if event.type == .leftMouseUp, self.dragColumn == nil {
+                        defer { self.pressedRow = nil }
+                        if let row = self.pressedRow, !self.parent.selecting, event.clickCount == 1,
+                           event.modifierFlags.intersection([.command, .shift, .control]).isEmpty,
+                           table.row(at: table.convert(event.locationInWindow, from: nil)) == row {
+                            DispatchQueue.main.async { [weak self] in self?.parent.onRowClick(row) }
+                        }
                     }
                     guard let index = self.dragColumn else { return event }
                     self.userWidths = self.dragWidths
@@ -136,6 +169,8 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             if userWidths != nil { userWidths = widths; MacPreferences.defaults.set(widths.map(Double.init),forKey:key) }
             lockedColumn = nil
             lastConfiguration = configuration; appliedWidths = widths
+            table.headerView?.needsDisplay = true
+            if let header = table.headerView { header.window?.invalidateCursorRects(for: header) }
         }
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -147,6 +182,38 @@ struct MacRecordsTableSizing: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {
         context.coordinator.parent = self
         DispatchQueue.main.async { context.coordinator.update() }
+    }
+}
+
+/// One consistent font and only internal resize boundaries; no native pressed-cell fallback.
+final class MacStableRecordsHeader: NSTableHeaderView {
+    var titles: [String] = []
+    var headerFont = NSFont.systemFont(ofSize: 14, weight: .medium)
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.controlBackgroundColor.setFill(); dirtyRect.fill()
+        guard let tableView else { return }
+        for index in tableView.tableColumns.indices {
+            let rect = headerRect(ofColumn: index)
+            guard rect.intersects(dirtyRect) else { continue }
+            let title = titles.indices.contains(index) ? titles[index] : tableView.tableColumns[index].title
+            let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+            paragraph.alignment = index == tableView.tableColumns.count - 1 ? .right : .left
+            let height = ceil(headerFont.ascender - headerFont.descender) + 3
+            let textRect = NSRect(x: rect.minX + 10, y: rect.minY + (rect.height - height) / 2, width: max(0, rect.width - 20), height: height)
+            (title as NSString).draw(in: textRect, withAttributes: [.font: headerFont, .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph])
+            if index < tableView.tableColumns.count - 1 {
+                NSColor.separatorColor.setFill(); NSRect(x: rect.maxX - 0.5, y: rect.minY + 7, width: 1, height: max(0, rect.height - 14)).fill()
+            }
+        }
+    }
+    override func mouseDown(with event: NSEvent) { /* Divider dragging belongs to the coordinator. */ }
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .arrow)
+        guard let tableView else { return }
+        for index in tableView.tableColumns.indices.dropLast() {
+            let rect = headerRect(ofColumn: index)
+            addCursorRect(NSRect(x: rect.maxX - 6, y: rect.minY, width: 12, height: rect.height), cursor: .resizeLeftRight)
+        }
     }
 }
 

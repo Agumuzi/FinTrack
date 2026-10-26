@@ -20,7 +20,7 @@ struct FinTrackMacApp: App {
         }.defaultSize(width: 760, height: 800)
             .defaultLaunchBehavior(entries.configuration.showMainOnLaunch ? .presented : .suppressed)
         #else
-        Window("FinTrack", id: "main") { Self.content() }
+        Window("FinTrack", id: "main") { Self.content().background(MacMainWindowMemory().frame(width: 0, height: 0)) }
             .defaultSize(width: 1480, height: 900)
             .defaultLaunchBehavior(entries.configuration.showMainOnLaunch ? .presented : .suppressed)
             .windowStyle(.hiddenTitleBar)
@@ -31,7 +31,7 @@ struct FinTrackMacApp: App {
                 CommandGroup(after: .toolbar) {
                     Button("放大文字") { MacTypographyCommands.adjust(1) }.keyboardShortcut("+", modifiers: .command)
                     Button("缩小文字") { MacTypographyCommands.adjust(-1) }.keyboardShortcut("-", modifiers: .command)
-                    Button("恢复默认字号") { MacPreferences.defaults.set(MacFontSizeTier.standard.rawValue, forKey: MacFontSizeTier.preferenceKey) }.keyboardShortcut("0", modifiers: .command)
+                    Button("恢复默认字号") { MacCustomTypography.reset() }.keyboardShortcut("0", modifiers: .command)
                 }
                 CommandGroup(after: .windowArrangement) {
                     Button("打开主窗口") { MacApplicationRuntime.shared.showMain() }.keyboardShortcut("0", modifiers: [.command, .shift])
@@ -58,8 +58,6 @@ struct FinTrackMacApp: App {
 
 enum MacTypographyCommands {
     static func adjust(_ direction: Int) {
-        let tiers = MacFontSizeTier.allCases
-        let index = tiers.firstIndex(of: MacUI.fontTier) ?? 1
-        MacPreferences.defaults.set(tiers[min(tiers.count - 1, max(0, index + direction))].rawValue, forKey: MacFontSizeTier.preferenceKey)
+        MacCustomTypography.adjust(direction)
     }
 }

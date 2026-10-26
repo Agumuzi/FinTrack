@@ -145,6 +145,39 @@ final class MacFXMonitor: ObservableObject {
         return value
     }
     var quotes: [MacFXEvidenceQuote] { cache.snapshots.compactMap { quote($0.pair) } }
+    /// Selection conversion is a quote consumer, never an accounting write or a forced
+    /// refresh of the entire directory. Keep its source/revision checks identical to monitoring.
+    func selectionRoute(from: String, to: String, maximumAge: TimeInterval = .greatestFiniteMagnitude) -> MacFXMath.Conversion? {
+        let active = providers(for: configuration)
+        let values = cache.snapshots.map(\.current).filter { value in
+            now().timeIntervalSince(value.retrievedAt) <= maximumAge &&
+            active.contains { $0.id == value.identity.sourceID && $0.revision == value.identity.sourceRevision }
+        }
+        return MacFXMath.resolve(from: from, to: to, quotes: values)
+    }
+    func loadSelectionRoute(from: String, to: String) async -> MacFXMath.Conversion? {
+        if let route = selectionRoute(from: from, to: to) { return route }
+        if let task = refreshTask {
+            await task.value
+            if let route = selectionRoute(from: from, to: to) { return route }
+        }
+        guard !Task.isCancelled, let pair = try? MacFXPair(base: from, quote: to) else { return nil }
+        let expected = generation, active = providers(for: configuration), cycle = "selection/" + UUID().uuidString
+        for source in active {
+            guard !Task.isCancelled else { return nil }
+            do {
+                let value = try await fetch(source, pair: pair, requested: .latest, purpose: .monitorCurrent, cycle: cycle)
+                guard !Task.isCancelled, expected == generation else { return nil }
+                guard value.identity == MacFXRequestIdentity(purpose: .monitorCurrent, pair: pair, sourceID: source.id, sourceRevision: source.revision, requested: .latest), MacFXQuoteCache.valid(value, now: now()) else { continue }
+                var next = cache
+                guard next.accept(value, now: now()) else { continue }
+                cache = next; revision += 1; persist(cache)
+                return selectionRoute(from: from, to: to)
+            } catch { continue }
+        }
+        return nil
+    }
+
     func isCached(_ pair: MacFXPair) -> Bool { cachedPairs.contains(pair) || errors[pair] != nil }
     func comparison(_ pair: MacFXPair, calendar: Calendar = .current) -> MacFXComparison {
         _ = revision
@@ -184,6 +217,9 @@ final class MacFXMonitor: ObservableObject {
         let cycle = UUID().uuidString, requestGeneration = generation, capturedConfig = configuration
         let activeProviders = providers(for: capturedConfig), clock = now(), calendar = Calendar.current
         var attempted: Set<MacFXPair> = [], successes = 0
+        var nextCache = cache
+        var baselines: [(MacFXPair, MacFXEvidenceQuote)] = []
+        var accepted: [MacFXEvidenceQuote] = []
         while let pair = pending.sorted(by: { $0.key < $1.key }).first {
             pending.remove(pair)
             guard attempted.insert(pair).inserted else { continue }
@@ -206,17 +242,25 @@ final class MacFXMonitor: ObservableObject {
             }
             guard requestGeneration == generation else { continue }
             if let returned {
-                if cache.accept(returned, now: now(), calendar: calendar) {
+                if nextCache.accept(returned, now: now(), calendar: calendar) {
+                    accepted.append(returned)
                     successes += 1; cachedPairs.remove(pair); errors[pair] = nil
                     warnings[pair] = failures.isEmpty ? nil : "自定义来源暂不可用，已使用系统数据源"
-                    if !capturedConfig.automatic { await backfill(pair: pair, current: returned, providers: activeProviders,
-                                                                 cycle: cycle, requestGeneration: requestGeneration, clock: clock, calendar: calendar) }
+                    if !capturedConfig.automatic { baselines.append((pair, returned)) }
                 } else { warnings[pair] = "旧报价未覆盖较新的有效值" }
             } else { errors[pair] = "暂未取得有效汇率，请检查网络或稍后更新" }
         }
         if requestGeneration == generation {
+            // Publish the complete current-rate batch before optional daily baselines.
+            var merged = cache
+            for value in accepted { _ = merged.accept(value, now: now(), calendar: calendar) }
+            cache = merged
             revision += 1; status = successes > 0 ? "已更新 \(successes) 个汇率" : "未取得新报价，保留有效缓存"
             persist(cache)
+            for (pair, current) in baselines {
+                guard requestGeneration == generation else { break }
+                await backfill(pair: pair, current: current, providers: activeProviders, cycle: cycle, requestGeneration: requestGeneration, clock: clock, calendar: calendar)
+            }
         }
     }
     private func backfill(pair: MacFXPair, current: MacFXEvidenceQuote, providers: [MacFXProvider], cycle: String,

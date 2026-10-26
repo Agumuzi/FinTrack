@@ -4,7 +4,6 @@ import AppKit
 struct MacAboutSettingsView: View {
     var wide: Bool
     @ObservedObject private var updater = MacUpdateService.shared
-    @ObservedObject private var permissions = MacPermissionCoordinator.shared
     @AppStorage("v2_update_auto") private var automatic = false
     @AppStorage("v2_update_frequency") private var frequency = "weekly"
     @State private var showsLicense = false
@@ -46,11 +45,7 @@ struct MacAboutSettingsView: View {
                         Toggle("自动检查更新", isOn: $automatic).labelsHidden().toggleStyle(.switch).tint(.blue).disabled(!canConfigure)
                         MacSettingsMenu(selection: $frequency, options: [("每天","daily"), ("每周","weekly"), ("每月","monthly")]).frame(width: MacUI.space(95)).disabled(!canConfigure)
                     }
-                    HStack {
-                        Text("更新提醒：" + permissions.notificationText).appFont(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("权限设置") { permissions.open() }.accessibilityIdentifier("updatePermissionGuide")
-                    }
+
                     if let message { Text(message).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.green) }
                     if let error { Text(error).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.red) }
                 }
@@ -83,7 +78,7 @@ struct MacAboutSettingsView: View {
                 }
             }
         }
-        .task { await permissions.refresh() }
+
         .onChange(of: automatic) { _, enabled in
             if enabled {
                 Task {

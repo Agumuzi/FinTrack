@@ -15,9 +15,9 @@ enum MacSettingsStore {
         defaults.set(try JSONEncoder().encode(value), forKey: key)
     }
     static let keys = ["base_currency", "color_theme_mode", "app_date_format", "fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey,
-        "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size",
+        "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed", "v2_accent", "v2_density", "v2_font_tier", "v2_font_size", MacCustomTypography.bodyKey, MacCustomTypography.captionKey,
         MacInterfaceFonts.preferenceKey, "v2_week_start", "v2_month_format", "v2_time_format", "v2_decimals", "v2_grouping", "v2_negative",
-        "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
+        "v2_zero", "v2_sort", "v2_page_size", "v2_chart_months", "notifications_enabled", "selection_conversion_enabled", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_last_page", "v2_settings_page",
         "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear", "v2_remind_recurring", "v2_remind_goals",
         "v2_remind_budgets", "v2_display_name", "v141_hotkey", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
         "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_region", "v2_fx_preferred_source", "v2_goal_presentation", "v2_backup_folder", "v2_backup_naming", "v2_update_auto", "v2_update_frequency", "v2_update_download", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
@@ -41,7 +41,7 @@ enum MacSettingsStore {
         let binaryKeys: Set<String> = ["v141_hotkey", "v2_avatar", "v2_budgets", "v2_category_styles", "v2_fx_sources",
             "v2_currencies", "v2_fx_quotes", "v2_disabled_currencies", "v2_goal_presentation", MacAppEntryConfiguration.storageKey, MacFXConfiguration.storageKey]
         let booleanKeys: Set<String> = ["fintrack_initial_setup_complete", MacPreferences.blankInitialStateKey, "fintrack_auto_posting", "v13_auto_deposit_posting", "v2_navigation_collapsed",
-            "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
+            "notifications_enabled", "selection_conversion_enabled", "v141_background", "v141_show_help", "v141_selection_auto", "v141_selection_shortcut", "v2_notes", "v2_resume_page", "v2_confirm_records", "v2_confirm_categories", "v2_confirm_clear",
             "v2_remind_recurring", "v2_remind_goals", "v2_remind_budgets", "v2_update_auto", "v2_update_download"]
         let integerChoices: [String: Set<Int>] = ["v2_decimals": Set(0...4), "v2_week_start": [1, 2],
             "v2_page_size": [25, 50, 100], "v2_chart_months": [3, 6, 12]]
@@ -55,6 +55,9 @@ enum MacSettingsStore {
                    number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue {
                     valid = choices.contains { Double($0) == number.doubleValue }
                 } else { valid = false }
+            } else if key == MacCustomTypography.bodyKey || key == MacCustomTypography.captionKey {
+                let range = key == MacCustomTypography.bodyKey ? MacCustomTypography.bodyRange : MacCustomTypography.captionRange
+                valid = (value as? NSNumber).map { CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.isFinite && $0.doubleValue.rounded() == $0.doubleValue && range.contains($0.intValue) } ?? false
             } else if key == MacInterfaceFonts.preferenceKey {
                 valid = (value as? String).map { $0.count <= 200 && !$0.contains("\n") } ?? false
             } else if key == "v2_font_tier" {
