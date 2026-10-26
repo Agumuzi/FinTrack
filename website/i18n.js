@@ -1,8 +1,11 @@
 /* FinTrack website localization: the HTML is authored in English for first-visit/SEO fallback.
-   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.2. */
+   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.3. */
 (() => {
   'use strict';
   const dictionary = {
+  "Instant selection conversion & desktop refinements": "即时选区换算与桌面体验优化",
+  "Convert selected amounts in a compact popup near the pointer, with automatic copying and shared menu-bar currencies, precision, data sources, and cached rates. Permissions use clear switches and status indicators. Improved transaction headers and single-click details, custom avatars, window memory, and continuous font sizing.": "在鼠标附近的简洁浮层中换算选中金额，自动复制结果，共用菜单栏货币、精度、来源和缓存汇率。权限使用清晰的开关和状态提示；改善账目表头与单击详情、自定义头像、窗口记忆和连续字号调整。",
+
   "Startup, permissions & a branded installer": "启动、权限与品牌安装包",
   "Start with an empty ledger and a shared permission guide. Updates use an attached app dialog; automatic checks notify you when a new version is available. The warm Agumuzi DMG includes the new wallet icon and drag-to-install layout.": "默认空白账本与统一权限引导。更新使用主窗口内弹窗，自动发现新版时发送系统通知。暖色 Agumuzi DMG 包含新钱包图标及拖动安装布局。",
   "System permissions are optional for basic bookkeeping. Create a full backup before upgrading.": "基本记账不强制开启系统权限。升级前请创建完整备份。",
@@ -19,7 +22,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.2 is available": "FinTrack v1.4.2 现已发布",
+  "FinTrack v1.4.3 is available": "FinTrack v1.4.3 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -151,6 +154,9 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Instant selection conversion & desktop refinements": "Быстрая конвертация и улучшения интерфейса",
+  "Convert selected amounts in a compact popup near the pointer, with automatic copying and shared menu-bar currencies, precision, data sources, and cached rates. Permissions use clear switches and status indicators. Improved transaction headers and single-click details, custom avatars, window memory, and continuous font sizing.": "Конвертируйте выделенные суммы в компактном окне у курсора с автоматическим копированием. Валюты, точность, источники и кэш курсов общие с меню-баром. Улучшены переключатели разрешений, заголовки таблицы и открытие деталей одним нажатием, аватары, запоминание окна и настройка размера шрифта.",
+
   "Startup, permissions & a branded installer": "Запуск, разрешения и фирменный установщик",
   "Start with an empty ledger and a shared permission guide. Updates use an attached app dialog; automatic checks notify you when a new version is available. The warm Agumuzi DMG includes the new wallet icon and drag-to-install layout.": "Начните с пустого журнала и общего мастера разрешений. Обновления открываются в диалоге главного окна; автоматическая проверка уведомляет о новой версии. DMG в тёплых цветах Agumuzi содержит новый значок кошелька и установку перетаскиванием.",
   "System permissions are optional for basic bookkeeping. Create a full backup before upgrading.": "Для базового учёта системные разрешения необязательны. Перед обновлением создайте полную резервную копию.",
@@ -167,7 +173,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.2 is available": "Вышла версия FinTrack v1.4.2",
+  "FinTrack v1.4.3 is available": "Вышла версия FinTrack v1.4.3",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
