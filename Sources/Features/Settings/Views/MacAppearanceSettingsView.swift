@@ -56,11 +56,14 @@ struct MacThemeThumbnail: View {
 struct MacAppearanceSettingsView: View {
     var wide: Bool
     @Binding var fontTierValue: String
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
+    @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var captionPoints = 12
     @AppStorage("color_theme_mode") private var theme = "system"
     @AppStorage("v2_accent") private var accent = "red"
     @AppStorage("v2_density") private var density = "comfortable"
     @AppStorage("v2_navigation_collapsed") private var collapsed = false
     var body: some View {
+        let _ = bodyPoints; let _ = captionPoints
         MacSettingsColumns(wide: wide) {
             VStack(spacing: MacUI.space(14)) {
                 MacSettingsCard(title: "主题模式", icon: "sun.max", subtitle: "选择应用的整体外观风格。", headerColor: .red) { MacThemeChoices(theme: $theme) }
@@ -84,13 +87,13 @@ struct MacAppearanceSettingsView: View {
                         navigationChoice("仅图标", collapsed: true, icon: "rectangle.lefthalf.inset.filled", detail: "只显示图标，节省空间")
                     }
                 }
-                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; fontTierValue = MacFontSizeTier.standard.rawValue; MacPreferences.defaults.removeObject(forKey: MacInterfaceFonts.preferenceKey); collapsed = false }.accessibilityIdentifier("resetAppearance") }
+                HStack { Spacer(); Button("恢复默认外观") { theme = "system"; accent = "red"; density = "comfortable"; MacCustomTypography.reset(); fontTierValue = MacFontSizeTier.standard.rawValue; MacPreferences.defaults.removeObject(forKey: MacInterfaceFonts.preferenceKey); collapsed = false }.accessibilityIdentifier("resetAppearance") }
             }
         } right: {
             VStack(spacing: MacUI.space(14)) {
                 MacSettingsCard(title: "界面预览", icon: "eye", headerColor: .blue) {
                     MacAppearancePreview(accent: MacAccent.color(accent), collapsed: collapsed, density: density)
-                        .frame(height: MacUI.fontTier == .large ? 480 : 420)
+                        .frame(height: MacUI.fontTier.bodySize >= 18 ? 480 : 420)
                 }
                     .accessibilityElement(children: .contain).accessibilityIdentifier("appearanceLivePreview")
                 if wide { fontSizeCard }
@@ -101,29 +104,19 @@ struct MacAppearanceSettingsView: View {
         }
     }
     private var fontSizeCard: some View {
-                MacSettingsCard(title: "字体大小", icon: "textformat.size", subtitle: "正文与说明分别调整字号，页面间距和控件尺寸保持稳定。", headerColor: .red) {
-                    HStack(spacing: MacUI.space(8)) {
-                        ForEach(MacFontSizeTier.allCases) { tier in
-                            Button {
-                                fontTierValue = tier.rawValue
-                            } label: {
-                                VStack(alignment: .leading, spacing: MacUI.space(5)) {
-                                    Text(tier.title).appFont(.body, weight: .semibold, design: .default)
-                                    Text("正文 \(Int(tier.bodySize)) / 说明 \(Int(tier.captionSize))").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                                .appPadding(8)
-                                .contentShape(Rectangle())
-                                .background(fontTierValue == tier.rawValue ? MacSettingsVisual.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 8))
-                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(fontTierValue == tier.rawValue ? MacSettingsVisual.accent : .gray.opacity(0.18)))
-                            }
-                            .buttonStyle(MacInteractiveButtonStyle())
-                            .accessibilityIdentifier("fontTier-\(tier.rawValue)")
-                            .accessibilityValue(fontTierValue == tier.rawValue ? "已选中" : "未选中")
-                        }
-                    }
-
+        MacSettingsCard(title: "字体大小", icon: "textformat.size", subtitle: "输入字号或点击调整。⌘± 每次调整 1 点，⌘0 恢复默认。", headerColor: .red) {
+            MacFontSizeInputRow(title: "正文字号", detail: "10–32 点", value: Binding(get: { Int(MacUI.fontTier.bodySize) }, set: { MacCustomTypography.set(body: $0, caption: Int(MacUI.fontTier.captionSize)) }), range: MacCustomTypography.bodyRange, identifier: "bodyFontSize")
+            Divider()
+            MacFontSizeInputRow(title: "说明字号", detail: "8–28 点", value: Binding(get: { Int(MacUI.fontTier.captionSize) }, set: { MacCustomTypography.set(body: Int(MacUI.fontTier.bodySize), caption: $0) }), range: MacCustomTypography.captionRange, identifier: "captionFontSize")
+            HStack(spacing: 8) {
+                ForEach(MacFontSizeTier.allCases.filter { $0 != .custom }) { tier in
+                    Button(tier.title) { fontTierValue = tier.rawValue }.buttonStyle(.bordered)
+                        .accessibilityIdentifier("fontTier-" + tier.rawValue).accessibilityValue(fontTierValue == tier.rawValue ? "已选中" : "未选中")
                 }
+                Spacer()
+                Button("恢复默认") { MacCustomTypography.reset(); fontTierValue = "standard" }.accessibilityIdentifier("resetFontSizes")
+            }
+        }
     }
     private func densityChoice(_ title: String, value: String, icon: String) -> some View {
         Button { density = value } label: {
@@ -203,4 +196,24 @@ struct MacLanguageChoice: View {
         MacSettingsMenu(selection: $language, options: [("简体中文", "zh-Hans")])
             .accessibilityIdentifier("settingsLanguageMenu")
     }
+}
+
+private struct MacFontSizeInputRow: View {
+    let title: String
+    let detail: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let identifier: String
+    @State private var draft = ""
+    @FocusState private var editing: Bool
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) { Text(title).appFont(.body, weight: .medium); Text(detail).appFont(.caption).foregroundStyle(.secondary) }
+            Spacer(minLength: 8)
+            TextField("字号", text: $draft).textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 66).focused($editing).onSubmit(commit).accessibilityIdentifier(identifier + "Input")
+            Text("pt").foregroundStyle(.secondary)
+            Stepper(title, value: Binding(get: { value }, set: { value = $0; draft = String($0) }), in: range).labelsHidden().accessibilityIdentifier(identifier + "Stepper")
+        }.onAppear { draft = String(value) }.onChange(of: value) { _, next in draft = String(next) }.onChange(of: editing) { _, active in if !active { commit() } }
+    }
+    private func commit() { if let number = Int(draft) { value = min(range.upperBound, max(range.lowerBound, number)) }; draft = String(value) }
 }

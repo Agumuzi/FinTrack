@@ -43,6 +43,7 @@ struct MacRecordSection: View {
     @State private var activeRowsCache: [Transaction] = []
     @State private var visibleRowsCache: [Transaction] = []
     @State private var maximumVisibleAmount = 0.0
+    @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var measuredCustomBody = 16
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var measuredFontTier = "standard"
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var measuredFontName = ""
     @State private var activeBookCurrencyCache: String?
@@ -162,7 +163,13 @@ struct MacRecordSection: View {
     }
     private func tableSizing(compact: Bool) -> some View {
         MacRecordsTableSizing(dateWidth: dateColumnWidth, amountWidth: amountColumnWidth, categoryWidth: categoryColumnWidth,
-            compact: compact, selecting: showsSelectionBoxes, revision: "\(displayLimit)-\(visibleTransactions.count)-\(recordSort)").frame(width: 0, height: 0)
+            compact: compact, selecting: showsSelectionBoxes, revision: "\(displayLimit)-\(visibleTransactions.count)-\(recordSort)-\(measuredFontName)-\(MacUI.fontTier.bodySize)-\(measuredCustomBody)",
+            titles: (showsSelectionBoxes ? [""] : []) + (compact ? ["日期", "类别", "金额（\(activeBookCurrency ?? "本位币")）"] : ["日期", "类别", "备注", "原币", "金额（\(activeBookCurrency ?? "本位币")）"]),
+            onRowClick: { index in
+                let rows = Array(visibleTransactions.prefix(displayLimit))
+                guard !showsSelectionBoxes, rows.indices.contains(index) else { return }
+                selectedTransactionID = rows[index].id; showsDetails = true
+            }).frame(width: 0, height: 0)
     }
     @ViewBuilder private var headerSelectionCheckbox: some View {
         if showsSelectionBoxes {
@@ -525,7 +532,7 @@ struct MacRecordSection: View {
                 .width(min: 65, ideal: amountColumnWidth, max: 2000).alignment(.trailing)
         }.tableStyle(.inset(alternatesRowBackgrounds: true))
             .contextMenu(forSelectionType: UUID.self, menu: { ids in recordContextMenu(ids) }, primaryAction: { ids in
-                if let id = ids.first { selectedTransactionID = id; showsDetails = true }
+                if !showsSelectionBoxes, let id = ids.first { selectedTransactionID = id; showsDetails = true }
             })
             .background(MacRecordsKeyboardActions(selectAll: selectAllRecords).frame(width: 0, height: 0))
             .accessibilityIdentifier("recordsTable")
@@ -553,7 +560,7 @@ struct MacRecordSection: View {
             }.width(min: 65, ideal: amountColumnWidth, max: 2000).alignment(.trailing)
         }.tableStyle(.inset(alternatesRowBackgrounds: true))
             .contextMenu(forSelectionType: UUID.self, menu: { ids in recordContextMenu(ids) }, primaryAction: { ids in
-                if let id = ids.first { selectedTransactionID = id; showsDetails = true }
+                if !showsSelectionBoxes, let id = ids.first { selectedTransactionID = id; showsDetails = true }
             })
             .background(MacRecordsKeyboardActions(selectAll: selectAllRecords).frame(width: 0, height: 0)).accessibilityIdentifier("recordsTable")
             .background(tableSizing(compact: true))
