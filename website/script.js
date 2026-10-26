@@ -42,24 +42,24 @@
 
   const screens = {
     records: {
-      en: {alt: 'FinTrack v1.4.1 transactions screen', description: 'Organize entries by date, category, and currency, with both original and base-currency amounts visible.'},
-      zh: {alt: 'FinTrack v1.4.1 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'},
-      ru: {alt: "Экран операций FinTrack v1.4.1", description: "Упорядочивайте операции по дате, категории и валюте. Суммы видны как в исходной, так и в основной валюте."}
+      en: {alt: 'FinTrack v1.4.6 transactions screen', description: 'Organize entries by date, category, and currency, with both original and base-currency amounts visible.'},
+      zh: {alt: 'FinTrack v1.4.6 收支账目界面', description: '按日期、类别与币种整理账目，原币和本位币金额都有迹可循。'},
+      ru: {alt: "Экран операций FinTrack v1.4.6", description: "Упорядочивайте операции по дате, категории и валюте. Суммы видны как в исходной, так и в основной валюте."}
     },
     finance: {
-      en: {alt: 'FinTrack v1.4.1 financial planning screen', description: "Manage and review deposits, loans, and recurring entries. The sample 'Logo' represents a user-provided bank image, saved by bank name and matched automatically next time."},
-      zh: {alt: 'FinTrack v1.4.1 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'},
-      ru: {alt: "Экран финансового планирования FinTrack v1.4.1", description: "Управляйте вкладами, кредитами и регулярными операциями. Пример «Logo» обозначает изображение банка, добавленное пользователем: оно сохраняется по названию банка и подставляется автоматически."}
+      en: {alt: 'FinTrack v1.4.6 financial planning screen', description: "Manage and review deposits, loans, and recurring entries. The sample 'Logo' represents a user-provided bank image, saved by bank name and matched automatically next time."},
+      zh: {alt: 'FinTrack v1.4.6 财务计划界面', description: '在存款、贷款和周期记录间，管理与核对财务计划。示例“Logo”代表用户自定义图片：与银行名称关联保存，下次自动匹配。'},
+      ru: {alt: "Экран финансового планирования FinTrack v1.4.6", description: "Управляйте вкладами, кредитами и регулярными операциями. Пример «Logo» обозначает изображение банка, добавленное пользователем: оно сохраняется по названию банка и подставляется автоматически."}
     },
     exchange: {
-      en: {alt: 'FinTrack v1.4.1 exchange-rate workspace', description: 'Look up, convert, and review exchange rates. Choose separate sources for accounting and the menu bar.'},
-      zh: {alt: 'FinTrack v1.4.1 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'},
-      ru: {alt: "Экран курсов валют FinTrack v1.4.1", description: "Просматривайте, конвертируйте и анализируйте курсы валют. Для учёта и строки меню можно выбрать разные источники."}
+      en: {alt: 'FinTrack v1.4.6 exchange-rate workspace', description: 'Look up, convert, and review exchange rates. Choose separate sources for accounting and the menu bar.'},
+      zh: {alt: 'FinTrack v1.4.6 汇率工作区', description: '查询、换算并回看汇率，记账与菜单栏的数据来源可以分别选择。'},
+      ru: {alt: "Экран курсов валют FinTrack v1.4.6", description: "Просматривайте, конвертируйте и анализируйте курсы валют. Для учёта и строки меню можно выбрать разные источники."}
     },
     settings: {
-      en: {alt: 'FinTrack v1.4.1 native backup and export screen', description: 'Keep a full native backup or exchange data with four CSV templates. Save a safety copy before restoring.'},
-      zh: {alt: 'FinTrack v1.4.1 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'},
-      ru: {alt: "Экран резервного копирования и экспорта FinTrack v1.4.1", description: "Сохраняйте полную резервную копию во встроенном формате или обменивайтесь данными через четыре шаблона CSV. Перед восстановлением сохраняйте страховочную копию."}
+      en: {alt: 'FinTrack v1.4.6 native backup and export screen', description: 'Keep a full native backup or exchange data with four CSV templates. Save a safety copy before restoring.'},
+      zh: {alt: 'FinTrack v1.4.6 原生备份与导出界面', description: '保存原生完整备份，或用四类 CSV 模板交换数据；恢复前先保留安全副本。'},
+      ru: {alt: "Экран резервного копирования и экспорта FinTrack v1.4.6", description: "Сохраняйте полную резервную копию во встроенном формате или обменивайтесь данными через четыре шаблона CSV. Перед восстановлением сохраняйте страховочную копию."}
     }
   };
   const tabs = [...document.querySelectorAll('[data-screen]')];

@@ -68,6 +68,6 @@ for (const [language, pattern, themeLabel] of cases) {
   document.dispatchEvent({ type: 'fintrack:languagechange' });
   assert.match(description.textContent, pattern, `Gallery must follow ${language}`);
   assert.equal(themeButton['aria-label'], themeLabel);
-  assert.ok(image.alt.includes('FinTrack v1.4.1') || image.alt.includes('FinTrack v1.4.1'), 'Missing image alt');
+  assert.ok(image.alt.includes('FinTrack v1.4.6'), 'Missing current screenshot version in image alt');
 }
 console.log('PASS: Russian ⇄ English ⇄ Chinese language switching without recursion');
