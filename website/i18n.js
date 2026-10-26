@@ -1,8 +1,12 @@
 /* FinTrack website localization: the HTML is authored in English for first-visit/SEO fallback.
-   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.4. */
+   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.5. */
 (() => {
   'use strict';
   const dictionary = {
+  "Reliable relaunch & persistent keychain access": "可靠重启与持久钥匙串授权",
+  "Updates now restore the main window before confirming that the new app has started. A separately signed keychain service stays unchanged across ordinary app updates, preserving authorization while keeping API keys in the system keychain. Background rate refreshes no longer open password dialogs.": "更新后先恢复主窗口，再确认新版启动。独立签名的密钥服务在普通应用更新中保持不变，保留授权，API Key 仍存于系统钥匙串。后台刷新汇率不再主动弹出密码窗口。",
+  "Existing keys may require one confirmation when first switching to the keychain service. Choose Always Allow; ordinary app updates then retain authorization. Create a full backup before upgrading.": "旧密钥首次切换到专用服务时，系统可能需要确认一次。选择“始终允许”后，普通应用更新会沿用授权。升级前请创建完整备份。",
+
   "Reliable updates & independent interface zoom": "可靠更新与独立界面缩放",
   "Update installation now closes its confirmation before restarting, prevents duplicate installation tasks, and confirms the new app has started. Interface zoom is independent of text size, with 10% steps from 50% to 150%. Improved appearance previews, menu-bar forms, overview cards, permission guides, and resizable financial lists.": "更新安装会先关闭确认窗口，再退出和重新启动；阻止重复安装并确认新版启动。界面缩放独立于字号，以 10% 步进在 50%–150% 之间调整。改善外观预览、菜单栏表单、概览卡片、权限引导和可拖动的财务列表。",
   "If the v1.4.2 or v1.4.3 updater stays on its confirmation page, quit the old app and replace it once using this DMG. Create a full backup before upgrading.": "如果 v1.4.2 或 v1.4.3 更新器停留在确认页，请退出旧版并通过本版 DMG 替换一次。升级前请创建完整备份。",
@@ -26,7 +30,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.4 is available": "FinTrack v1.4.4 现已发布",
+  "FinTrack v1.4.5 is available": "FinTrack v1.4.5 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -158,6 +162,10 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Reliable relaunch & persistent keychain access": "Надёжный перезапуск и сохранение доступа к связке ключей",
+  "Updates now restore the main window before confirming that the new app has started. A separately signed keychain service stays unchanged across ordinary app updates, preserving authorization while keeping API keys in the system keychain. Background rate refreshes no longer open password dialogs.": "После обновления приложение восстанавливает главное окно перед подтверждением запуска. Отдельно подписанная служба ключей не меняется при обычных обновлениях, сохраняя разрешение и ключи API в системной связке. Фоновое обновление курсов больше не открывает запрос пароля.",
+  "Existing keys may require one confirmation when first switching to the keychain service. Choose Always Allow; ordinary app updates then retain authorization. Create a full backup before upgrading.": "При первом переходе старых ключей на новую службу может понадобиться одно подтверждение. Выберите «Разрешать всегда»; обычные обновления приложения сохранят разрешение. Перед обновлением создайте полную резервную копию.",
+
   "Reliable updates & independent interface zoom": "Надёжное обновление и отдельный масштаб интерфейса",
   "Update installation now closes its confirmation before restarting, prevents duplicate installation tasks, and confirms the new app has started. Interface zoom is independent of text size, with 10% steps from 50% to 150%. Improved appearance previews, menu-bar forms, overview cards, permission guides, and resizable financial lists.": "Установка закрывает окно подтверждения перед перезапуском, исключает повторные задачи и проверяет запуск новой версии. Масштаб интерфейса отделён от размера текста: 50%–150% с шагом 10%. Улучшены предпросмотр оформления, формы меню-бара, обзор, настройка разрешений и изменяемая ширина финансовых списков.",
   "If the v1.4.2 or v1.4.3 updater stays on its confirmation page, quit the old app and replace it once using this DMG. Create a full backup before upgrading.": "Если обновление v1.4.2 или v1.4.3 остаётся на экране подтверждения, завершите старую версию и один раз замените приложение через этот DMG. Перед обновлением создайте полную резервную копию.",
@@ -181,7 +189,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.4 is available": "Вышла версия FinTrack v1.4.4",
+  "FinTrack v1.4.5 is available": "Вышла версия FinTrack v1.4.5",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
