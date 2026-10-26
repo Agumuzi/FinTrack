@@ -42,3 +42,10 @@ python3 -m http.server 8000 --directory website
 ```
 
 访问 `http://localhost:8000/`。`scripts/check-site.py` 检查本地资源和锚点；GitHub Actions 在合并后部署至 [GitHub Pages](https://agumuzi.github.io/FinTrack/)。网站不依赖前端框架、第三方字体或分析服务。
+
+
+## 独立密钥组件
+
+`Resources/FinTrackKeychainHelper` 是具有独立组件版本的 Universal 签名程序，源码位于 `Sources/Core/Security/KeychainHelper/`，不参与主应用重新编译。普通应用发布复用其原始字节，避免旧版钥匙串按程序指纹重新要求授权。`scripts/verify-keychain-helper.py` 检查源码、双架构签名与固定摘要；构建和签名不得改写该组件。组件安全更新需要独立评估授权迁移，不能随应用版本自动重签。
+
+主应用和组件相互验证官方固定身份；组件只接受父应用通过私有管道发送的请求，API Key 不进入命令行、日志或临时文件。自行发布的 fork 必须使用自己的身份构建并配置组件，不能使用官方组件访问官方应用的密钥。正式账本、Bundle ID 和 API Key 服务标识保持不变。

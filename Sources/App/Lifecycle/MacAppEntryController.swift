@@ -177,6 +177,17 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
             await MacApplicationRuntime.shared.entries.start()
             MacAppServices.shared.start()
             MacSelectionConversion.shared.start()
+            let updateLaunch = await Task.detached(priority: .utility) { MacUpdateInstallation.launchReceipt() != nil }.value
+            if updateLaunch {
+                // An explicit update restart should restore the app even when
+                // normal login launches are configured to stay in the menu bar.
+                MacApplicationRuntime.shared.showMain()
+                for _ in 0..<100 {
+                    if MacApplicationRuntime.shared.mainWindow?.isVisible == true { break }
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+                guard MacApplicationRuntime.shared.mainWindow?.isVisible == true else { return }
+            }
             Task.detached(priority: .utility) { MacUpdateInstallation.confirmLaunch() }
             #if FINTRACK_LOCAL_VALIDATION
             MacUpdateService.shared.loadInstallationFixture()

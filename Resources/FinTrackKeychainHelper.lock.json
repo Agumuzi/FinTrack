@@ -1,0 +1,13 @@
+{
+  "component_version": 1,
+  "sha256": "d6ad5171c9fb7346b827cb93bce60804d23855b7875d82bfa56118b7bfaa4c8e",
+  "designated_requirement": "identifier \"dev.agumuzi.fintrack.fx.keychain-helper\" and certificate leaf = H\"51E58A1C399930D64EC957B3AE02489DD1E75C78\"",
+  "source_sha256": {
+    "Sources/Core/Security/KeychainHelper/main.swift": "c6303d595a0bb443a6c3b969bb381eccc6fda3c78bc5f4c435dd8a6070bacd4d",
+    "Sources/Core/Security/KeychainHelper/HelperInfo.plist": "e08f623789f96f479fa37afe0b6ba306c56cea96636c193c35f659f2dca992fa"
+  },
+  "cdhashes": {
+    "arm64": "85462cd009ba11dff3d78845c110ebee46fb9913",
+    "x86_64": "3c269e7834e237b39cfa8ddad68ee7cf1928ba6d"
+  }
+}
