@@ -1,8 +1,12 @@
 /* FinTrack website localization: the HTML is authored in English for first-visit/SEO fallback.
-   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.3. */
+   Release metadata tracks current assets; existing Chinese app screenshots are retained for v1.4.4. */
 (() => {
   'use strict';
   const dictionary = {
+  "Reliable updates & independent interface zoom": "可靠更新与独立界面缩放",
+  "Update installation now closes its confirmation before restarting, prevents duplicate installation tasks, and confirms the new app has started. Interface zoom is independent of text size, with 10% steps from 50% to 150%. Improved appearance previews, menu-bar forms, overview cards, permission guides, and resizable financial lists.": "更新安装会先关闭确认窗口，再退出和重新启动；阻止重复安装并确认新版启动。界面缩放独立于字号，以 10% 步进在 50%–150% 之间调整。改善外观预览、菜单栏表单、概览卡片、权限引导和可拖动的财务列表。",
+  "If the v1.4.2 or v1.4.3 updater stays on its confirmation page, quit the old app and replace it once using this DMG. Create a full backup before upgrading.": "如果 v1.4.2 或 v1.4.3 更新器停留在确认页，请退出旧版并通过本版 DMG 替换一次。升级前请创建完整备份。",
+
   "Instant selection conversion & desktop refinements": "即时选区换算与桌面体验优化",
   "Convert selected amounts in a compact popup near the pointer, with automatic copying and shared menu-bar currencies, precision, data sources, and cached rates. Permissions use clear switches and status indicators. Improved transaction headers and single-click details, custom avatars, window memory, and continuous font sizing.": "在鼠标附近的简洁浮层中换算选中金额，自动复制结果，共用菜单栏货币、精度、来源和缓存汇率。权限使用清晰的开关和状态提示；改善账目表头与单击详情、自定义头像、窗口记忆和连续字号调整。",
 
@@ -22,7 +26,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.3 is available": "FinTrack v1.4.3 现已发布",
+  "FinTrack v1.4.4 is available": "FinTrack v1.4.4 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -154,6 +158,10 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Reliable updates & independent interface zoom": "Надёжное обновление и отдельный масштаб интерфейса",
+  "Update installation now closes its confirmation before restarting, prevents duplicate installation tasks, and confirms the new app has started. Interface zoom is independent of text size, with 10% steps from 50% to 150%. Improved appearance previews, menu-bar forms, overview cards, permission guides, and resizable financial lists.": "Установка закрывает окно подтверждения перед перезапуском, исключает повторные задачи и проверяет запуск новой версии. Масштаб интерфейса отделён от размера текста: 50%–150% с шагом 10%. Улучшены предпросмотр оформления, формы меню-бара, обзор, настройка разрешений и изменяемая ширина финансовых списков.",
+  "If the v1.4.2 or v1.4.3 updater stays on its confirmation page, quit the old app and replace it once using this DMG. Create a full backup before upgrading.": "Если обновление v1.4.2 или v1.4.3 остаётся на экране подтверждения, завершите старую версию и один раз замените приложение через этот DMG. Перед обновлением создайте полную резервную копию.",
+
   "Instant selection conversion & desktop refinements": "Быстрая конвертация и улучшения интерфейса",
   "Convert selected amounts in a compact popup near the pointer, with automatic copying and shared menu-bar currencies, precision, data sources, and cached rates. Permissions use clear switches and status indicators. Improved transaction headers and single-click details, custom avatars, window memory, and continuous font sizing.": "Конвертируйте выделенные суммы в компактном окне у курсора с автоматическим копированием. Валюты, точность, источники и кэш курсов общие с меню-баром. Улучшены переключатели разрешений, заголовки таблицы и открытие деталей одним нажатием, аватары, запоминание окна и настройка размера шрифта.",
 
@@ -173,7 +181,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.3 is available": "Вышла версия FinTrack v1.4.3",
+  "FinTrack v1.4.4 is available": "Вышла версия FinTrack v1.4.4",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
