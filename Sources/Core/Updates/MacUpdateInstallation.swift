@@ -86,22 +86,29 @@ nonisolated enum MacUpdateInstallation {
     exit 79
     """#
 
+    /// Only a matching private installer ticket may override normal launch visibility.
+    static func launchReceipt(bundle: Bundle = .main, arguments: [String] = CommandLine.arguments) -> (file: URL, token: String)? {
+        let updates = FileManager.default.temporaryDirectory.appendingPathComponent("FinTrack-Updates", isDirectory: true).standardizedFileURL
+        let current = bundle.bundleURL.standardizedFileURL
+        guard !current.path.hasPrefix(updates.path + "/"), bundle.bundleIdentifier == "dev.agumuzi.fintrack.macos",
+              let index = arguments.firstIndex(of: "--fintrack-update-ticket"), arguments.indices.contains(index + 1),
+              let tokenIndex = arguments.firstIndex(of: "--fintrack-update-token"), arguments.indices.contains(tokenIndex + 1) else { return nil }
+        let file = URL(fileURLWithPath: arguments[index + 1]).standardizedFileURL
+        guard file.lastPathComponent == "launch.json", file.deletingLastPathComponent().deletingLastPathComponent() == updates,
+              (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
+              let data = try? Data(contentsOf: file), let ticket = try? JSONDecoder().decode(Ticket.self, from: data),
+              ticket.token == arguments[tokenIndex + 1], UUID(uuidString: ticket.token) != nil,
+              ticket.target == current.path, ticket.version == bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+              String(ticket.build) == bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return nil }
+        return (file,ticket.token)
+    }
     static func confirmLaunch(bundle: Bundle = .main, arguments: [String] = CommandLine.arguments) {
         let fm = FileManager.default
         let updates = fm.temporaryDirectory.appendingPathComponent("FinTrack-Updates", isDirectory: true).standardizedFileURL
         let current = bundle.bundleURL.standardizedFileURL
         guard !current.path.hasPrefix(updates.path + "/"), bundle.bundleIdentifier == "dev.agumuzi.fintrack.macos" else { return }
-        if let index = arguments.firstIndex(of: "--fintrack-update-ticket"), arguments.indices.contains(index + 1),
-           let tokenIndex = arguments.firstIndex(of: "--fintrack-update-token"), arguments.indices.contains(tokenIndex + 1) {
-            let file = URL(fileURLWithPath: arguments[index + 1]).standardizedFileURL
-            if file.lastPathComponent == "launch.json", file.deletingLastPathComponent().deletingLastPathComponent() == updates,
-               (try? file.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == false,
-               let data = try? Data(contentsOf: file), let ticket = try? JSONDecoder().decode(Ticket.self, from: data),
-               ticket.token == arguments[tokenIndex + 1], UUID(uuidString: ticket.token) != nil,
-               ticket.target == current.path, ticket.version == bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-               String(ticket.build) == bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String {
-                try? Data(ticket.token.utf8).write(to: file.deletingLastPathComponent().appendingPathComponent("launch-confirmed"), options: .atomic)
-            }
+        if let receipt = launchReceipt(bundle: bundle, arguments: arguments) {
+            try? Data(receipt.token.utf8).write(to: receipt.file.deletingLastPathComponent().appendingPathComponent("launch-confirmed"), options: .atomic)
         }
         // Older updaters cannot send a receipt. Only clean their private staging
         // copies after the installed executable exactly matches a prepared one.

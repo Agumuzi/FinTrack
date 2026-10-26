@@ -79,33 +79,27 @@ enum MacFXSecrets {
         values[id.uuidString] = UUID().uuidString
         try? MacSettingsStore.save(values, key: "v3_fx_source_revisions")
     }
-    private static func query(_ id: UUID) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "dev.agumuzi.fintrack.fx", kSecAttrAccount as String: id.uuidString]
-    }
     static func read(_ id: UUID, retryAuthorization: Bool = false) throws -> String {
         if retryAuthorization { refused.remove(id); sessionValues[id] = nil }
         if MacPreferences.isTesting { return testValues[id.uuidString] ?? "" }
-        guard !refused.contains(id) else { throw MacSettingsFailure.invalid("钥匙串访问未获授权；请在数据源设置中打开此来源后重试。") }
+        guard !refused.contains(id) else { throw MacSettingsFailure.invalid("钥匙串需要授权；请打开对应数据源设置后重试。") }
         if let value = sessionValues[id] { return value }
-        var q = query(id); q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(q as CFDictionary, &result)
+        let (status, value) = try MacFXKeychainClient.perform("read", id:id, authorize:retryAuthorization)
         if status == errSecItemNotFound { sessionValues[id] = ""; return "" }
         if status == errSecUserCanceled || status == errSecAuthFailed { refused.insert(id) }
-        guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) else { throw MacSettingsFailure.invalid("无法读取系统钥匙串中的 API Key") }
+        if status == errSecUserCanceled || status == errSecAuthFailed || status == errSecInteractionNotAllowed {
+            throw MacSettingsFailure.invalid("钥匙串需要授权或解锁；请打开对应数据源设置后重试。后台更新不会弹出密码窗口。")
+        }
+        guard status == errSecSuccess, let value else { throw MacSettingsFailure.invalid("无法读取系统钥匙串中的 API Key") }
         sessionValues[id] = value
         return value
     }
     static func save(_ key: String, id: UUID) throws {
         if MacPreferences.isTesting { testValues[id.uuidString] = key; revise(id); return }
-        let q = query(id)
-        if key.isEmpty { let status = SecItemDelete(q as CFDictionary); guard status == errSecSuccess || status == errSecItemNotFound else { throw MacSettingsFailure.invalid("无法移除 API Key") }; sessionValues[id] = ""; refused.remove(id); revise(id); return }
-        let attributes: [String: Any] = [kSecValueData as String: Data(key.utf8)]
-        let result = SecItemUpdate(q as CFDictionary, attributes as CFDictionary)
-        if result == errSecItemNotFound {
-            var add = q; add.merge(attributes) { _, new in new }; add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { throw MacSettingsFailure.invalid("API Key 未能保存到钥匙串") }
-        } else if result != errSecSuccess { throw MacSettingsFailure.invalid("API Key 未能更新") }
+        let (status, _) = try MacFXKeychainClient.perform(key.isEmpty ? "delete" : "save", id:id, value:key, authorize:true)
+        guard status == errSecSuccess || (key.isEmpty && status == errSecItemNotFound) else {
+            throw MacSettingsFailure.invalid(key.isEmpty ? "无法移除 API Key" : "API Key 未能保存到钥匙串")
+        }
         sessionValues[id] = key; refused.remove(id)
         revise(id)
     }

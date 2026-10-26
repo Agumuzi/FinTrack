@@ -324,6 +324,8 @@ struct MacFXSourceEditor: View {
                     .appFont(.caption).foregroundStyle(.secondary)
             }
             SecureField(template == .openExchangeRates ? "App ID（保存到钥匙串）" : "API Key（保存到钥匙串）", text: $key).accessibilityIdentifier("fxSourceKey")
+            Text("密钥保存在系统钥匙串。首次迁移旧密钥时可能需要确认一次，此后普通版本更新会沿用授权。")
+                .appFont(.caption).foregroundStyle(.secondary)
             Toggle("启用此数据源", isOn: $source.enabled)
             if let result { Text(result).foregroundStyle(.green).accessibilityIdentifier("fxConnectionResult") }
             if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("fxSourceError") }

@@ -2,9 +2,9 @@ name: macOS Build
 on:
   push:
     branches: [main]
-    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', '.github/workflows/build.yml']
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', '.github/workflows/build.yml']
   pull_request:
-    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', '.github/workflows/build.yml']
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', '.github/workflows/build.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,6 +34,9 @@ jobs:
           [[ " $fintrack_archs " == *" arm64 "* ]]
           [[ " $fintrack_archs " == *" x86_64 "* ]]
           test -f "$app/Contents/Resources/Assets.car"
+          python3 scripts/verify-keychain-helper.py
+          cmp Resources/FinTrackKeychainHelper "$app/Contents/Resources/FinTrackKeychainHelper"
+          test -x "$app/Contents/Resources/FinTrackKeychainHelper"
           test -f "$app/Contents/Resources/zh-Hans.lproj/Localizable.strings"
           cmp LICENSE "$app/Contents/Resources/LICENSE.txt"
           test -f "$app/Contents/Resources/ThirdPartyNotices.txt"
