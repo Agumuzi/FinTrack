@@ -53,12 +53,14 @@ v1.1 及之后版本内置官方签名更新源，可在“设置 → 关于 Fin
 
 | 文档 | 内容 |
 | --- | --- |
+| [文档导航](docs/README.md) | 按使用、开发与 AI 辅助维护任务查找项目文档 |
 | [构建指南](docs/BUILDING.md) | 环境要求、源码编译与工程生成 |
 | [源码结构](docs/ARCHITECTURE.md) | 应用入口、业务模块、共享模型和资源 |
 | [安装指南](docs/INSTALLATION.md) | 安装、校验与安全更新 |
 | [更新记录](CHANGELOG.md) | 正式应用版本 |
 | [参与项目](CONTRIBUTING.md) | 反馈问题和提交改动 |
 | [安全政策](SECURITY.md) | 私密报告安全问题与敏感信息处理 |
+| [社区行为准则](CODE_OF_CONDUCT.md) | Issues、PR 与项目讨论的沟通规范 |
 | [素材与组件](docs/THIRD_PARTY_NOTICES.md) | 平台组件及资源来源 |
 
 可通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新，或使用 v1.1 起内置的官方签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
