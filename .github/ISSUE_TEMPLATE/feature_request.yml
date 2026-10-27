@@ -1,0 +1,42 @@
+name: "💡 功能建议"
+description: "建议改善 FinTrack 的真实使用场景"
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索类似建议。不要附真实财务记录、凭据或私密数据。
+  - type: textarea
+    id: use-case
+    attributes:
+      label: 当前问题或使用场景
+      description: "你要完成什么任务？现有流程的障碍是什么？"
+    validations:
+      required: true
+  - type: textarea
+    id: desired
+    attributes:
+      label: 期望的行为
+      description: "以使用体验描述预期结果。"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 相关模块
+      options:
+        - 记账与分类
+        - 资产、存款、贷款、预算和目标
+        - 汇率与菜单栏
+        - 报表与统计
+        - 数据导入导出与备份
+        - 界面、无障碍与多语言
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: 可能的方案或参考（可选）
+    validations:
+      required: false
