@@ -2,9 +2,9 @@ name: macOS Build
 on:
   push:
     branches: [main]
-    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', '.github/workflows/build.yml']
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', 'tests/**', '.github/workflows/build.yml']
   pull_request:
-    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', '.github/workflows/build.yml']
+    paths: ['Sources/**', 'Resources/**', 'Project/project.yml', 'scripts/build-macos.sh', 'scripts/verify-keychain-helper.py', 'tests/**', '.github/workflows/build.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +17,14 @@ jobs:
       - uses: actions/checkout@v6
       - name: Show toolchain
         run: xcodebuild -version
+      - name: Finance calculation smoke tests
+        run: |
+          swiftc -parse-as-library \
+            Sources/Shared/Finance/FinancialPrecision.swift \
+            Sources/Shared/Finance/DepositSettlementRule.swift \
+            tests/FinanceSmoke.swift \
+            -o "$RUNNER_TEMP/fintrack-finance-smoke"
+          "$RUNNER_TEMP/fintrack-finance-smoke"
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Build Universal Release
