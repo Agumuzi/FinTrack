@@ -9,7 +9,8 @@
   <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
   <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.4.6">下载 macOS 版</a> ·
   <a href="docs/INSTALLATION.md">安装指南</a> ·
-  <a href="CHANGELOG.md">更新记录</a>
+  <a href="CHANGELOG.md">更新记录</a> ·
+  <a href="https://ko-fi.com/agumuzi">☕ 支持开发</a>
 </p>
 
 <picture>
