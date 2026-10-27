@@ -1,0 +1,83 @@
+name: "🐛 缺陷反馈"
+description: "报告 FinTrack 的功能、数据、性能或界面问题"
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请搜索现有 Issues。**不要上传真实账本、备份、银行/账户信息、API 密钥或未经脱敏的日志。** 安全漏洞请使用仓库的私密漏洞报告渠道。
+  - type: input
+    id: app-version
+    attributes:
+      label: FinTrack 版本
+      placeholder: "例如 v1.4.6"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS 版本
+      placeholder: "例如 macOS 27.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: 设备架构
+      options:
+        - Apple Silicon
+        - Intel
+        - 不确定
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 受影响模块
+      options:
+        - 账目与分类
+        - 账户与资产
+        - 存款、贷款、预算或目标
+        - 汇率、多币种与菜单栏
+        - 统计与日历
+        - 导入、导出或备份
+        - 安装、更新或权限
+        - 界面、性能或其他
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: "说明问题的影响；请使用虚构数据举例。"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 重现步骤
+      placeholder: |
+        1. 打开……
+        2. 选择……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图与补充信息（可选）
+      description: "请遮盖金额、姓名、账户及其他敏感信息。"
+    validations:
+      required: false
