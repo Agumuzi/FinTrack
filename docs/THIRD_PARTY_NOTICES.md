@@ -4,7 +4,7 @@
 
 ## 项目许可证
 
-FinTrack 的原创代码和文档采用 [MIT 许可证](../LICENSE)。随应用提供的许可副本位于 `Resources/Legal/LICENSE.txt`。第三方素材和 Apple 平台组件仍遵循各自条款；MIT 不构成对第三方商标、字体或系统图库的重新授权。
+本仓库当前的原创软件源代码采用 [PolyForm Noncommercial 1.0.0](../LICENSE)，在其许可范围内允许非商业使用、修改及分发；随应用提供的对应许可副本位于 `Resources/Legal/LICENSE.txt`。原创 Logo、应用图标、宣传图及软件截图另受[品牌素材声明](../ASSETS-LICENSE.md)约束，不因源码许可而获得独立复用授权。此前按 MIT 发布的版本保留已授予的许可，历史文本存于[旧版 MIT 许可证](LEGACY_MIT_LICENSE.md)。第三方素材和 Apple 平台组件仍遵循各自条款，本项目不对第三方商标、字体或系统图库重新授权。
 
 ## 平台组件与代码依赖
 
