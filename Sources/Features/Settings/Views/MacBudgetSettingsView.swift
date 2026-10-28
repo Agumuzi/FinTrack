@@ -189,6 +189,25 @@ struct MacBudgetInlineEditor: View {
     @State var budget: MacBudget
     var category: String?
     var onSave: (MacBudget) -> Void
+    @Environment(\.modelContext) private var context
+    private struct Draft { let budget: MacBudget; let original: MacBudget; let amount: String; let start: Date; let generation: Int }
+    @State private var original: MacBudget?
+    @State private var generation = 0
+    @State private var discard = false
+    private var draftKey: String { MacEditorDraftStore.key("budget", budget.id.uuidString, context: context) }
+    private func loadDraft(reset: Bool = false) {
+        if reset { MacEditorDraftStore.shared.remove(draftKey) }
+        if let d = MacEditorDraftStore.shared.load(draftKey, as: Draft.self) {
+            budget=d.budget;original=d.original;amount=d.amount;start=d.start;generation=d.generation
+        } else {
+            let rows: [MacBudget] = MacSettingsStore.load("v2_budgets", fallback: [])
+            if let fresh=rows.first(where:{$0.id == budget.id}) {budget=fresh}
+            original=budget;amount=MacTransactionCRUD.amountEditingText(budget.amount)
+            let parts=budget.month.split(separator:"-").compactMap{Int($0)}
+            start=Calendar.current.date(from:DateComponents(year:parts.first,month:parts.last,day:1)) ?? Date()
+            generation=MacEditorDraftStore.shared.generation
+        }
+    }
     @State private var amount = ""
     @State private var start = Date()
     @State private var error: String?
@@ -200,11 +219,19 @@ struct MacBudgetInlineEditor: View {
             MacSettingsRow(label: "生效月份", labelWidth: 98) { MacSettingsDateButton(date: $start, monthOnly: true) }
             MacSymbolColorPicker(icon: Binding(get: { budget.displayIcon }, set: { budget.icon = $0 }), color: Binding(get: { budget.displayColor }, set: { budget.color = $0 }), title: "预算", identifierPrefix: "budgetInlineIcon")
             VStack(alignment: .leading, spacing: MacUI.space(7)) { Text("备注（可选）").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary); MacSettingsNoteField(placeholder: "例如：包含外出就餐、食品饮料等", text: $budget.note).accessibilityIdentifier("budgetInlineNote") }
-            HStack { Text(message ?? "按月份独立保存").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button("保存修改") { save() }.accessibilityIdentifier("budgetInlineSave") }
-            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red) }
-        }.onAppear { amount = MacTransactionCRUD.amountEditingText(budget.amount); let parts = budget.month.split(separator: "-").compactMap { Int($0) }; start = Calendar.current.date(from: DateComponents(year: parts.first, month: parts.last, day: 1)) ?? Date() }
+            HStack { Text(message ?? "仅此月份；切页保留草稿，更改月份会移动本条预算").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button("保存修改") { save() }.accessibilityIdentifier("budgetInlineSave") }
+            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red);Button("放弃草稿并重新载入") {discard=true} }
+        }.onAppear { loadDraft() }.onDisappear {
+            if let original {MacEditorDraftStore.shared.save(Draft(budget:budget,original:original,amount:amount,start:start,generation:generation),key:draftKey,generation:generation)}
+        }.confirmationDialog("放弃未保存修改？",isPresented:$discard) {
+            Button("放弃并重新载入",role:.destructive) {loadDraft(reset:true);error=nil}
+        }
+
     }
-    private func save() { do { budget.amount = try MacTransactionCRUD.editedAmount(amount, original: budget.amount); budget.month = MacBudgetData.month(start); try MacBudgetData.save(budget); error = nil; message = "已保存"; onSave(budget) } catch { self.error = MacLocalization.error(error) } }
+    private func save() { do {
+        let rows:[MacBudget]=MacSettingsStore.load("v2_budgets",fallback:[])
+        guard rows.first(where:{$0.id == budget.id}) == original, generation == MacEditorDraftStore.shared.generation else {throw MacSettingsFailure.invalid("预算已变化，草稿仍保留。请重新载入后再保存。")}
+        budget.amount = try MacTransactionCRUD.editedAmount(amount, original: budget.amount); budget.month = MacBudgetData.month(start); try MacBudgetData.save(budget); error = nil; message = "已保存"; original=budget;MacEditorDraftStore.shared.remove(draftKey);onSave(budget) } catch { self.error = MacLocalization.error(error) } }
 }
 
 struct MacBudgetEditor: View {

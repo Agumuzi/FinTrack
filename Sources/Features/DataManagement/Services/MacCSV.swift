@@ -50,9 +50,46 @@ enum MacCSV {
         return MacCSVFormat.csv(headers: table.headers, rows: table.rows.map { row in table.headers.map { row.values[$0] ?? "" } })
     }
 
+    static func exportAsync(in context: ModelContext, kind: MacCSVKind? = nil, transactionRange: DateInterval? = nil) async throws -> String {
+        var snapshot=try MacNativeBackup.capture(in:context)
+        let section=kind?.sectionTitle
+        if let kind {
+            snapshot.transaction = kind == .transactions ? snapshot.transaction.filter{$0.deletedAt == nil && (transactionRange == nil || ($0.date >= transactionRange!.start && $0.date < transactionRange!.end))} : []
+            snapshot.recurringTransaction = kind == .recurring ? snapshot.recurringTransaction.filter{$0.deletedAt == nil} : []
+            snapshot.depositRecord = kind == .deposits ? snapshot.depositRecord.filter{$0.deletedAt == nil} : []
+            snapshot.loanRule = kind == .loans ? snapshot.loanRule.filter{$0.deletedAt == nil} : []
+        }
+        let value=snapshot
+        return try await Task.detached(priority:.userInitiated){try MacCSVSnapshotEncoder.encode(value,section:section)}.value
+    }
+    nonisolated private struct Parsed: Sendable {
+        let document: MacCSVDocument
+        let sections: [String: CSVImportSectionTable]
+        let raw: [String: CSVImportSectionTable]
+        let flat: CSVImportTable?
+    }
+    static func previewAsync(_ content: String, bookCurrency: String, kind: MacCSVKind? = nil) async throws -> Preview {
+        let parsed=try await Task.detached(priority:.userInitiated) {
+            guard content.utf8.count <= 50_000_000 else {throw Failure.invalid("文件不能超过50,000,000字节")}
+            let document=try MacCSVDocument(content),headers=document.records[0].cells
+            let standard = !document.isSectioned && headers.contains("ExchangeRate") && headers.contains("BaseCurrency")
+            let native = !document.isSectioned && (headers.contains("OriginalAmount") || headers.contains("OriginalPrincipal") || headers.contains("BasePrincipal"))
+            let name = headers.contains("BankName") ? "Deposits" : headers.contains("TermMonths") ? "Loans" : headers.contains("IntervalValue") ? "Recurring Transactions" : "Transactions"
+            let text=content.hasPrefix("\u{FEFF}") ? String(content.dropFirst()):content
+            let reader=CSVImportReader()
+            let sections=standard ? [:]:try reader.readSections(contents:native ? "\"Section\",\""+name+"\"\n"+text:content)
+            let raw = !standard && sections.isEmpty ? try reader.readSections(contents:"\"Section\",\"Transactions\"\n"+content):[:]
+            let flat = !standard && sections.isEmpty && raw["transactions"]?.headers.contains(where:{$0.lowercased()=="originalamount"}) != true ? try reader.read(contents:content):nil
+            return Parsed(document:document,sections:sections,raw:raw,flat:flat)
+        }.value
+        return try preview(content,bookCurrency:bookCurrency,kind:kind,parsed:parsed)
+    }
     static func preview(_ content: String, bookCurrency: String, kind expectedKind: MacCSVKind? = nil) throws -> Preview {
+        try preview(content,bookCurrency:bookCurrency,kind:expectedKind,parsed:nil)
+    }
+    private static func preview(_ content: String, bookCurrency: String, kind expectedKind: MacCSVKind?, parsed: Parsed?) throws -> Preview {
         guard content.utf8.count <= 50_000_000 else { throw Failure.invalid("文件不能超过50,000,000字节") }
-        let document = try MacCSVDocument(content)
+        let document = try parsed?.document ?? MacCSVDocument(content)
         if let templateKind = document.templateKind {
             guard expectedKind == nil || expectedKind == templateKind else { throw Failure.invalid("所选类型为\(expectedKind!.title)，文件属于\(templateKind.title)") }
             guard document.templateBaseCurrency == (try MacCurrency.code(bookCurrency)) else { throw Failure.invalid("模板本位币为\(document.templateBaseCurrency ?? "")，与当前账本不符；请重新导出模板") }
@@ -73,14 +110,14 @@ enum MacCSV {
         let nativeKind = MacCSVStandard.kind(headers: headers)
         let flatContent = content.hasPrefix("\u{FEFF}") ? String(content.dropFirst()) : content
         let source = nativeFlat ? "\"Section\",\"\(nativeKind.sectionTitle)\"\n" + flatContent : content
-        var sections = try reader.readSections(contents: source)
+        var sections = try parsed?.sections ?? reader.readSections(contents: source)
         var generatedIDs = false
         if sections.isEmpty {
-            let raw = try reader.readSections(contents: "\"Section\",\"Transactions\"\n" + content)
+            let raw = try parsed?.raw ?? reader.readSections(contents: "\"Section\",\"Transactions\"\n" + content)
             if raw["transactions"]?.headers.contains(where: { $0.lowercased() == "originalamount" }) == true {
                 sections = raw
             } else {
-                let table = try reader.read(contents: content)
+                let table = try parsed?.flat ?? reader.read(contents: content)
                 guard table.headers.allSatisfy({ !$0.isEmpty && $0 != "account" }), Set(table.headers).count == table.headers.count else {
                     throw Failure.invalid("普通收支CSV列名无法识别、重复映射或包含不支持的账户列；请使用记账模板，账户信息可放在Note")
                 }
@@ -93,6 +130,7 @@ enum MacCSV {
                     guard let currency = row.values["currency"], !currency.isEmpty else { throw Failure.invalid("row \(row.rowIndex): Currency") }
                     let source = try MacCurrency.code(currency)
                     let amount = try MacTransactionCRUD.amount(row.values["amount"] ?? "")
+                    try MacTransactionCRUD.validateManualNote(row.values["note"] ?? "")
                     let typeText = (row.values["type"] ?? "").lowercased()
                     guard let type = ["income": TransactionType.income, "expense": .expense,
                         "收入": .income, "支出": .expense, "доход": .income, "расход": .expense][typeText]
@@ -143,6 +181,7 @@ enum MacCSV {
     }
 
     static func commit(_ preview: Preview, in context: ModelContext) throws -> FullDataImportCommitResult {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard !context.hasChanges else { throw Failure.invalid("Save or cancel pending edits first") }
         if let currency = preview.standardBookCurrency {
             _ = try MacCurrency.ledgerCurrency(in: context, preferred: currency)
@@ -233,6 +272,14 @@ enum MacCSV {
                     guard let precision = v["TargetDatePrecision"].flatMap(TargetDatePrecision.init(rawValue:)),
                           !(v["Deadline"] ?? "").isEmpty, GoalTargetTime.components(raw, precision: precision) != nil
                     else { throw Failure.invalid(detail + ": target date calendar value") }
+                }
+                for field in ["IsActive", "NotificationsEnabled", "HasCreditedInterest", "IsInterestManuallyEdited", "IncludesCurrentAssets", "IsAccomplished", "IsPaused"] {
+                    if let raw = v[field], !["true", "false", "1", "0", "yes", "no"].contains(raw.lowercased()) {
+                        throw Failure.invalid(detail + ": " + field + " 状态无效")
+                    }
+                }
+                for (field, range) in [("ReminderDaysBefore", 0...365), ("ReminderHour", 0...23), ("ReminderMinute", 0...59)] {
+                    if let raw = v[field], !raw.isEmpty { guard let value = Int(raw), range.contains(value) else { throw Failure.invalid(detail + ": " + field) } }
                 }
                 if key != "accounts" {
                     guard let id = UUID(uuidString: v["ID"] ?? "") else { throw Failure.invalid(detail + ": ID") }

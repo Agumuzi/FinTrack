@@ -36,6 +36,7 @@ struct MacNumericInput: NSViewRepresentable {
     var submit: (() -> Void)? = nil
     var large = false
     var digits: Int? = nil
+    var accessibilityTitle: String? = nil
     @AppStorage("v2_decimals", store: MacPreferences.defaults) private var decimals = 2
     private func presented(_ raw: String, editing: Bool) -> String {
         if rate { return editing ? raw : MacNumberInput.rate(raw) }
@@ -86,10 +87,15 @@ struct MacNumericInput: NSViewRepresentable {
             observedText = parent.text
             render(parent.rate ? MacNumberInput.rate(parent.text) : MacNumberInput.display(parent.text, grouping: parent.grouping), in: field)
         }
+        func prepareFocus(_ field:NSTextField) {
+            editing=true;parent.focus?.wrappedValue=true
+            externalUpdate(field)
+        }
         func controlTextDidBeginEditing(_ notification: Notification) {
+            // AppKit has already captured paste/undo replacement ranges here.
+            // Reformatting now can shorten the string beneath those ranges.
             editing = true; parent.focus?.wrappedValue = true
             observedText = parent.text
-            if let field = notification.object as? NSTextField { externalUpdate(field) }
         }
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
@@ -137,7 +143,11 @@ struct MacNumericInput: NSViewRepresentable {
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(); field.isBordered = false; field.drawsBackground = false
+        let field = MacNumericTextField()
+        field.onFocus = { [weak field,weak coordinator=context.coordinator] in
+            if let field {coordinator?.prepareFocus(field)}
+        }
+        field.isBordered = false; field.drawsBackground = false
         field.focusRingType = .none; field.delegate = context.coordinator; field.target = context.coordinator; field.action = #selector(Coordinator.submitField(_:))
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -156,7 +166,7 @@ struct MacNumericInput: NSViewRepresentable {
         }
         field.font = MacInterfaceFonts.font(size: MacUI.fontSize(large ? .amount : .body, tier: MacFontSizeTier(rawValue: tier) ?? .standard), monospacedDigits: true)
         field.textColor = .labelColor; field.isEnabled = enabled
-        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(identifier)
+        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(accessibilityTitle ?? (rate ? "利率" : "金额"))
         if focus?.wrappedValue == true && !context.coordinator.editing {
             DispatchQueue.main.async { if self.focus?.wrappedValue == true, let window = field.window { window.makeFirstResponder(field) } }
         }
@@ -170,7 +180,7 @@ struct MacFinanceNumberField: View {
     var identifier: String
     var body: some View {
         MacEntryField(title: title) {
-            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: title.contains("汇率") ? 6 : nil).frame(minHeight: 24).appFormControl()
+            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: title.contains("汇率") ? 6 : nil, accessibilityTitle: title).frame(minHeight: 24).appFormControl()
         }
     }
 }
@@ -218,4 +228,14 @@ struct MacReminderEditor: View {
     }
     private var daysField: some View { Stepper("提前 \(days) 天", value: $days, in: 0...365).fixedSize() }
     private var timeField: some View { HStack(spacing: 10) { Text("提醒时间").appFont(.caption).foregroundStyle(.secondary); MacTimeMenu(date: $time, identifier: "financeReminderTime").frame(width: 140) } }
+}
+
+/// Format before any native text replacement captures its selection range.
+private final class MacNumericTextField:NSTextField {
+    var onFocus:(() -> Void)?
+    override func becomeFirstResponder() -> Bool {
+        let accepted=super.becomeFirstResponder()
+        if accepted {onFocus?()}
+        return accepted
+    }
 }

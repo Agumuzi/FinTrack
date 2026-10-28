@@ -92,6 +92,21 @@ struct MacCategoriesSettingsView: View {
     @State private var sorting = "引用最多"
     @State private var selectedID: UUID?
     @State private var name = ""
+    private struct Draft { let name: String; let symbol: String; let color: String; let revision: Date?; let generation: Int }
+    @State private var discardDraft = false
+    @State private var loadedRevision: Date?
+    @State private var draftGeneration = 0
+    @State private var activeType = "Expense"
+    private func draftKey(_ id: UUID?, type: String) -> String { MacEditorDraftStore.key("category-"+type,id?.uuidString ?? "new",context:context) }
+    private func keepDraft() {
+        let originalName=selected.map {MacOverviewStyle.category($0.name)} ?? ""
+        let originalStyle=selected.map {MacCategoryCatalog.style(name:$0.name,type:$0.type)} ?? MacCategoryStyle()
+        if name != originalName || symbol != originalStyle.symbol || color != originalStyle.color {
+            MacEditorDraftStore.shared.save(Draft(name:name,symbol:symbol,color:color,revision:loadedRevision,generation:draftGeneration),key:draftKey(selectedID,type:activeType),generation:draftGeneration)
+        } else {MacEditorDraftStore.shared.remove(draftKey(selectedID,type:activeType))}
+        MacEditorDraftStore.shared.save(selectedID?.uuidString ?? "new",key:MacEditorDraftStore.key("category-selection",activeType,context:context),generation:draftGeneration)
+    }
+
     @State private var symbol = "tag"
     @State private var color = "orange"
     @State private var message: String?
@@ -161,7 +176,17 @@ struct MacCategoriesSettingsView: View {
             }
         }
         .onAppear {
-            refreshStyles(); select(rows.first)
+            refreshStyles()
+            let value=MacEditorDraftStore.shared.load(MacEditorDraftStore.key("category-selection",type,context:context),as:String.self)
+            let id=value.flatMap(UUID.init(uuidString:))
+            select(value == "new" ? nil : rows.first(where:{$0.id == id}) ?? rows.first, retainingCurrent:false)
+        }
+        .onDisappear { keepDraft() }
+        .confirmationDialog("放弃未保存修改？",isPresented:$discardDraft) {
+            Button("放弃并重新载入",role:.destructive) {
+                MacEditorDraftStore.shared.remove(draftKey(selectedID,type:activeType))
+                select(selected ?? rows.first,retainingCurrent:false)
+            }
         }
         .task(id: usageRevision) { refreshUsage() }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { notification in
@@ -198,13 +223,23 @@ struct MacCategoriesSettingsView: View {
     private func categoryTab(_ title: String, value: String, icon: String, color: Color) -> some View {
         Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).contentShape(Rectangle()).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(MacInteractiveButtonStyle())
     }
-    private func select(_ row: Category?) {
-        selectedID = row?.id; name = row.map { MacOverviewStyle.category($0.name) } ?? ""
-        let style = row.map { MacCategoryCatalog.style(name: $0.name, type: $0.type) } ?? MacCategoryStyle()
-        symbol = style.symbol; color = style.color; error = nil; message = nil
+    private func select(_ row: Category?, retainingCurrent: Bool = true) {
+        if retainingCurrent { keepDraft() }
+        selectedID=row?.id;activeType=type;draftGeneration=MacEditorDraftStore.shared.generation
+        if let d=MacEditorDraftStore.shared.load(draftKey(row?.id,type:type),as:Draft.self) {
+            name=d.name;symbol=d.symbol;color=d.color;loadedRevision=d.revision;draftGeneration=d.generation
+            message="有未保存修改；切页后可继续编辑"
+        } else {
+            name=row.map {MacOverviewStyle.category($0.name)} ?? ""
+            let style=row.map {MacCategoryCatalog.style(name:$0.name,type:$0.type)} ?? MacCategoryStyle()
+            symbol=style.symbol;color=style.color;loadedRevision=row?.updatedAt;message=nil
+        }
+        error=nil
     }
     private func save() {
         do {
+            guard loadedRevision == selected?.updatedAt, draftGeneration == MacEditorDraftStore.shared.generation, selectedID == nil || selected != nil else { throw MacSettingsFailure.invalid("分类已变化，草稿仍保留。请重新选择分类并核对。") }
+            try MacRecoveryJournal.perform(in: context) {
             var clean = try MacTransactionCRUD.validatedCategory(name)
             var order = selected.map { MacCategoryCatalog.style(name: $0.name, type: type).order } ?? ((rows.map { MacCategoryCatalog.style(name: $0.name, type: type).order }.max() ?? -1) + 1)
             if let selected {
@@ -226,7 +261,9 @@ struct MacCategoriesSettingsView: View {
             // Coalesce save and budget notifications into the task below.
             // A style-only save does not change references.
             refreshStyles()
-            name = MacOverviewStyle.category(clean); error = nil; message = "分类已保存"
+            name = MacOverviewStyle.category(clean);loadedRevision=try context.fetch(FetchDescriptor<Category>()).first(where:{$0.id == selectedID})?.updatedAt
+            MacEditorDraftStore.shared.remove(draftKey(selectedID,type:type));error = nil; message = "分类已保存"
+            }
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
     }
     private func refreshStyles() {

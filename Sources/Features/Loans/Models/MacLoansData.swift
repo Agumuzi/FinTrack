@@ -29,6 +29,7 @@ enum MacLoansData {
         func unknown(_ warning: String) -> Audit {
             Audit(reliable: false, receipts: [], paid: [], next: nil, outstanding: nil, warning: warning)
         }
+        guard MacLoanSchedule.valid(loan) else { return unknown("贷款计划日期记录损坏，请先核对历史。") }
         guard MacLoanRepayment.isManaged(loan) else {
             return unknown("历史还款待核对，计划日期、关联规则和相似备注不能证明已经付款。")
         }

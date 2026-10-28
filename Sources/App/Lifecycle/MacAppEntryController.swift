@@ -198,7 +198,9 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
         }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        !(MacPreferences.defaults.object(forKey: "v141_background") as? Bool ?? true)
+        let entries = MacAppEntryConfiguration.load(from: MacPreferences.defaults)
+        if entries.showDock && !entries.showMenuBar { return false }
+        return !(MacPreferences.defaults.object(forKey: "v141_background") as? Bool ?? true)
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         MacApplicationRuntime.shared.showMain(); return false

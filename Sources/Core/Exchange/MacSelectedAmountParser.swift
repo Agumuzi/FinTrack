@@ -9,11 +9,15 @@ nonisolated enum MacSelectedAmountParser {
     static func parse(_ text: String) -> Parsed? {
         guard text.count <= 500 else { return nil }
         let normalized = text.replacingOccurrences(of: "−", with: "-").replacingOccurrences(of: "\u{00a0}", with: " ").replacingOccurrences(of: "\u{202f}", with: " ")
-        let pattern = #"[+-]?\d+(?:[.,' ]\d+)*"#
+        let pattern = #"[+-]?(?:\d+(?:[.,' ]\d+)*|[.,]\d+)"#
         guard let expression = try? NSRegularExpression(pattern: pattern) else { return nil }
         let matches = expression.matches(in: normalized, range: NSRange(normalized.startIndex..., in: normalized))
         guard matches.count == 1, let range = Range(matches[0].range, in: normalized) else { return nil }
-        let raw = String(normalized[range]).replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "'", with: "")
+        let selected = String(normalized[range])
+        if selected.contains(" ") || selected.contains("'") {
+            guard selected.range(of: #"^[+-]?\d{1,3}(?:[ '’]\d{3})+(?:[.,]\d+)?$"#, options: .regularExpression) != nil else { return nil }
+        }
+        let raw = selected.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "'", with: "")
         let comma = raw.lastIndex(of: ","), dot = raw.lastIndex(of: ".")
         var variants: [String] = []
         if let comma, let dot {

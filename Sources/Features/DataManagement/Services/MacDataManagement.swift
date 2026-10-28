@@ -51,6 +51,7 @@ enum MacDataManagement {
         }
     }
     static func clearLedger(in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再清空账本") }
         do {
             for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) { context.delete(row) }
@@ -66,6 +67,7 @@ enum MacDataManagement {
     }
 
     static func deleteTransactions(_ rows: [Transaction], in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard !rows.contains(where: MacTransactionCRUD.isProtectedGeneratedPosting) else {
             throw Failure.generatedReceipts
         }
@@ -125,6 +127,7 @@ enum MacDataManagement {
         }
         let styleBytes = try JSONEncoder().encode(styles)
         if let metadataStart { recordTiming?("validation-budget-style", ProcessInfo.processInfo.systemUptime - metadataStart) }
+        try MacRecoveryJournal.perform(in: context) {
         do {
             let transactions = try measure("transaction-fetch") {
                 try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.type == categoryType && $0.category == old }))
@@ -147,10 +150,12 @@ enum MacDataManagement {
             try measure("database-save") {
                 if let save { try save(context) } else { try context.save() }
             }
+            MacRecoveryJournal.checkpoint("database")
             measure("preferences-commit") {
                 MacPreferences.defaults.set(budgetBytes, forKey: "v2_budgets")
                 MacPreferences.defaults.set(styleBytes, forKey: "v2_category_styles")
             }
         } catch { context.rollback(); throw error }
+        }
     }
 }

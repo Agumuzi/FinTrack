@@ -5,20 +5,20 @@ import AppKit
 
 // Explicit value snapshots preserve every stored field, including tombstones and exact loan relationships.
 
-struct MacBackupAccount: Codable {
+nonisolated struct MacBackupAccount: Codable, Sendable {
     var name: String
     var type: String
     var balance: Double
     var currency: String
     var createdAt: Date
-    init(_ row: Account) {
+    @MainActor init(_ row: Account) {
         name = row.name
         type = row.type
         balance = row.balance
         currency = row.currency
         createdAt = row.createdAt
     }
-    func make() -> Account {
+    @MainActor func make() -> Account {
         let row = Account(name: name, type: type, balance: balance, currency: currency, createdAt: createdAt)
         row.name = name
         row.type = type
@@ -29,7 +29,7 @@ struct MacBackupAccount: Codable {
     }
 }
 
-struct MacBackupTransaction: Codable {
+nonisolated struct MacBackupTransaction: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var createdAt: Date
@@ -46,7 +46,7 @@ struct MacBackupTransaction: Codable {
     var category: String
     var note: String?
     var date: Date
-    init(_ row: Transaction) {
+    @MainActor init(_ row: Transaction) {
         id = row.id
         ownerUID = row.ownerUID
         createdAt = row.createdAt
@@ -64,7 +64,7 @@ struct MacBackupTransaction: Codable {
         note = row.note
         date = row.date
     }
-    func make() -> Transaction {
+    @MainActor func make() -> Transaction {
         let row = Transaction(amount: baseAmount, currency: baseCurrencyCode, type: type, category: category)
         row.id = id
         row.ownerUID = ownerUID
@@ -86,7 +86,7 @@ struct MacBackupTransaction: Codable {
     }
 }
 
-struct MacBackupCategory: Codable {
+nonisolated struct MacBackupCategory: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var name: String
@@ -96,7 +96,7 @@ struct MacBackupCategory: Codable {
     var deletedAt: Date?
     var lastModifiedDeviceID: String
     var syncVersion: Int
-    init(_ row: Category) {
+    @MainActor init(_ row: Category) {
         id = row.id
         ownerUID = row.ownerUID
         name = row.name
@@ -107,7 +107,7 @@ struct MacBackupCategory: Codable {
         lastModifiedDeviceID = row.lastModifiedDeviceID
         syncVersion = row.syncVersion
     }
-    func make() -> Category {
+    @MainActor func make() -> Category {
         let row = Category(name: name, type: type)
         row.id = id
         row.ownerUID = ownerUID
@@ -122,7 +122,7 @@ struct MacBackupCategory: Codable {
     }
 }
 
-struct MacBackupGoal: Codable {
+nonisolated struct MacBackupGoal: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var title: String
@@ -140,7 +140,7 @@ struct MacBackupGoal: Codable {
     var deletedAt: Date?
     var lastModifiedDeviceID: String
     var syncVersion: Int
-    init(_ row: Goal) {
+    @MainActor init(_ row: Goal) {
         id = row.id
         ownerUID = row.ownerUID
         title = row.title
@@ -159,7 +159,7 @@ struct MacBackupGoal: Codable {
         lastModifiedDeviceID = row.lastModifiedDeviceID
         syncVersion = row.syncVersion
     }
-    func make() -> Goal {
+    @MainActor func make() -> Goal {
         let row = Goal(title: title, targetAmount: targetAmount)
         row.id = id
         row.ownerUID = ownerUID
@@ -182,7 +182,7 @@ struct MacBackupGoal: Codable {
     }
 }
 
-struct MacBackupFinancialProfile: Codable {
+nonisolated struct MacBackupFinancialProfile: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var initialAssets: Double
@@ -192,7 +192,7 @@ struct MacBackupFinancialProfile: Codable {
     var deletedAt: Date?
     var lastModifiedDeviceID: String
     var syncVersion: Int
-    init(_ row: FinancialProfile) {
+    @MainActor init(_ row: FinancialProfile) {
         id = row.id
         ownerUID = row.ownerUID
         initialAssets = row.initialAssets
@@ -203,7 +203,7 @@ struct MacBackupFinancialProfile: Codable {
         lastModifiedDeviceID = row.lastModifiedDeviceID
         syncVersion = row.syncVersion
     }
-    func make() -> FinancialProfile {
+    @MainActor func make() -> FinancialProfile {
         let row = FinancialProfile()
         row.id = id
         row.ownerUID = ownerUID
@@ -218,7 +218,7 @@ struct MacBackupFinancialProfile: Codable {
     }
 }
 
-struct MacBackupRecurringTransaction: Codable {
+nonisolated struct MacBackupRecurringTransaction: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var originalAmount: Double
@@ -248,7 +248,7 @@ struct MacBackupRecurringTransaction: Codable {
     var deletedAt: Date?
     var lastModifiedDeviceID: String
     var syncVersion: Int
-    init(_ row: RecurringTransaction) {
+    @MainActor init(_ row: RecurringTransaction) {
         id = row.id
         ownerUID = row.ownerUID
         originalAmount = row.originalAmount
@@ -279,7 +279,7 @@ struct MacBackupRecurringTransaction: Codable {
         lastModifiedDeviceID = row.lastModifiedDeviceID
         syncVersion = row.syncVersion
     }
-    func make() -> RecurringTransaction {
+    @MainActor func make() -> RecurringTransaction {
         let row = RecurringTransaction(title: title, amount: amount, currency: currency, type: type, category: category, intervalValue: intervalValue, intervalUnit: intervalUnit, nextExecutionDate: nextExecutionDate)
         row.id = id
         row.ownerUID = ownerUID
@@ -314,7 +314,7 @@ struct MacBackupRecurringTransaction: Codable {
     }
 }
 
-struct MacBackupDepositRecord: Codable {
+nonisolated struct MacBackupDepositRecord: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var bankName: String
@@ -351,7 +351,7 @@ struct MacBackupDepositRecord: Codable {
     var deletedAt: Date?
     var lastModifiedDeviceID: String
     var syncVersion: Int
-    init(_ row: DepositRecord) {
+    @MainActor init(_ row: DepositRecord) {
         id = row.id
         ownerUID = row.ownerUID
         bankName = row.bankName
@@ -389,7 +389,7 @@ struct MacBackupDepositRecord: Codable {
         lastModifiedDeviceID = row.lastModifiedDeviceID
         syncVersion = row.syncVersion
     }
-    func make() -> DepositRecord {
+    @MainActor func make() -> DepositRecord {
         let row = DepositRecord(bankName: bankName, principal: principal, annualInterestRate: annualInterestRate, expectedInterest: expectedInterest, currency: currency, startDate: startDate, maturityDate: maturityDate)
         row.id = id
         row.ownerUID = ownerUID
@@ -431,7 +431,7 @@ struct MacBackupDepositRecord: Codable {
     }
 }
 
-struct MacBackupLoanRule: Codable {
+nonisolated struct MacBackupLoanRule: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
     var title: String
@@ -455,7 +455,7 @@ struct MacBackupLoanRule: Codable {
     var lastModifiedDeviceID: String
     var syncVersion: Int
     var generatedRuleIDs: [UUID]
-    init(_ row: LoanRule) {
+    @MainActor init(_ row: LoanRule) {
         id = row.id
         ownerUID = row.ownerUID
         title = row.title
@@ -480,7 +480,7 @@ struct MacBackupLoanRule: Codable {
         syncVersion = row.syncVersion
         generatedRuleIDs = row.generatedRules.map(\.id)
     }
-    func make() -> LoanRule {
+    @MainActor func make() -> LoanRule {
         let row = LoanRule(title: title, principal: principal, annualRate: annualRate, termMonths: termMonths, methodRawValue: methodRawValue, currency: currency, startDate: startDate, category: category)
         row.id = id
         row.ownerUID = ownerUID
@@ -511,7 +511,7 @@ struct MacBackupLoanRule: Codable {
 
 @MainActor
 enum MacNativeBackup {
-    struct UpdateTrustConfiguration: Codable, Equatable {
+    nonisolated struct UpdateTrustConfiguration: Codable, Equatable, Sendable {
         var url: String
         var publicKey: String
 
@@ -529,18 +529,18 @@ enum MacNativeBackup {
         }
     }
 
-    struct BackupHistoryMetadata: Codable, Equatable, Identifiable {
+    nonisolated struct BackupHistoryMetadata: Codable, Equatable, Identifiable, Sendable {
         var id: UUID
         var name: String
         var date: Date
         var size: Int
         var sha256: String
 
-        init(record: MacBackupRecord) {
+        @MainActor init(record: MacBackupRecord) {
             id = record.id; name = record.name; date = record.date; size = record.size; sha256 = record.sha256
         }
 
-        var localRecord: MacBackupRecord {
+        @MainActor var localRecord: MacBackupRecord {
             MacBackupRecord(id: id, name: name, path: "", date: date, size: size, sha256: sha256)
         }
 
@@ -551,7 +551,7 @@ enum MacNativeBackup {
         }
     }
 
-    struct Payload: Codable {
+    nonisolated struct Payload: Codable, Sendable {
         var createdAt: Date
         var applicationVersion: String
         var settings: Data
@@ -570,26 +570,33 @@ enum MacNativeBackup {
 
         var recordCount: Int { account.count + transaction.count + category.count + goal.count + financialProfile.count + recurringTransaction.count + depositRecord.count + loanRule.count }
     }
-    private struct Envelope: Codable {
+    nonisolated private struct Envelope: Codable, Sendable {
         var format = "FinTrack.NativeBackup"
         var version = 1
         var sha256: String
         var payload: Data
     }
-    static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
+    nonisolated static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func create(in context: ModelContext) throws -> Data {
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
-        var logos: [String: Data] = [:]
-        for url in (try? FileManager.default.contentsOfDirectory(at: MacBankLogos.directory(), includingPropertiesForKeys: nil)) ?? [] where url.pathExtension == "png" {
+        try encode(capture(in: context, logos: readLogos(MacBankLogos.directory())))
+    }
+    nonisolated private static func readLogos(_ directory: URL) throws -> [String: Data] {
+        guard FileManager.default.fileExists(atPath: directory.path) else { return [:] }
+        var values: [String: Data] = [:]
+        for url in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey]) where url.pathExtension == "png" {
             let data = try Data(contentsOf: url)
-            if data.count <= 512 * 1024 { logos[url.lastPathComponent] = data }
+            if data.count <= 512*1024 { values[url.lastPathComponent] = data }
         }
+        return values
+    }
+    static func capture(in context: ModelContext, logos: [String: Data] = [:]) throws -> Payload {
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
         let updateURL = MacPreferences.defaults.string(forKey: "v2_update_url") ?? ""
         let updateKey = MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? ""
         let updateTrust = updateURL.isEmpty && updateKey.isEmpty ? nil : UpdateTrustConfiguration(url: updateURL, publicKey: updateKey)
         let backupHistory = MacSettingsStore.load("v2_backup_history", fallback: [MacBackupRecord]())
             .prefix(100).map(BackupHistoryMetadata.init(record:))
-        let payload = Payload(createdAt: Date(), applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+        return Payload(createdAt: Date(), applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
             settings: try MacSettingsStore.snapshot(), bankLogos: logos,
 
             account: try context.fetch(FetchDescriptor<Account>()).map(MacBackupAccount.init),
@@ -602,16 +609,84 @@ enum MacNativeBackup {
             loanRule: try context.fetch(FetchDescriptor<LoanRule>()).map(MacBackupLoanRule.init),
             updateTrust: updateTrust, backupHistory: backupHistory)
 
+    }
+    nonisolated static func encode(_ payload: Payload) throws -> Data {
         let bytes = try JSONEncoder().encode(payload)
         return try JSONEncoder().encode(Envelope(sha256: digest(bytes), payload: bytes))
     }
-    static func preview(_ data: Data) throws -> Payload {
-        guard data.count <= 100 * 1024 * 1024 else { throw MacSettingsFailure.invalid("备份文件超过 100 MB") }
-        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
-        guard envelope.format == "FinTrack.NativeBackup", envelope.version == 1, digest(envelope.payload) == envelope.sha256
-        else { throw MacSettingsFailure.invalid("备份格式、版本或完整性检查未通过") }
-        let p = try JSONDecoder().decode(Payload.self, from: envelope.payload)
+    static func createAsync(in context: ModelContext) async throws -> Data {
+        let snapshot = try capture(in: context), directory = MacBankLogos.directory()
+        return try await Task.detached(priority: .userInitiated) {
+            var value = snapshot; value.bankLogos = try readLogos(directory)
+            return try encode(value)
+        }.value
+    }
+    nonisolated private static func decode(_ data: Data) throws -> Payload {
+        guard data.count <= 100*1024*1024 else {throw MacSettingsFailure.invalid("备份文件超过100 MB")}
+        let envelope=try JSONDecoder().decode(Envelope.self,from:data)
+        guard envelope.format == "FinTrack.NativeBackup",envelope.version == 1,digest(envelope.payload) == envelope.sha256 else {throw MacSettingsFailure.invalid("备份格式、版本或完整性检查未通过")}
+        return try JSONDecoder().decode(Payload.self,from:envelope.payload)
+    }
+    static func previewAsync(_ data: Data) async throws -> Payload {
+        let payload=try await Task.detached(priority:.userInitiated){try decode(data)}.value
+        return try validate(payload,validateFinancial:true)
+    }
+    private static func validateFinancialPayload(_ p: Payload) throws {
+        func amount(_ value: Double, signed: Bool = false) throws {
+            guard value.isFinite, abs(value) <= 1e12, signed || value >= 0 else { throw MacSettingsFailure.invalid("备份中的财务金额无效") }
+        }
+        func snapshot(_ original: Double, _ actual: Double, _ source: String, _ book: String, _ rate: Double) throws {
+            _ = try MacCurrency.code(source); _ = try MacCurrency.code(book)
+            try MacBankSettlement.validateSavedSnapshot(amount: original, actual: actual, source: source, base: book, rate: rate, allowLegacyPrecision: true)
+        }
+        func dates(_ values: Date?...) throws {
+            guard values.compactMap({$0}).allSatisfy({$0.timeIntervalSince1970.isFinite && abs($0.timeIntervalSince1970)<253402300800}) else { throw MacSettingsFailure.invalid("备份中的日期超出可用范围") }
+        }
+        func reminder(_ days: Int, _ hour: Int, _ minute: Int) throws {
+            guard (0...365).contains(days),(0...23).contains(hour),(0...59).contains(minute) else { throw MacSettingsFailure.invalid("备份中的提醒时间无效") }
+        }
+        for row in p.transaction {
+            try dates(row.date,row.createdAt,row.updatedAt,row.deletedAt)
+            guard TransactionType(rawValue: row.type) != nil else { throw MacSettingsFailure.invalid("备份账目类型无效") }
+            try snapshot(row.originalAmount, row.baseAmount, row.originalCurrency, row.baseCurrencyCode, row.exchangeRateToBase)
+        }
+        for row in p.recurringTransaction {
+            try dates(row.nextExecutionDate,row.lastExecutionDate,row.endDate,row.createdAt,row.updatedAt,row.deletedAt)
+            try reminder(row.reminderDaysBefore,row.reminderHour,row.reminderMinute)
+            try amount(row.amount); _ = try MacCurrency.code(row.currency)
+            guard row.amount == row.originalAmount,row.currency == row.originalCurrency else { throw MacSettingsFailure.invalid("备份周期金额与原币快照不一致") }
+            guard ["income", "expense"].contains(row.type.lowercased()), (1...365).contains(row.intervalValue), RecurringIntervalUnit(rawValue: row.intervalUnit) != nil else { throw MacSettingsFailure.invalid("备份周期计划无效") }
+            try snapshot(row.originalAmount, row.baseAmount, row.originalCurrency, row.baseCurrencyCode, row.exchangeRateToBase)
+        }
+        for row in p.depositRecord {
+            try dates(row.startDate,row.maturityDate,row.lastInterestPayoutDate,row.nextInterestPayoutDate,row.createdAt,row.updatedAt,row.deletedAt)
+            try reminder(row.reminderDaysBefore,row.reminderHour,row.reminderMinute)
+            try amount(row.rolloverBasePrincipalAmount ?? 0);try amount(row.rolloverBaseInterestAmount ?? 0)
+            guard row.principal > 0,row.principal == row.originalPrincipal,row.currency == row.originalCurrency,
+                  row.maturityInterestHandling == nil || DepositMaturityInterestHandling(rawValue:row.maturityInterestHandling!) != nil else { throw MacSettingsFailure.invalid("备份存款本金或续存信息无效") }
+            guard row.startDate < row.maturityDate, (0...100).contains(row.annualInterestRate), DepositInterestSettlementMode(rawValue: row.interestSettlementMode) != nil else { throw MacSettingsFailure.invalid("备份存款计划无效") }
+            try snapshot(row.originalPrincipal, row.basePrincipal, row.originalCurrency, row.baseCurrencyCode, row.principalExchangeRateToBase)
+            try snapshot(row.expectedInterest, row.baseExpectedInterest, row.originalCurrency, row.baseCurrencyCode, row.interestExchangeRateToBase)
+        }
+        for row in p.loanRule {
+            try dates(row.startDate,row.createdAt,row.updatedAt,row.deletedAt)
+            try amount(row.totalAmount);try amount(row.downPaymentAmount)
+            guard (0...100).contains(row.downPaymentPercent),abs(row.totalAmount-row.downPaymentAmount-row.principal)<0.005 else { throw MacSettingsFailure.invalid("备份贷款总额与首付不一致") }
+            guard row.principal > 0, (1...600).contains(row.termMonths), (0...100).contains(row.annualRate), RepaymentMethod(rawValue: row.methodRawValue) != nil else { throw MacSettingsFailure.invalid("备份贷款计划无效") }
+            guard MacLoanSchedule.valid(row.make()) else { throw MacSettingsFailure.invalid("备份贷款日期记录无效") }
+            try snapshot(row.principal, row.basePrincipal, row.currency, row.baseCurrencyCode, row.exchangeRateToBase)
+        }
+        for row in p.goal { try dates(row.startDate,row.deadline,row.createdAt,row.updatedAt,row.deletedAt);guard row.targetAmount > 0 else { throw MacSettingsFailure.invalid("备份目标金额无效") }; try amount(row.targetAmount); try amount(row.creationNetWorth, signed: true) }
+        for row in p.category { try dates(row.createdAt,row.updatedAt,row.deletedAt) }
+        for row in p.financialProfile { try dates(row.createdAt,row.updatedAt,row.deletedAt);try amount(row.initialAssets); try amount(row.initialDebt, signed: true) }
+        for row in p.account { try dates(row.createdAt);try amount(row.balance, signed: true); _ = try MacCurrency.code(row.currency) }
+    }
+    static func preview(_ data: Data, validateFinancial: Bool = true) throws -> Payload {
+        try validate(decode(data), validateFinancial: validateFinancial)
+    }
+    private static func validate(_ p: Payload, validateFinancial: Bool) throws -> Payload {
         _ = try MacSettingsStore.validateSettings(p.settings)
+        if validateFinancial { try validateFinancialPayload(p) }
         guard p.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid("备份记录数量超出限制") }
         if let updateTrust = p.updateTrust {
             guard updateTrust.url.utf8.count <= 2048, updateTrust.publicKey.utf8.count <= 512 else {
@@ -653,8 +728,14 @@ enum MacNativeBackup {
     /// Assets are staged and reversible; settings are applied only after the database commit.
     static func restore(_ data: Data, in context: ModelContext, restoreUpdateTrust: Bool = false,
                         save: ((ModelContext) throws -> Void)? = nil) throws {
+        try MacRecoveryJournal.perform(in: context) {
+            try restoreContents(data, in: context, restoreUpdateTrust: restoreUpdateTrust, save: save)
+        }
+    }
+    private static func restoreContents(_ data: Data, in context: ModelContext, restoreUpdateTrust: Bool,
+                                        save: ((ModelContext) throws -> Void)?) throws {
         guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再恢复账本") }
-        let p = try preview(data), settings = try MacSettingsStore.validateSettings(p.settings)
+        let p = try preview(data, validateFinancial: !MacRecoveryJournal.isRecovering), settings = try MacSettingsStore.validateSettings(p.settings)
         let updateTrustToRestore: UpdateTrustConfiguration?
         if restoreUpdateTrust {
             guard let updateTrust = p.updateTrust else { throw MacSettingsFailure.invalid("此备份不包含更新源信任配置") }
@@ -719,6 +800,7 @@ enum MacNativeBackup {
             for (index, row) in loanRule.enumerated() { row.generatedRules = p.loanRule[index].generatedRuleIDs.compactMap { lookup[$0] } }
             try MacDataManagement.registerReferencedCategories(in: context)
             if let save { try save(context) } else { try context.save() }
+            MacRecoveryJournal.checkpoint("database")
         } catch {
             context.rollback()
             try? fm.removeItem(at: target)
@@ -733,7 +815,9 @@ enum MacNativeBackup {
             MacUpdateService.shared.reset()
         }
         if let restoredHistoryData { MacPreferences.defaults.set(restoredHistoryData, forKey: "v2_backup_history") }
-        MacNotifications.clear()
-        NotificationCenter.default.post(name: MacSettingsStore.restoreCompleted, object: nil)
+        if !MacRecoveryJournal.isRecovering {
+            MacNotifications.clear()
+            NotificationCenter.default.post(name: MacSettingsStore.restoreCompleted, object: nil)
+        }
     }
 }

@@ -72,7 +72,7 @@ struct MacLoansView: View {
             HStack(spacing: MacUI.space(0)) {
                 filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).accessibilityIdentifier("loansListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).accessibilityElement(children:.contain).accessibilityIdentifier("loansListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
                     MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
                         if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }
@@ -218,10 +218,17 @@ struct MacLoansView: View {
                     Text(money(loan.principal, loan)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6).accessibilityIdentifier("loansPrincipal").id("principal-\(loan.id)-\(loan.principal)")
                     Text("贷款本金 · \(MacOverviewStyle.category(loan.category))").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     Divider()
+                    ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top) {
                         metric("年利率", "\(loan.annualRate.formatted())%"); Spacer()
                         metric("还款方式", MacLoansData.method(loan.method)); Spacer()
                         metric("总期限", "\(loan.termMonths) 期")
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        metric("年利率", "\(loan.annualRate.formatted())%")
+                        metric("还款方式", MacLoansData.method(loan.method))
+                        metric("总期限", "\(loan.termMonths) 期")
+                    }
                     }
                     Text("首期 \(MacDateDisplay.string(loan.startDate)) · 计划到期 \(payments.last.map { MacDateDisplay.string($0.date) } ?? "待核对")").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     if loan.downPaymentAmount > 0 { Text("总额 \(money(loan.totalAmount, loan)) · 首付 \(money(loan.downPaymentAmount, loan))").appFont(.caption, weight: .regular).foregroundStyle(.secondary) }

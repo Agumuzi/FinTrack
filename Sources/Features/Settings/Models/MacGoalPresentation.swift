@@ -1,6 +1,6 @@
 import Foundation
 
-struct MacGoalPresentation: Codable {
+struct MacGoalPresentation: Codable, Equatable {
     var icon = "target"
     var color = "blue"
     var priority = "普通"

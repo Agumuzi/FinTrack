@@ -157,13 +157,14 @@ struct LoanAmortizationEngine {
     /// final installment. Verified historical payments may retain the original
     /// components; only future cash payments absorb the rounding difference.
     static func reconciled(principal: Double, schedule: [Payment], historical: [Int: Payment] = [:]) -> [Payment] {
+        guard principal.isFinite,principal>0 else{return []}
         var balance = FinancialPrecision.roundAmountForStorage(principal)
         return schedule.map { payment in
             let saved = historical[payment.index]
             let principalPart = saved?.principal ?? (payment.index == schedule.last?.index ? balance : min(balance, payment.principal))
             let interest = saved?.interest ?? payment.interest
             balance = FinancialPrecision.roundAmountForStorage(max(0, balance - principalPart))
-            return Payment(index: payment.index, date: payment.date,
+            return Payment(index: payment.index, date: saved?.date ?? payment.date,
                            total: saved?.total ?? FinancialPrecision.roundAmountForStorage(principalPart + interest),
                            principal: principalPart, interest: interest,
                            remainingBalance: balance)
@@ -183,7 +184,7 @@ struct LoanAmortizationEngine {
         method: RepaymentMethod,
         firstPaymentDate: Date
     ) -> [Payment] {
-        guard principal > 0, termMonths > 0 else { return [] }
+        guard principal.isFinite,principal>0,annualRate.isFinite,(1...600).contains(termMonths),firstPaymentDate.timeIntervalSince1970.isFinite,abs(firstPaymentDate.timeIntervalSince1970)<253402300800 else{return []}
 
         let calendar = Calendar.current
         let monthlyRate = max(annualRate, 0) / 100 / 12

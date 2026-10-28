@@ -209,8 +209,10 @@ struct MacRecordSection: View {
                                 GeometryReader { tableGeometry in
                                     let columns = showsSelectionBoxes ? 6 : 5
                                     let checkbox = showsSelectionBoxes ? MacUI.space(26) : 0
-                                    let required = dateColumnWidth + amountColumnWidth + MacUI.space(250) + checkbox + CGFloat(columns) * 24 + 20
-                                    if tableGeometry.size.width < required { compactTransactionTable(availableWidth: tableGeometry.size.width) }
+                                    let required = dateColumnWidth + amountColumnWidth + max(100,MacUI.fontTier.bodySize*4+36) + max(48,MacUI.fontTier.bodySize*2.1+24) + max(120,MacUI.fontTier.bodySize*5) + checkbox + CGFloat(columns)*24+20
+                                    let compactMinimum=dateColumnWidth+amountColumnWidth+max(60,MacUI.fontTier.bodySize*2+30)+checkbox+92
+                                    if tableGeometry.size.width < compactMinimum {cardTransactionList}
+                                    else if tableGeometry.size.width < required { compactTransactionTable(availableWidth: tableGeometry.size.width) }
                                     else { transactionTable(availableWidth: tableGeometry.size.width) }
                                 }
                             }
@@ -540,6 +542,29 @@ struct MacRecordSection: View {
             .overlay(alignment: .topLeading) { headerSelectionCheckbox }
             .id("full-\(showsSelectionBoxes)")
 
+    }
+    private var cardTransactionList: some View {
+        ScrollView {
+            LazyVStack(alignment:.leading,spacing:10) {
+                if showsSelectionBoxes {Button("全选当前结果") {toggleAllRecords()}.accessibilityIdentifier("recordSelectAllCards")}
+                ForEach(Array(visibleTransactions.prefix(displayLimit)),id:\.id) {row in
+                    Button {
+                        if showsSelectionBoxes {if batchSelection.contains(row.id){batchSelection.remove(row.id)}else{batchSelection.insert(row.id)}}
+                        else {selectedTransactionID=row.id;showsDetails=true}
+                    } label: {
+                        HStack(alignment:.top,spacing:8) {
+                            if showsSelectionBoxes {Image(systemName:batchSelection.contains(row.id) ? "checkmark.square.fill":"square")}
+                            VStack(alignment:.leading,spacing:8) {
+                                Text(MacDateDisplay.string(row.date)).appFont(.caption).foregroundStyle(.secondary)
+                                categoryCell(row)
+                                signedTableAmount(row)
+                                if row.originalCurrency != row.baseCurrencyCode {Text("原币 "+row.originalCurrency).appFont(.caption).foregroundStyle(.secondary)}
+                            }.frame(maxWidth:.infinity,alignment:.leading)
+                        }.padding(12).contentShape(Rectangle()).background(.primary.opacity(0.025),in:RoundedRectangle(cornerRadius:8))
+                    }.buttonStyle(MacInteractiveButtonStyle()).contextMenu {recordContextMenu([row.id])}
+                }
+            }.padding(10)
+        }.accessibilityIdentifier("recordsTable").background(MacRecordsKeyboardActions(selectAll:selectAllRecords).frame(width:0,height:0))
     }
     private func compactTransactionTable(availableWidth: CGFloat) -> some View {
         let columns = showsSelectionBoxes ? 4 : 3

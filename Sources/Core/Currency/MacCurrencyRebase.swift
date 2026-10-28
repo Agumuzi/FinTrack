@@ -96,7 +96,9 @@ enum MacCurrencyRebase {
         else { folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("FinTrackMac/Backups") }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try backup.write(to: folder.appendingPathComponent(UUID().uuidString + ".fintrack"), options: .atomic)
-        do { plan.apply(); try context.save(); MacPreferences.defaults.set(plan.currency, forKey: "base_currency"); MacPreferences.defaults.set(plan.budgets, forKey: "v2_budgets") }
+        try MacRecoveryJournal.perform(in: context) {
+        do { plan.apply(); try context.save(); MacRecoveryJournal.checkpoint("database"); MacPreferences.defaults.set(plan.currency, forKey: "base_currency"); MacPreferences.defaults.set(plan.budgets, forKey: "v2_budgets") }
         catch { context.rollback(); throw error }
+        }
     }
 }

@@ -18,7 +18,7 @@ struct MacFXRatesView: View {
             }
             HStack {
                 Button("添加汇率", systemImage: "plus") { adding = true }.buttonStyle(MacSettingsButtonStyle(height: 40)).accessibilityIdentifier("fxAddPair")
-                    .popover(isPresented: $adding) { MacFXPairPicker { _ in adding = false } }
+
                 Spacer()
                 Button(service.busy ? "正在更新…" : "更新", systemImage: "arrow.clockwise") { Task { await service.refresh(reason: .manual) } }
                     .buttonStyle(MacSettingsButtonStyle(height: 40)).disabled(service.busy).accessibilityIdentifier("fxUpdateRates")
@@ -30,10 +30,11 @@ struct MacFXRatesView: View {
                         MacFXRateCard(pair: pair, service: service, query: query, history: app.history).id(pair.key)
                     }
                 }.scrollTargetLayout().padding(.bottom, 8)
-                if service.configuration.watchedPairs.isEmpty { ContentUnavailableView("尚未关注汇率", systemImage: "chart.line.uptrend.xyaxis", description: Text("从货币列表中添加需要关注的货币对。")) }
+                if service.configuration.watchedPairs.isEmpty {ContentUnavailableView {Label("尚未关注汇率",systemImage:"chart.line.uptrend.xyaxis")} description:{Text("选择需要关注的货币对。")} actions:{Button("添加货币对") {adding=true}.accessibilityIdentifier("fxEmptyAddPair")}}
             }.scrollPosition(id: $query.ratesScrollPair, anchor: .top).accessibilityIdentifier("fxRatesScroll")
             MacFXLastUpdatedView(service:service)
         }
+        .popover(isPresented:$adding) {MacFXPairPicker {_ in adding=false}}
         .onChange(of: service.configuration.watchedPairs) { _, pairs in
             if let key = query.expandedPair, !pairs.contains(where: { $0.key == key }) { query.expandedPair = nil }
             let valid = Set(pairs.map(\.key))

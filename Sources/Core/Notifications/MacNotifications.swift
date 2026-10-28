@@ -147,16 +147,18 @@ enum MacNotifications {
         let pendingIDs = Set(pending.map(\.identifier))
         let delivered = Set(await center.deliveredNotifications().map { $0.request.identifier })
         var notified = Set(MacPreferences.defaults.stringArray(forKey: "v141_notification_history") ?? [])
-        notified.formUnion(delivered)
+        // Historical versions recorded scheduled requests as delivered. Pending
+        // requests may still be updated, cancelled, or enabled again.
+        notified.subtract(pendingIDs); notified.formUnion(delivered)
         var count = pending.filter { desired.contains($0.identifier) }.count
-        for plan in plans where !pendingIDs.contains(plan.id) && !notified.contains(plan.id) && count < 60 {
+        for plan in plans where !notified.contains(plan.id) && (pendingIDs.contains(plan.id) || count < 60) {
             let content = UNMutableNotificationContent()
             content.title = plan.title; content.body = plan.body; content.sound = .default; content.userInfo = ["route": plan.route]
             let trigger: UNNotificationTrigger = plan.date <= Date() ? UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false) : UNCalendarNotificationTrigger(dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: plan.date), repeats: false)
             guard MacPermissionCoordinator.notificationsEnabled else { disableAll(); return }
             try await center.add(UNNotificationRequest(identifier: plan.id, content: content, trigger: trigger))
             guard MacPermissionCoordinator.notificationsEnabled else { disableAll(); return }
-            count += 1; notified.insert(plan.id)
+            if !pendingIDs.contains(plan.id) { count += 1 }
         }
         // Keep bounded occurrence identifiers only; clearing a delivered banner must not resend it.
         MacPreferences.defaults.set(Array(notified).sorted().suffix(2000).map { $0 }, forKey: "v141_notification_history")

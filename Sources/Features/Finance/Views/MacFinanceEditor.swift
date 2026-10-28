@@ -235,10 +235,15 @@ struct MacFinanceEditor: View {
             let source = panel == .goals ? currency : try MacCurrency.code(originalCurrency)
             let fx = source == currency ? 1 : try MacCurrency.rate(principalFx)
             let interestRate = source == currency ? 1 : (panel == .deposits ? try MacCurrency.rate(interestFx) : fx)
-            let total = try MacTransactionCRUD.amount(amountText)
-            let down = panel == .loans ? try MacFinancialSettings.nonnegativeAmount(downPaymentText) : 0
-            let principal = panel == .loans ? FinancialPrecision.roundAmountForStorage(total - down) : total
-            let expectedOverride = panel == .deposits && overridesInterest ? try MacFinancialSettings.nonnegativeAmount(expectedInterestText) : nil
+            let parsed=try MacFinanceEditing.inputAmounts(amountText,downText:downPaymentText,existing:existing)
+            let total=parsed.total
+            let down=panel == .loans && existing == nil ? try MacFinancialSettings.nonnegativeAmount(downPaymentText):parsed.down
+            let principal=panel == .loans && existing == nil ? FinancialPrecision.roundAmountForStorage(total-down):parsed.principal
+            let expectedOverride:Double?
+            if panel == .deposits && overridesInterest {
+                if case .deposit(let r)=existing {expectedOverride=try MacFinanceEditing.unchangedNonnegative(expectedInterestText,original:r.expectedInterest)}
+                else {expectedOverride=try MacFinancialSettings.nonnegativeAmount(expectedInterestText)}
+            } else {expectedOverride=nil}
             let reminder = MacReminderSettings(daysBefore: reminderDays, hour: Calendar.current.component(.hour, from: reminderTime), minute: Calendar.current.component(.minute, from: reminderTime))
             guard principal > 0 else { throw MacFinanceRecords.Failure.invalidTerm }
             if let existing {

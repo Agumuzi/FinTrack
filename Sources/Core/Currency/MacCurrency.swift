@@ -90,6 +90,7 @@ enum MacCurrency {
     }
 
     static func ledgerCurrency(in context: ModelContext, preferred: String) throws -> String {
+        try MacRecoveryJournal.assertWritable(in:context,allowSnapshotRead:true)
         let requested = try code(preferred)
         // Posting still rejects any active mismatching book; existence queries need at most one row.
         var transactions = FetchDescriptor<Transaction>(predicate: #Predicate { $0.deletedAt == nil && $0.baseCurrencyCode != requested })

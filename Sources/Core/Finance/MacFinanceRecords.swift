@@ -20,7 +20,7 @@ enum MacFinanceRecords {
             case .legacyPostingDisabled: "Legacy recurring rules have no verified occurrence identity. Auto-posting is blocked."
             case .futureOccurrence: "This occurrence is not due yet."
             case .noProgress: "The next recurring date failed to advance. Nothing was committed."
-            case .tooManyOccurrences: "More than 24 past occurrences. Review the rule before posting."
+            case .tooManyOccurrences: "待补记超过24期，本次未入账。请先暂停自动入账并创建备份，再通过“核对历史”确认下一未入账日期。"
             case .existingOccurrence: "An occurrence already exists. Nothing was committed."
             }
         }
@@ -52,6 +52,7 @@ enum MacFinanceRecords {
     /// Prevent another finance module from silently creating a second book
     /// currency. Original Goal has no currency field and cannot be checked.
     private static func requireLedgerCurrency(_ currency: String, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let deposits = try context.fetch(FetchDescriptor<DepositRecord>())
         let loans = try context.fetch(FetchDescriptor<LoanRule>())
@@ -138,6 +139,7 @@ enum MacFinanceRecords {
             currency: source, startDate: firstPayment,
             category: category, note: MacFinanceNotes.replacing(managedLoanTag, with: userNote) ?? managedLoanTag
         )
+        try MacLoanSchedule.pin(loan)
         context.insert(loan)
         do { try context.save() }
         catch { context.rollback(); throw error }

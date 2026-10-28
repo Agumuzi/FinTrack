@@ -68,6 +68,7 @@ enum MacRecurringData {
         return Audit(receipts: verified.sorted { $0.date > $1.date }, unverifiedCount: candidates.count - verified.count)
     }
     static func setActive(_ rule: RecurringTransaction, active: Bool, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard rule.deletedAt == nil, !isLoan(rule), status(rule) != .ended else { throw MacFinanceReview.Failure.schedule }
         if active {
             guard MacFinanceRecords.isManagedRecurring(rule), (1...365).contains(rule.intervalValue),

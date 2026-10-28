@@ -33,6 +33,7 @@ struct MacDepositsView: View {
     @State private var error: String?
     @State private var message: String?
     @State private var logoRevision = 0
+    @State private var noteExpanded = false
     @State private var cropInput: MacBankLogos.CropInput?
     @State private var now = Date()
     @AppStorage("v13_deposit_double_list_width", store: MacPreferences.defaults) private var doubleListWidth = 580.0
@@ -66,7 +67,7 @@ struct MacDepositsView: View {
                 filters.frame(width: filterWidth)
                 Divider()
                 let maximum = max(300, Double(geometry.size.width - filterWidth - detailMinimum - 10))
-                list(wide: wide).accessibilityIdentifier("depositListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).accessibilityElement(children:.contain).accessibilityIdentifier("depositListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
                     MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
                         if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }
@@ -90,6 +91,7 @@ struct MacDepositsView: View {
                 .buttonStyle(MacInteractiveButtonStyle()).appHelp("新建存款").accessibilityLabel("新建存款").accessibilityIdentifier("depositQuickAdd").disabled(bookCurrency == nil || posting).padding(22)
         }
         .onAppear { selectedID = visible.first?.id }
+        .onChange(of:selectedID) {_,_ in noteExpanded=false}
         .onChange(of: listColumns) { _, _ in transientWidth = nil }
         .onChange(of: visible.map(\.id)) { _, ids in
             if !ids.contains(selectedID ?? UUID()) { selectedID = ids.first; showsDetails = false }
@@ -237,13 +239,14 @@ struct MacDepositsView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     detailHeader(deposit)
                     if !MacFinanceNotes.visible(deposit.note).isEmpty {
-                        MacFinanceCardRow(minimumWidth: 620, firstFraction: 0.68) { summaryCard(deposit); notesCard(deposit) }
+                        summaryCard(deposit)
                     } else { summaryCard(deposit) }
                     timingCard(deposit)
                     MacFinanceCardRow(minimumWidth: 560) {
                         settlementCard(deposit, audit: audit)
                         scheduleCard(deposit)
                     }
+                    if !MacFinanceNotes.visible(deposit.note).isEmpty {notesCard(deposit)}
                     if deposit.typedInterestSettlementMode == .monthly || !audit.receipts.isEmpty || audit.unverifiedCount > 0 {
                         receiptsCard(deposit, audit: audit)
                     }
@@ -303,12 +306,20 @@ struct MacDepositsView: View {
         }
     }
     private func notesCard(_ deposit: DepositRecord) -> some View {
-        card { Text("备注").appFont(.section, weight: .semibold); Text(MacFinanceNotes.visible(deposit.note).isEmpty ? "暂无备注" : MacFinanceNotes.visible(deposit.note)).foregroundStyle(.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+        let text=MacFinanceNotes.visible(deposit.note)
+        return card {
+            Text("备注").appFont(.section,weight:.semibold)
+            Text(text).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(noteExpanded ? nil:3).fixedSize(horizontal:false,vertical:true)
+            if text.count>28 || text.contains("\n") {Button(noteExpanded ? "收起备注":"展开备注") {noteExpanded.toggle()}.appFont(.caption)}
+        }
     }
     private func timingCard(_ deposit: DepositRecord) -> some View {
         let timing = MacDepositsData.timing(deposit, now: now)
         return card {
-            HStack { metric("开始日期", MacDateDisplay.string(deposit.startDate)); Spacer(); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }
+            ViewThatFits(in: .horizontal) {
+                HStack { metric("开始日期", MacDateDisplay.string(deposit.startDate)); Spacer(); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }.fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 10) { metric("开始日期", MacDateDisplay.string(deposit.startDate)); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }
+            }
             ProgressView(value: timing.progress).tint(MacUI.accent)
             HStack { Text(now < deposit.startDate ? "尚未起息" : "已存 \(timing.elapsed) 天"); Spacer(); Text(timing.remaining > 0 ? "距离到期 \(timing.remaining) 天" : "已到期") }.appFont(.caption).foregroundStyle(.secondary)
         }

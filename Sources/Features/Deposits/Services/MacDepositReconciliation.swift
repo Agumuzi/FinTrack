@@ -3,6 +3,7 @@ import SwiftData
 
 enum MacDepositReconciliation {
     static func confirm(_ receipt: Transaction, deposit: DepositRecord, amount: Double, rate: Double, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard !MacAutomaticPosting.isRunning, !context.hasChanges, receipt.deletedAt == nil,
               receipt.typedType == .income, receipt.originalCurrency == deposit.originalCurrency,
               receipt.baseCurrencyCode == deposit.baseCurrencyCode,

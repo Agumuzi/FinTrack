@@ -6,7 +6,6 @@ struct MacMenuBarPanel: View {
     @ObservedObject var session: MacMenuBarSession
     @ObservedObject var entries: MacAppEntryController
     @State private var adding = false
-    @State private var quickSettings = false
     @ObservedObject private var service = MacFXApplication.shared.monitor
     @ObservedObject private var ledger = MacLedgerAccess.shared
     @AppStorage("color_theme_mode", store: MacPreferences.defaults) private var theme = "system"
@@ -16,7 +15,13 @@ struct MacMenuBarPanel: View {
     @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     static func logicalSize(available: CGSize) -> CGSize {
         let factor = MacInterfaceZoom.factor
-        let requested = CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720)
+        let runtime=MacApplicationRuntime.shared,monitor=MacFXApplication.shared.monitor
+        let body=MacUI.fontTier.bodySize
+        let content:CGFloat
+        if runtime.session.quickSettings || runtime.session.page == .quickEntry {content=720}
+        else if runtime.session.page == .converter {content=max(320,150+CGFloat(monitor.configuration.converterCurrencies.count)*max(78,body*3.6))}
+        else {content=max(320,160+CGFloat(monitor.configuration.watchedPairs.count)*max(100,body*4)+(MacFXApplication.shared.query.expandedPair == nil ? 0:260))}
+        let requested=CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? Double(min(720,content)))
         return CGSize(width: min(408 + max(0, MacUI.fontTier.bodySize - 16) * 8, max(1,(available.width - 32) / factor)),
                       height: min(requested, max(1,(available.height - 32) / factor)))
     }
@@ -40,7 +45,7 @@ struct MacMenuBarPanel: View {
                         tool("arrow.clockwise",title:"更新汇率",identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
                             .disabled(service.busy).appHelp(service.busy ? "正在更新…" : service.status)
                     }
-                    tool("gearshape",title:"设置",identifier:"menuSettings") { quickSettings.toggle() }
+                    tool("gearshape",title:"设置",identifier:"menuSettings") { session.quickSettings.toggle() }
                 }
             }.padding(.horizontal, 18).padding(.top, 8)
             HStack(spacing: 4) {
@@ -54,8 +59,8 @@ struct MacMenuBarPanel: View {
             }.padding(.horizontal, 14).padding(.bottom, 12)
             Divider()
             Group {
-                if quickSettings {
-                    MacMenuQuickSettings(service:service,runtime:runtime,canManageCategories:ledger.container != nil) { quickSettings = false }
+                if session.quickSettings {
+                    MacMenuQuickSettings(service:service,runtime:runtime,canManageCategories:ledger.container != nil) { session.quickSettings = false }
                 } else { switch session.page {
                 case .rates: MacFXRatesView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query, showsTools: false)
                 case .converter: MacFXConverterView(service: MacFXApplication.shared.monitor, query: MacFXApplication.shared.query, showsTools: false)
@@ -67,11 +72,11 @@ struct MacMenuBarPanel: View {
         }.frame(width: size.width, height: size.height).background(MacOverviewStyle.canvas).tint(MacUI.accent)
             .accessibilityElement(children: .contain).accessibilityIdentifier("menuPanelContent")
             .background(MacMenuBarWindowProbe { runtime.panelWindow = $0 })
-            .background(MacMenuPanelKeyboard { if quickSettings { quickSettings = false } else { runtime.closePanel() } })
+            .background(MacMenuPanelKeyboard { if session.quickSettings { session.quickSettings = false } else { runtime.closePanel() } })
             .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
             .defaultAppStorage(MacPreferences.defaults).interfaceZoom()
             .onAppear { if session.page == .quickEntry { ledger.load() } }
-            .onChange(of: session.page) { _, page in adding = false; quickSettings = false; if page == .quickEntry { ledger.load() } }
+            .onChange(of: session.page) { _, page in adding = false; session.quickSettings = false; if page == .quickEntry { ledger.load() } }
     }
     private func tool(_ symbol:String,title:String,identifier:String,action:@escaping () -> Void) -> some View {
         Button(action:action) { Image(systemName:symbol).appIconFont(22).frame(width:40,height:40).contentShape(Rectangle()) }

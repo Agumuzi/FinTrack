@@ -50,7 +50,7 @@ struct MacGeneralSettingsView: View {
         .onChange(of: remindBudgets) { _, enabled in updateNotifications(requestPermission: enabled) }
     }
     private var dateCard: some View {
-MacSettingsCard(title: "日期与时间", icon: "calendar", subtitle: "设置日期范围、周起始日和显示格式。", headerColor: .red) {
+MacSettingsCard(title: "日期与时间", icon: "calendar", subtitle: "", headerColor: .red) {
                     MacSettingsRow(label: "周起始日") { MacSettingsMenu(selection: $weekStart, options: [("星期一",2), ("星期日",1)]).accessibilityIdentifier("generalWeekStartMenu") }
                     MacSettingsRow(label: "日期格式") { MacSettingsMenu(selection: $dateFormat, options: [("2026-10-15","yyyy-MM-dd"), ("2026.10.15","yyyy.MM.dd"), ("15/10/2026","dd/MM/yyyy"), ("15.10.2026","dd.MM.yyyy"), ("10/15/2026","M/d/yyyy")]).accessibilityIdentifier("appDateFormatPicker") }
                     MacSettingsRow(label: "月份显示格式") { MacSettingsMenu(selection: $monthFormat, options: [("2026年10月","yyyy年M月"), ("2026-10","yyyy-MM")]).accessibilityIdentifier("generalMonthFormatMenu") }
@@ -58,7 +58,7 @@ MacSettingsCard(title: "日期与时间", icon: "calendar", subtitle: "设置日
                 }
     }
     private var moneyCard: some View {
-MacSettingsCard(title: "金额与货币显示", icon: "banknote", subtitle: "设置金额的显示格式和精度，不改变保存值。", headerColor: .orange) {
+MacSettingsCard(title: "金额与货币显示", icon: "banknote", subtitle: "仅改显示，不改变已保存金额。", headerColor: .orange) {
                     MacSettingsRow(label: "默认货币精度") { MacSettingsMenu(selection: $decimals, options: (0...4).map { (MacDisplayPreferences.money(12345.6789, decimals: $0, grouping: grouping, negative: negative, zero: zero), $0) }).accessibilityIdentifier("settingsDecimals") }
                     MacSettingsRow(label: "千位分隔符") { MacSettingsMenu(selection: $grouping, options: [("12,345.68","comma"), ("12 345.68","space"), ("12345.68","none")]).accessibilityIdentifier("generalGroupingMenu") }
                     MacSettingsRow(label: "负数显示方式") { MacSettingsMenu(selection: $negative, options: [("−12,345.68","minus"), ("(12,345.68)","parentheses")]).accessibilityIdentifier("generalNegativeMenu") }
@@ -73,15 +73,17 @@ MacSettingsCard(title: "列表与数据展示", icon: "tablecells", subtitle: "�
                     MacSettingsToggleRow(title: "在列表中显示备注预览", value: $notes)
                 }
     }
+    private var dockOnly: Bool { entries.configuration.showDock && !entries.configuration.showMenuBar }
     private var behaviorCard: some View {
-MacSettingsCard(title: "应用与交互", icon: "app.badge", subtitle: "设置启动、后台运行和常用入口。", headerColor: .purple) {
+MacSettingsCard(title: "应用与交互", icon: "app.badge", subtitle: "", headerColor: .purple) {
                     MacSettingsToggleRow(title: "显示菜单栏入口", value: entryBinding(\.showMenuBar)).accessibilityIdentifier("entryShowMenu")
                     MacSettingsToggleRow(title: "显示 Dock 图标", value: entryBinding(\.showDock)).accessibilityIdentifier("entryShowDock")
                     MacSettingsToggleRow(title: "启动时显示主窗口", value: entryBinding(\.showMainOnLaunch)).accessibilityIdentifier("entryShowMain")
                     Divider()
 
                     MacSettingsToggleRow(title: "开机登录后启动", value: Binding(get: { appServices.loginEnabled }, set: { appServices.setLoginEnabled($0) })).accessibilityIdentifier("settingsLaunchAtLogin")
-                    MacSettingsToggleRow(title: "关闭窗口后继续后台运行", value: $background).accessibilityIdentifier("settingsBackground")
+                    MacSettingsToggleRow(title: "关闭窗口后继续后台运行", value: Binding(get: { dockOnly || background }, set: { background = $0 })).disabled(dockOnly).accessibilityIdentifier("settingsBackground")
+                    if dockOnly { Text("仅使用 Dock 时，关闭窗口后应用仍会运行。点击 Dock 重开，Command+Q 退出。").appFont(.caption).foregroundStyle(.secondary) }
                     MacSettingsToggleRow(title: "启动时打开上次访问的页面", value: $resume).accessibilityIdentifier("settingsResumePage")
                     MacSettingsToggleRow(title: "显示悬停说明", value: $showHelp).accessibilityIdentifier("settingsShowHelp")
                     if let message = appServices.loginMessage { Text(message).appFont(.caption).foregroundStyle(.orange) }

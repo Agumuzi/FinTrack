@@ -26,6 +26,11 @@ struct MacRecordsTableSizing: NSViewRepresentable {
         var applying = false
         var queued = false
         var lastConfiguration = ""
+        var insetObservation: NSKeyValueObservation?
+        var autoInsetObservation: NSKeyValueObservation?
+        var headerQueued = false
+        var aligningHeader = false
+        var verticalOffset: CGFloat = 0
         var appliedWidths: [CGFloat] = []
         var userWidths: [CGFloat]?
         var lockedColumn: Int?
@@ -57,6 +62,23 @@ struct MacRecordsTableSizing: NSViewRepresentable {
                 for observer in observers { NotificationCenter.default.removeObserver(observer) }
                 observers.removeAll(); lastConfiguration = ""; appliedWidths = []
                 table = found
+                verticalOffset = 0
+                let clip = scroll.contentView
+                clip.postsBoundsChangedNotifications = true
+                insetObservation = clip.observe(\.contentInsets, options: [.new]) { [weak self] _, _ in
+                    MainActor.assumeIsolated { self?.scheduleHeaderAlignment() }
+                }
+                autoInsetObservation = clip.observe(\.automaticallyAdjustsContentInsets, options: [.new]) { [weak self] _, _ in
+                    MainActor.assumeIsolated { self?.scheduleHeaderAlignment() }
+                }
+                observers.append(NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: clip, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, !self.aligningHeader else { return }
+                        if !clip.automaticallyAdjustsContentInsets {
+                            self.verticalOffset = max(0, clip.bounds.minY + clip.contentInsets.top)
+                        } else { self.scheduleHeaderAlignment() }
+                    }
+                })
                 scroll.contentView.postsFrameChangedNotifications = true
                 observers.append(NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: scroll.contentView, queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.scheduleSizing() }
@@ -72,7 +94,14 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             if let header = found.headerView as? MacStableRecordsHeader {
                 header.titles = parent.titles; header.headerFont = MacInterfaceFonts.font(size: MacUI.fontTier.bodySize, weight: .medium)
                 let height = max(28, ceil(header.headerFont.ascender - header.headerFont.descender) + 12)
-                if abs(header.frame.height - height) > 0.5 { header.setFrameSize(NSSize(width: header.frame.width, height: height)); scroll.tile() }
+                if abs(header.frame.height-height)>0.5 {
+                    found.headerView=nil
+                    header.setFrameSize(NSSize(width:header.frame.width,height:height))
+                    found.headerView=header
+                    for column in found.tableColumns {column.headerCell.font=header.headerFont}
+                    header.invalidateIntrinsicContentSize();scroll.tile()
+                }
+                scheduleHeaderAlignment()
                 header.needsDisplay = true
                 header.window?.invalidateCursorRects(for: header)
             }
@@ -118,6 +147,30 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             }
             sizeColumns()
         }
+        private func scheduleHeaderAlignment() {
+            guard !aligningHeader, !headerQueued else { return }
+            headerQueued = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }; self.headerQueued = false
+                guard let table = self.table, let scroll = table.enclosingScrollView, let header = table.headerView else { return }
+                let clip = scroll.contentView, height = header.frame.height
+                self.aligningHeader = true
+                defer { self.aligningHeader = false }
+                if clip.automaticallyAdjustsContentInsets || abs(clip.contentInsets.top-height)>0.5 {
+                    clip.automaticallyAdjustsContentInsets = false
+                    var insets = clip.contentInsets; insets.top = height; clip.contentInsets = insets
+                    clip.scroll(to: NSPoint(x:clip.bounds.minX,y:self.verticalOffset-height))
+                    scroll.reflectScrolledClipView(clip)
+                }
+                #if FINTRACK_LOCAL_VALIDATION
+                if ProcessInfo.processInfo.environment["FINTRACK_RECORD_SIZING_PROBE"] == "1" {
+                    let row = table.convert(table.rect(ofRow:0),to:scroll), headerRect = header.convert(header.bounds,to:scroll)
+                    let text = "firstRowY=\(row.minY) headerMaxY=\(headerRect.maxY) offset=\(self.verticalOffset) bounds=\(clip.bounds) header=\(header.frame)"
+                    if MacRecordSizingDiagnostics.shared.text != text { MacRecordSizingDiagnostics.shared.text = text }
+                }
+                #endif
+            }
+        }
         private func scheduleSizing() {
             guard !applying, !queued else { return }
             queued = true
@@ -149,8 +202,8 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             let available = max(1, viewport - spacing * CGFloat(expected-1) - inset)
             let key = "v141_record_columns.\(parent.compact ? "compact" : "full").\(parent.selecting)"
             let saved = MacPreferences.defaults.array(forKey: key)?.compactMap { ($0 as? NSNumber).map { CGFloat($0.doubleValue) } }
-            var preferred: [CGFloat] = parent.compact ? [parent.dateWidth, parent.categoryWidth, parent.amountWidth] : [parent.dateWidth, parent.categoryWidth, 240, 48, parent.amountWidth]
-            var minimum: [CGFloat] = parent.compact ? [74, 45, 75] : [74, 50, 80, 42, 80]
+            var preferred: [CGFloat] = parent.compact ? [parent.dateWidth, parent.categoryWidth, parent.amountWidth] : [parent.dateWidth, parent.categoryWidth, 240, max(48, MacUI.fontTier.bodySize*2.1+24), parent.amountWidth]
+            var minimum: [CGFloat] = parent.compact ? [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), parent.amountWidth] : [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), 80, max(48,MacUI.fontTier.bodySize*2.1+24),parent.amountWidth]
             if parent.selecting { preferred.insert(28,at:0); minimum.insert(28,at:0) }
             if let candidate = userWidths ?? saved, candidate.count == expected { preferred = candidate }
             else {
@@ -169,6 +222,7 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             if userWidths != nil { userWidths = widths; MacPreferences.defaults.set(widths.map(Double.init),forKey:key) }
             lockedColumn = nil
             lastConfiguration = configuration; appliedWidths = widths
+            scheduleHeaderAlignment()
             table.headerView?.needsDisplay = true
             if let header = table.headerView { header.window?.invalidateCursorRects(for: header) }
         }
@@ -189,6 +243,7 @@ struct MacRecordsTableSizing: NSViewRepresentable {
 final class MacStableRecordsHeader: NSTableHeaderView {
     var titles: [String] = []
     var headerFont = NSFont.systemFont(ofSize: 14, weight: .medium)
+    override var intrinsicContentSize: NSSize {NSSize(width:NSView.noIntrinsicMetric,height:max(28,ceil(headerFont.ascender-headerFont.descender)+12))}
     override func draw(_ dirtyRect: NSRect) {
         NSColor.controlBackgroundColor.setFill(); dirtyRect.fill()
         guard let tableView else { return }

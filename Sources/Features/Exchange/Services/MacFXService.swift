@@ -103,6 +103,28 @@ enum MacFXSecrets {
         sessionValues[id] = key; refused.remove(id)
         revise(id)
     }
+    private static var versions: [UUID: Int] = [:]
+    static func readAsync(_ id: UUID, retryAuthorization: Bool = false) async throws -> String {
+        if MacPreferences.isTesting { return testValues[id.uuidString] ?? "" }
+        if retryAuthorization { refused.remove(id);sessionValues[id]=nil }
+        guard !refused.contains(id) else {throw MacSettingsFailure.invalid("钥匙串需要授权，请在数据源设置中重试。")}
+        if let value=sessionValues[id] {return value}
+        let generation=versions[id,default:0]
+        let (status,value)=try await MacFXKeychainClient.performAsync("read",id:id,authorize:retryAuthorization)
+        guard versions[id,default:0] == generation else {throw MacSettingsFailure.invalid("密钥配置已变化，请重试。")}
+        if status == errSecItemNotFound {sessionValues[id]="";return ""}
+        if status == errSecUserCanceled || status == errSecAuthFailed {refused.insert(id)}
+        guard status == errSecSuccess,let value else {throw MacSettingsFailure.invalid("钥匙串需要授权或解锁，请在数据源设置中重试。")}
+        sessionValues[id]=value;return value
+    }
+    static func saveAsync(_ key: String, id: UUID) async throws {
+        if MacPreferences.isTesting {try save(key,id:id);return}
+        versions[id,default:0] += 1;let generation=versions[id]!
+        let (status,_)=try await MacFXKeychainClient.performAsync(key.isEmpty ? "delete":"save",id:id,value:key,authorize:true)
+        guard status == errSecSuccess || (key.isEmpty && status == errSecItemNotFound) else {throw MacSettingsFailure.invalid("密钥未能保存，请重试。")}
+        if versions[id] == generation {sessionValues[id]=key;refused.remove(id);revise(id)}
+    }
+
 }
 
 /// Reject redirects so an API key cannot be forwarded to another endpoint.
@@ -143,6 +165,19 @@ enum MacFXService {
     static func remove(_ source: MacFXSource) throws {
         try MacFXSecrets.save("", id: source.id)
         try MacSettingsStore.save(sources.filter { $0.id != source.id }, key: "v2_fx_sources")
+    }
+    static func saveAsync(_ source: MacFXSource, key: String) async throws {
+        try source.validate()
+        let previous=try await MacFXSecrets.readAsync(source.id)
+        try await MacFXSecrets.saveAsync(key,id:source.id)
+        var list=sources
+        if let index=list.firstIndex(where:{$0.id == source.id}) {list[index]=source}else{list.append(source)}
+        do {try MacSettingsStore.save(list,key:"v2_fx_sources")}
+        catch {try? await MacFXSecrets.saveAsync(previous,id:source.id);throw error}
+    }
+    static func removeAsync(_ source: MacFXSource) async throws {
+        try await MacFXSecrets.saveAsync("",id:source.id)
+        try MacSettingsStore.save(sources.filter{$0.id != source.id},key:"v2_fx_sources")
     }
     nonisolated static func value(_ root: Any, path: String) -> Any? {
         var node: Any? = root
@@ -226,7 +261,8 @@ enum MacFXService {
     }
     static func requestData(_ source: MacFXSource, from: String, to: String, date: Date, keyOverride: String? = nil, dateTagOverride: String? = nil) async throws -> Data {
         let tag = dateTagOverride ?? MacExchangeRates.dateTag(date)
-        let key = try keyOverride ?? MacFXSecrets.read(source.id)
+        let key: String
+        if let keyOverride {key=keyOverride}else{key=try await MacFXSecrets.readAsync(source.id)}
         let url = try source.resolved(from: from, to: to, date: tag, key: key)
         var request = URLRequest(url: url); request.timeoutInterval = 12
         request.setValue("application/json", forHTTPHeaderField: "Accept")

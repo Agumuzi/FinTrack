@@ -58,6 +58,12 @@ enum MacTransactionCRUD {
         return try cleanCurrency(currencies.first ?? preferredCurrency)
     }
 
+    static func validateManualNote(_ note: String) throws {
+        guard !["[FTDep:", "[FTRec:", "[FTLoan:"].contains(where: note.contains) else {
+            throw MacSettingsFailure.invalid("备注包含系统入账标记，请移除 [FTDep:、[FTRec: 或 [FTLoan: 后保存。")
+        }
+    }
+
     /// Editing text is independent of display preferences. Untouched legacy values round-trip exactly.
     static func amountEditingText(_ value: Double) -> String { String(value) }
     static func editedAmount(_ text: String, original: Double) throws -> Double {
@@ -113,6 +119,8 @@ enum MacTransactionCRUD {
         _ draft: Draft, currency: String, originalCurrency: String? = nil,
         exchangeRate: Double? = nil, actualBaseAmount: Double? = nil, in context: ModelContext
     ) throws -> Transaction {
+        try MacRecoveryJournal.assertWritable(in:context)
+        try validateManualNote(draft.note)
         let amount = try amount(draft.amountText)
         let category = try validatedCategory(draft.category)
         let book = try cleanCurrency(currency)
@@ -150,6 +158,8 @@ enum MacTransactionCRUD {
         guard !isProtectedGeneratedPosting(transaction) else {
             throw PostingError.generatedPostingProtected
         }
+        try MacRecoveryJournal.assertWritable(in:context)
+        try validateManualNote(draft.note)
         let book = try cleanCurrency(currency)
         guard transaction.baseCurrencyCode == book,
               originalCurrency != nil || (transaction.originalCurrency == book && transaction.exchangeRateToBase == 1)
@@ -202,6 +212,7 @@ enum MacTransactionCRUD {
     }
 
     static func delete(_ transaction: Transaction, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard !isProtectedGeneratedPosting(transaction) else {
             throw PostingError.generatedPostingProtected
         }
