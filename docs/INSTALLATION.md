@@ -2,12 +2,12 @@
 
 ## 下载和校验
 
-从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.4.6-macOS.dmg` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.4.7-macOS.dmg` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
 
 在下载目录检查：
 
 ```sh
-shasum -a 256 FinTrack-v1.4.6-macOS.dmg
+shasum -a 256 FinTrack-v1.4.7-macOS.dmg
 ```
 
 将输出的摘要与 `SHA256.txt` 中 DMG 对应行核对。确认一致后打开 DMG，将 `FinTrack` 拖到同一窗口中的“应用程序”文件夹。安装包内只有应用和 Applications 链接。

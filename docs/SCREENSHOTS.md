@@ -1,6 +1,6 @@
 # 界面截图
 
-产品网站及 README 使用实际 FinTrack v1.3 的 macOS 窗口截图，拍摄于 Apple Silicon Mac。展示统一以 USD 为基准货币。所有账目、名称、资产及计划均为专门准备的虚构示例，与任何真实用户账本无关。
+产品网站及 README 使用实际 FinTrack v1.4.6 的 macOS 窗口截图，拍摄于 Apple Silicon Mac。v1.4.7沿用这些截图。展示统一以 USD 为基准货币。所有账目、名称、资产及计划均为专门准备的虚构示例，与任何真实用户账本无关。
 
 - `overview.png`：概览。
 - `records.png`：收支账目。

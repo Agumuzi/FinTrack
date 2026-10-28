@@ -3,6 +3,9 @@
 (() => {
   'use strict';
   const dictionary = {
+  "October 29, 2026": "2026 年 10 月 29 日",
+  "Safer financial edits and clearer layouts": "更安全的财务编辑与清晰布局",
+  "Financial edits retain saved precision, loan payments remain recognizable across time zones, and interrupted category, currency, or restore operations can recover on the next launch. Drafts stay available during navigation. Larger text and smaller windows keep key amounts, currencies, dates, and actions readable; file processing and key-service waits run in the background. In Dock-only mode, closing a window keeps FinTrack running, while Command-Q quits normally.": "编辑保留已保存的金额精度，跨时区仍可识别贷款付款；分类、本位币或恢复操作被中断后，下次启动可恢复原状态。跨页保留编辑草稿，大字号和窄窗口保持金额、币种、日期与操作清晰，文件处理与密钥服务等待移至后台。仅使用Dock时关窗保留运行，Command-Q仍正常退出。",
   "Responsive FX history & publication-day comparisons": "更流畅的历史汇率与公布日比较",
   "Historical rates use batch queries where supported and reuse cached data across time ranges. Cards remain interactive while data loads. Daily changes compare compatible quotes from the same source and the previous available publication day; failed refreshes retain valid cached history.": "支持的币对使用批量历史查询，切换时间范围复用缓存；加载期间卡片仍可操作。日级变化比较同源、兼容报价与上一可用公布日，刷新失败时保留有效历史缓存。",
   "Reliable relaunch & persistent keychain access": "可靠重启与持久钥匙串授权",
@@ -32,7 +35,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.6 is available": "FinTrack v1.4.6 现已发布",
+  "FinTrack v1.4.7 is available": "FinTrack v1.4.7 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -164,6 +167,9 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "October 29, 2026": "29 октября 2026 г.",
+  "Safer financial edits and clearer layouts": "Безопасное редактирование и удобная компоновка",
+  "Financial edits retain saved precision, loan payments remain recognizable across time zones, and interrupted category, currency, or restore operations can recover on the next launch. Drafts stay available during navigation. Larger text and smaller windows keep key amounts, currencies, dates, and actions readable; file processing and key-service waits run in the background. In Dock-only mode, closing a window keeps FinTrack running, while Command-Q quits normally.": "При редактировании сохраняется точность сумм, платежи по кредитам распознаются при смене часового пояса. После прерывания переименования категорий, смены базовой валюты или восстановления исходное состояние возвращается при следующем запуске. Черновики сохраняются при переходе между страницами; крупный текст и небольшие окна лучше отображают суммы, валюты, даты и действия. Обработка файлов и ожидание службы ключей выполняются в фоне. В режиме только Dock закрывается окно, а Command-Q завершает приложение.",
   "Responsive FX history & publication-day comparisons": "Плавная история курсов и сравнение по датам публикации",
   "Historical rates use batch queries where supported and reuse cached data across time ranges. Cards remain interactive while data loads. Daily changes compare compatible quotes from the same source and the previous available publication day; failed refreshes retain valid cached history.": "Исторические курсы загружаются пакетно, где это поддерживается, а кэш используется для разных периодов. Карточки остаются отзывчивыми во время загрузки. Дневные изменения сравнивают совместимые котировки одного источника с предыдущей доступной датой публикации; при сбое сохраняется действительная история.",
   "Reliable relaunch & persistent keychain access": "Надёжный перезапуск и сохранение доступа к связке ключей",
@@ -193,7 +199,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.6 is available": "Вышла версия FinTrack v1.4.6",
+  "FinTrack v1.4.7 is available": "Вышла версия FinTrack v1.4.7",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",

@@ -49,3 +49,5 @@ python3 -m http.server 8000 --directory website
 `Resources/FinTrackKeychainHelper` 是具有独立组件版本的 Universal 签名程序，源码位于 `Sources/Core/Security/KeychainHelper/`，不参与主应用重新编译。普通应用发布复用其原始字节，避免旧版钥匙串按程序指纹重新要求授权。`scripts/verify-keychain-helper.py` 检查源码、双架构签名与固定摘要；构建和签名不得改写该组件。组件安全更新需要独立评估授权迁移，不能随应用版本自动重签。
 
 主应用和组件相互验证官方固定身份；组件只接受父应用通过私有管道发送的请求，API Key 不进入命令行、日志或临时文件。自行发布的 fork 必须使用自己的身份构建并配置组件，不能使用官方组件访问官方应用的密钥。正式账本、Bundle ID 和 API Key 服务标识保持不变。
+
+构建目录中的产物及明确命名的验证副本需要显式隔离参数；缺少参数时会停止打开账本，避免意外访问日常数据。正式使用请将已确认的应用复制到 Applications。
