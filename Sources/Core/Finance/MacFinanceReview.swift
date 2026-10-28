@@ -12,6 +12,7 @@ enum MacFinanceReview {
         }
     }
     static func recurring(_ rule: RecurringTransaction, next: Date, confirmed: Bool, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard confirmed else { throw Failure.confirmation }
         guard rule.deletedAt == nil, (1...365).contains(rule.intervalValue),
               RecurringIntervalUnit(rawValue: rule.intervalUnit) != nil,
@@ -22,6 +23,7 @@ enum MacFinanceReview {
         do { try context.save() } catch { context.rollback(); throw error }
     }
     static func deposit(_ record: DepositRecord, firstUnrecorded: Date, confirmed: Bool, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard confirmed else { throw Failure.confirmation }
         guard record.deletedAt == nil, !record.hasCreditedInterest, record.startDate < record.maturityDate else { throw Failure.schedule }
         var prior: Date?
@@ -43,6 +45,7 @@ enum MacFinanceReview {
         do { try context.save() } catch { context.rollback(); throw error }
     }
     static func loan(_ loan: LoanRule, firstUnrecordedIndex: Int, confirmed: Bool, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard confirmed else { throw Failure.confirmation }
         let schedule = loan.legacyAmortizationSchedule
         guard !schedule.isEmpty, (1...schedule.count).contains(firstUnrecordedIndex) else { throw Failure.schedule }

@@ -110,12 +110,11 @@ struct MacFinanceEditor: View {
                         }.frame(height: 36)
                     }
                 }
-                HStack(alignment: .top, spacing: 14) {
-                    MacFinanceNumberField(title: panel == .goals ? "目标金额" : panel == .loans ? "总金额" : "本金 / 金额", text: $amountText, identifier: "financeEntryAmount")
-                    if panel != .goals {
-                        MacEntryField(title: "货币") {
-                            MacEditableCurrencyMenu(currency: $originalCurrency, custom: $customCurrency, codes: currencyCodes, identifier: "financeCurrencyMenu", textIdentifier: "financeEntryCurrency")
-                        }.frame(width: MacCurrencyMenuStyle.width)
+                if panel == .goals { amountField }
+                else {
+                    ViewThatFits(in:.horizontal) {
+                        HStack(alignment:.top,spacing:14) {amountField.frame(minWidth:MacNumberInput.minimumEditingWidth());currencyField}
+                        VStack(alignment:.leading,spacing:14) {amountField;currencyField}
                     }
                 }
                 if panel != .goals, originalCurrency.uppercased() != currency {
@@ -230,15 +229,27 @@ struct MacFinanceEditor: View {
         .onChange(of: amountText) { syncDepositRate() }
     }
 
+    private var amountField:some View {
+        MacFinanceNumberField(title:panel == .goals ? "目标金额":panel == .loans ? "总金额":"本金 / 金额",text:$amountText,identifier:"financeEntryAmount")
+    }
+    private var currencyField:some View {
+        MacEntryField(title:"货币") {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyCodes,identifier:"financeCurrencyMenu",textIdentifier:"financeEntryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
+    }
+
     private func save() {
         do {
             let source = panel == .goals ? currency : try MacCurrency.code(originalCurrency)
             let fx = source == currency ? 1 : try MacCurrency.rate(principalFx)
             let interestRate = source == currency ? 1 : (panel == .deposits ? try MacCurrency.rate(interestFx) : fx)
-            let total = try MacTransactionCRUD.amount(amountText)
-            let down = panel == .loans ? try MacFinancialSettings.nonnegativeAmount(downPaymentText) : 0
-            let principal = panel == .loans ? FinancialPrecision.roundAmountForStorage(total - down) : total
-            let expectedOverride = panel == .deposits && overridesInterest ? try MacFinancialSettings.nonnegativeAmount(expectedInterestText) : nil
+            let parsed=try MacFinanceEditing.inputAmounts(amountText,downText:downPaymentText,existing:existing)
+            let total=parsed.total
+            let down=panel == .loans && existing == nil ? try MacFinancialSettings.nonnegativeAmount(downPaymentText):parsed.down
+            let principal=panel == .loans && existing == nil ? FinancialPrecision.roundAmountForStorage(total-down):parsed.principal
+            let expectedOverride:Double?
+            if panel == .deposits && overridesInterest {
+                if case .deposit(let r)=existing {expectedOverride=try MacFinanceEditing.unchangedNonnegative(expectedInterestText,original:r.expectedInterest)}
+                else {expectedOverride=try MacFinancialSettings.nonnegativeAmount(expectedInterestText)}
+            } else {expectedOverride=nil}
             let reminder = MacReminderSettings(daysBefore: reminderDays, hour: Calendar.current.component(.hour, from: reminderTime), minute: Calendar.current.component(.minute, from: reminderTime))
             guard principal > 0 else { throw MacFinanceRecords.Failure.invalidTerm }
             if let existing {

@@ -682,6 +682,18 @@ struct MacGoalTargetTimeField: View {
     @Binding var date: Date
     var identifier = "goalTargetTime"
     var includesAssets: Binding<Bool>? = nil
+    @AppStorage(MacCustomTypography.bodyKey,store:MacPreferences.defaults) private var bodyPoints=16
+    @AppStorage("v2_font_tier",store:MacPreferences.defaults) private var tier="standard"
+    @AppStorage(MacInterfaceFonts.preferenceKey,store:MacPreferences.defaults) private var interfaceFont=""
+    private var precisionOptions:[(String,String)] {[("无","none")]+TargetDatePrecision.allCases.map{($0.title,$0.rawValue)}}
+    private var precisionWidth:CGFloat {
+        let _=bodyPoints;let _=tier;let _=interfaceFont
+        let font=MacInterfaceFonts.font(size:MacUI.fontTier.bodySize)
+        return max(130,ceil(precisionOptions.map{($0.0 as NSString).size(withAttributes:[.font:font]).width}.max() ?? 0)+64)
+    }
+    private var precisionMenu:some View {
+        MacSettingsMenu(selection:precisionBinding,options:precisionOptions).frame(width:precisionWidth).accessibilityIdentifier(identifier+"Precision")
+    }
     private var precisionBinding: Binding<String> {
         Binding(get: { hasDate ? precision.rawValue : "none" }, set: { value in
             hasDate = value != "none"
@@ -690,15 +702,22 @@ struct MacGoalTargetTimeField: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                if let includesAssets { Toggle("包含当前资产", isOn: includesAssets).toggleStyle(.switch).fixedSize() }
-                else { Text("期望时间精度").appFont(.body).foregroundStyle(.secondary) }
-                Spacer(minLength: 12)
-                if includesAssets != nil { Text("期望时间").appFont(.caption).foregroundStyle(.secondary) }
-                MacSettingsMenu(selection: precisionBinding, options: [("无", "none")] + TargetDatePrecision.allCases.map { ($0.title, $0.rawValue) }).frame(width: 130).accessibilityIdentifier(identifier + "Precision")
+            ViewThatFits(in:.horizontal) {
+                HStack(spacing:12) {
+                    if let includesAssets {Toggle("包含当前资产",isOn:includesAssets).toggleStyle(.switch).fixedSize()}
+                    else {Text("期望时间精度").appFont(.body).foregroundStyle(.secondary).fixedSize()}
+                    Spacer(minLength:12)
+                    if includesAssets != nil {Text("期望时间").appFont(.caption).foregroundStyle(.secondary).fixedSize()}
+                    precisionMenu
+                }
+                VStack(alignment:.leading,spacing:8) {
+                    if let includesAssets {Toggle("包含当前资产",isOn:includesAssets).toggleStyle(.switch).fixedSize()}
+                    Text("期望时间精度").appFont(.body).foregroundStyle(.secondary)
+                    precisionMenu
+                }
             }
             if hasDate { MacSettingsDateButton(date: $date, identifier: identifier + "Date", precision: precision) }
-            Text("期望时间用于规划，超过时间不会使目标失败。").appFont(.caption).foregroundStyle(.secondary)
+            Text("仅用于规划，逾期不会使目标失效。").appFont(.caption).foregroundStyle(.secondary)
         }
     }
 }

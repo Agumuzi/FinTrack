@@ -178,6 +178,14 @@ struct MacOverviewView: View {
                 .appHelp("金额使用已保存的本位币快照；修改本位币请前往设置。")
         }.appPadding(.bottom, 3)
     }
+    private var previousPeriodButton: some View {Button {movePeriod(-1)} label:{Image(systemName:"chevron.left")}.accessibilityLabel("上一期间").accessibilityIdentifier("overviewPreviousPeriod")}
+    private var nextPeriodButton: some View {Button {movePeriod(1)} label:{Image(systemName:"chevron.right")}.accessibilityLabel("下一期间").accessibilityIdentifier("overviewNextPeriod")}
+    private var monthPickerButton: some View {
+        Button {showsMonthPicker=true} label:{Text(scope.title).appFont(.caption).lineLimit(1)}
+            .focused($monthPickerAnchorFocused).accessibilityIdentifier("overviewMonthPicker")
+            .popover(isPresented:$showsMonthPicker) {MacCalendarPickerPopover(title:"选择日期",selection:$scope.reference,pickerIdentifier:"overviewMonthDatePicker",doneIdentifier:"overviewMonthDateDone",onDone:{showsMonthPicker=false})}
+            .onChange(of:showsMonthPicker) {_,shown in if !shown {monthPickerAnchorFocused=true}}
+    }
     private var filterPanel: some View {
         VStack(alignment: .leading, spacing: MacUI.space(20)) {
             Text("筛选").appFont(.section, weight: .semibold)
@@ -201,25 +209,10 @@ struct MacOverviewView: View {
                 }
             }
             if scope.period == .month || scope.period == .year {
-                HStack(spacing: MacUI.space(6)) {
-                    Button { movePeriod(-1) } label: { Image(systemName: "chevron.left") }
-                        .accessibilityLabel("上一期间").accessibilityIdentifier("overviewPreviousPeriod")
-                    Button { showsMonthPicker = true } label: { Text(scope.title).appFont(.caption, weight: .regular, design: .default).frame(maxWidth: .infinity) }
-                        .focused($monthPickerAnchorFocused)
-                        .accessibilityIdentifier("overviewMonthPicker")
-                        .popover(isPresented: $showsMonthPicker) {
-                            MacCalendarPickerPopover(
-                                title: "选择日期",
-                                selection: $scope.reference,
-                                pickerIdentifier: "overviewMonthDatePicker",
-                                doneIdentifier: "overviewMonthDateDone",
-                                onDone: { showsMonthPicker = false }
-                            )
-                        }
-                        .onChange(of: showsMonthPicker) { _, isPresented in if !isPresented { monthPickerAnchorFocused = true } }
-                    Button { movePeriod(1) } label: { Image(systemName: "chevron.right") }
-                        .accessibilityLabel("下一期间").accessibilityIdentifier("overviewNextPeriod")
-                }.buttonStyle(MacInteractiveButtonStyle()).appPadding(10).background(MacOverviewStyle.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 9))
+                ViewThatFits(in:.horizontal) {
+                    HStack(spacing:6) {previousPeriodButton;monthPickerButton.fixedSize();nextPeriodButton}
+                    VStack(spacing:8) {monthPickerButton.fixedSize();HStack {previousPeriodButton;Spacer();nextPeriodButton}}
+                }.buttonStyle(MacInteractiveButtonStyle()).appPadding(10).background(MacOverviewStyle.card.opacity(0.65),in:RoundedRectangle(cornerRadius:9))
             } else if scope.period == .custom {
                 MacDateTimeField(title: "开始", date: $scope.from).accessibilityIdentifier("overviewFrom")
                 MacDateTimeField(title: "结束", date: $scope.through).accessibilityIdentifier("overviewThrough")
@@ -323,7 +316,7 @@ struct MacOverviewView: View {
 
     private var trendCard: some View {
         MacOverviewTrendCard(scope: scope, currency: currency, trendMonths: $trendMonths,
-                             trend: trend, showRecords: { workspace.showRecords($0) })
+                             trend: trend, showRecords: { workspace.showRecords($0) }, createRecord: {workspace.showsQuickRecord=true})
     }
     private var goalCard: some View {
         let snapshot = self.snapshot
@@ -729,6 +722,7 @@ private struct MacOverviewTrendCard: View {
     @Binding var trendMonths: Int
     let trend: [MacOverviewData.Month]
     let showRecords: (MacOverviewScope) -> Void
+    let createRecord: () -> Void
     @State private var hoveredMonth: MacOverviewData.Month?
 
     var body: some View {
@@ -736,10 +730,13 @@ private struct MacOverviewTrendCard: View {
             VStack(alignment: .leading, spacing: MacUI.space(16)) {
                 HStack {
                     Text("收支趋势").appFont(.body, weight: .semibold, design: .default); Spacer()
-                    MacSettingsMenu(selection: $trendMonths, options: [("近 6 个月", 6), ("近 12 个月", 12)]).frame(width: MacUI.space(130)).accessibilityIdentifier("overviewTrendRange")
+                    MacSettingsMenu(selection: $trendMonths, options: [("近 6 个月", 6), ("近 12 个月", 12)]).frame(width: max(130, MacUI.fontTier.bodySize * 7 + 24)).accessibilityIdentifier("overviewTrendRange")
                     Button { var records = scope; records.period = .custom; records.from = trend.first?.id ?? scope.reference; records.through = Calendar.current.dateInterval(of: .month, for: scope.reference)!.end.addingTimeInterval(-1); showRecords(records) } label: { Image(systemName: "arrow.up.right") }
                         .buttonStyle(MacInteractiveButtonStyle()).appHelp("查看趋势账目")
                 }
+                if trend.allSatisfy({$0.income == 0 && $0.expense == 0}) {
+                    ContentUnavailableView {Label("暂无收支趋势",systemImage:"chart.bar")} description:{Text("记录账目后将在这里展示。")} actions:{Button("记一笔",action:createRecord)}.frame(maxWidth:.infinity,maxHeight:.infinity)
+                } else {
                 Chart(trend) { month in
                     BarMark(x: .value("月份", month.id, unit: .month), y: .value("金额", month.income))
                         .position(by: .value("类型", "收入")).foregroundStyle(by: .value("类型", "收入"))
@@ -784,6 +781,7 @@ private struct MacOverviewTrendCard: View {
                     }
                 }
                 .appMinHeight(140).accessibilityIdentifier("overviewTrendChart")
+                }
                 Text("至\(scope.reference.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_Hans_CN")))) · 同类别筛选 · \(currency)").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
             }
         }

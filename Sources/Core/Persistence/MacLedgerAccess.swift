@@ -8,16 +8,24 @@ final class MacLedgerAccess: ObservableObject {
     static let shared = MacLedgerAccess()
     enum State { case notLoaded, unconfigured, ready(ModelContainer, MacLedgerLease?), failed(String) }
     @Published private(set) var state: State = .notLoaded
+    @Published var recoveryMessage: String?
+    private var failedContainer: ModelContainer?
+    private var failedLease: MacLedgerLease?
     private var opening = false
     private(set) var containerOpenCount = 0
     var container: ModelContainer? { if case .ready(let c, _) = state { return c }; return nil }
 
     func retry() {
         guard case .failed = state else { return }
+        failedContainer = nil; failedLease = nil
         state = .notLoaded
         load()
     }
 
+    func quarantineRecovery() {
+        if case .ready(let container,let lease)=state {failedContainer=container;failedLease=lease}
+        state = .failed("操作恢复尚未完成，账本暂时停止编辑。请退出后重新打开应用；恢复记录与原文件均已保留。")
+    }
     func load(createIfMissing: Bool = false) {
         if case .ready = state { return }
         if case .failed = state { return }
@@ -51,7 +59,15 @@ final class MacLedgerAccess: ObservableObject {
             ?? ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         do {
             let lease = config.isStoredInMemoryOnly ? nil : try MacLedgerLease.acquire(for: config.url)
+            failedLease = lease
             let container = try ModelContainer(for: schema, configurations: [config]); containerOpenCount += 1
+            // SwiftData registers application-launch callbacks for its main context.
+            // Keep a failed-opening container alive until retry, rather than
+            // leaving a launch callback referencing a released context.
+            failedContainer = container
+            if try MacRecoveryJournal.recoverIfNeeded(in: container.mainContext) {
+                recoveryMessage = "上次操作未完成，已恢复操作前的账本与设置。自动入账已暂停，请核对后再开启。"
+            }
             #if FINTRACK_LOCAL_VALIDATION
             if memory || testPath != nil { try MacOverviewFixtures.seed(in: container.mainContext) }
             #endif
@@ -62,10 +78,12 @@ final class MacLedgerAccess: ObservableObject {
                     try context.save()
                 }
             }
+            try MacLoanSchedule.pinExisting(in: container.mainContext)
             // Once per container open; imports and native restores repair inside their own transaction.
             try MacDataManagement.reconcileCategories(in: container.mainContext)
             state = .ready(container, lease)
-        } catch { state = .failed(String(describing: error)) }
+            failedContainer = nil; failedLease = nil
+        } catch { failedContainer?.mainContext.rollback();failedContainer?.mainContext.autosaveEnabled=false;state = .failed(String(describing: error)) }
     }
 }
 
@@ -104,6 +122,9 @@ struct MacLedgerWorkspaceGate: View {
                     .font(.system(size: 8)).accessibilityIdentifier("fxIsolationMetrics")
             }
         }
+        .alert("账本已安全恢复", isPresented: Binding(get: { access.recoveryMessage != nil }, set: { if !$0 { access.recoveryMessage = nil } })) {
+            Button("知道了") { access.recoveryMessage = nil }
+        } message: { Text(access.recoveryMessage ?? "") }
         .defaultAppStorage(MacPreferences.defaults)
         .background(MacMenuBarWindowProbe { runtime.mainWindow = $0 })
         .onAppear { access.load(createIfMissing: true) }

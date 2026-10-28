@@ -6,6 +6,7 @@ import Combine
 final class MacMenuBarSession: ObservableObject {
     let quickEntry = MacQuickEntryDraft()
     var onPageSelected: ((MacMenuBarPage) -> Void)?
+    @Published var quickSettings = false
     @Published var page: MacMenuBarPage { didSet { onPageSelected?(page) } }
     @Published var amount = ""
     @Published var note = ""

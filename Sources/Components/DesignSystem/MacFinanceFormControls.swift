@@ -4,14 +4,15 @@ import SwiftData
 
 /// The binding stays ungrouped; native editing displays separators without rounding.
 enum MacNumberInput {
-    static func raw(_ display: String, grouping: String) -> String {
+    static func minimumEditingWidth(large:Bool = false)->CGFloat {max(160,MacUI.fontTier.bodySize*(large ? 10:8))}
+    nonisolated static func raw(_ display: String, grouping: String) -> String {
         let separator = grouping == "space" ? " " : ","
         guard display.contains(separator), grouping != "none" else { return display }
         let escaped = NSRegularExpression.escapedPattern(for: separator)
         guard display.range(of: "^[0-9]{1,3}(" + escaped + "[0-9]{3})+(\\.[0-9]*)?$", options: .regularExpression) != nil else { return display }
         return display.replacingOccurrences(of: separator, with: "")
     }
-    static func display(_ raw: String, grouping: String) -> String {
+    nonisolated static func display(_ raw: String, grouping: String) -> String {
         guard grouping != "none", raw.range(of: #"^[0-9]+(\.[0-9]*)?$"#, options: .regularExpression) != nil else { return raw }
         let pieces = raw.split(separator: ".", omittingEmptySubsequences: false)
         let digits = Array(String(pieces[0])), separator = grouping == "space" ? " " : ","
@@ -36,6 +37,7 @@ struct MacNumericInput: NSViewRepresentable {
     var submit: (() -> Void)? = nil
     var large = false
     var digits: Int? = nil
+    var accessibilityTitle: String? = nil
     @AppStorage("v2_decimals", store: MacPreferences.defaults) private var decimals = 2
     private func presented(_ raw: String, editing: Bool) -> String {
         if rate { return editing ? raw : MacNumberInput.rate(raw) }
@@ -86,10 +88,15 @@ struct MacNumericInput: NSViewRepresentable {
             observedText = parent.text
             render(parent.rate ? MacNumberInput.rate(parent.text) : MacNumberInput.display(parent.text, grouping: parent.grouping), in: field)
         }
+        func prepareFocus(_ field:NSTextField) {
+            editing=true;parent.focus?.wrappedValue=true
+            externalUpdate(field)
+        }
         func controlTextDidBeginEditing(_ notification: Notification) {
+            // AppKit has already captured paste/undo replacement ranges here.
+            // Reformatting now can shorten the string beneath those ranges.
             editing = true; parent.focus?.wrappedValue = true
             observedText = parent.text
-            if let field = notification.object as? NSTextField { externalUpdate(field) }
         }
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
@@ -110,7 +117,8 @@ struct MacNumericInput: NSViewRepresentable {
                 render(lastDisplay, in: field); NSSound.beep(); return
             }
             parent.text = raw; observedText = raw
-            render(MacNumberInput.display(raw, grouping: parent.grouping), in: field)
+            if field.formatter == nil {render(MacNumberInput.display(raw,grouping:parent.grouping),in:field)}
+            else {lastDisplay=value}
         }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             guard !parent.rate, parent.grouping != "none", textView.selectedRange().length == 0 else { return false }
@@ -137,7 +145,11 @@ struct MacNumericInput: NSViewRepresentable {
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(); field.isBordered = false; field.drawsBackground = false
+        let field = MacNumericTextField()
+        field.onFocus = { [weak field,weak coordinator=context.coordinator] in
+            if let field {coordinator?.prepareFocus(field)}
+        }
+        field.isBordered = false; field.drawsBackground = false
         field.focusRingType = .none; field.delegate = context.coordinator; field.target = context.coordinator; field.action = #selector(Coordinator.submitField(_:))
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -145,6 +157,8 @@ struct MacNumericInput: NSViewRepresentable {
     }
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.parent = self
+        if rate {field.formatter=nil}
+        else if (field.formatter as? MacAmountEditingFormatter)?.grouping != grouping {field.formatter=MacAmountEditingFormatter(grouping:grouping)}
         let coordinator = context.coordinator
         if !coordinator.editing {
             let value = presented(text, editing: false)
@@ -156,7 +170,7 @@ struct MacNumericInput: NSViewRepresentable {
         }
         field.font = MacInterfaceFonts.font(size: MacUI.fontSize(large ? .amount : .body, tier: MacFontSizeTier(rawValue: tier) ?? .standard), monospacedDigits: true)
         field.textColor = .labelColor; field.isEnabled = enabled
-        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(identifier)
+        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(accessibilityTitle ?? (rate ? "利率" : "金额"))
         if focus?.wrappedValue == true && !context.coordinator.editing {
             DispatchQueue.main.async { if self.focus?.wrappedValue == true, let window = field.window { window.makeFirstResponder(field) } }
         }
@@ -170,7 +184,7 @@ struct MacFinanceNumberField: View {
     var identifier: String
     var body: some View {
         MacEntryField(title: title) {
-            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: title.contains("汇率") ? 6 : nil).frame(minHeight: 24).appFormControl()
+            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: title.contains("汇率") ? 6 : nil, accessibilityTitle: title).frame(minHeight: 24).appFormControl()
         }
     }
 }
@@ -218,4 +232,14 @@ struct MacReminderEditor: View {
     }
     private var daysField: some View { Stepper("提前 \(days) 天", value: $days, in: 0...365).fixedSize() }
     private var timeField: some View { HStack(spacing: 10) { Text("提醒时间").appFont(.caption).foregroundStyle(.secondary); MacTimeMenu(date: $time, identifier: "financeReminderTime").frame(width: 140) } }
+}
+
+/// Format before any native text replacement captures its selection range.
+private final class MacNumericTextField:NSTextField {
+    var onFocus:(() -> Void)?
+    override func becomeFirstResponder() -> Bool {
+        let accepted=super.becomeFirstResponder()
+        if accepted {onFocus?()}
+        return accepted
+    }
 }

@@ -80,6 +80,10 @@ struct MacCategoryBadge: View {
 }
 
 struct MacCategoriesSettingsView: View {
+    @AppStorage(MacCustomTypography.bodyKey,store:MacPreferences.defaults) private var bodyPoints=16
+    @AppStorage(MacCustomTypography.captionKey,store:MacPreferences.defaults) private var captionPoints=12
+    @AppStorage(MacInterfaceFonts.preferenceKey,store:MacPreferences.defaults) private var interfaceFont=""
+
     var wide: Bool
     @Environment(\.modelContext) private var context
     @Query private var categories: [Category]
@@ -92,6 +96,21 @@ struct MacCategoriesSettingsView: View {
     @State private var sorting = "引用最多"
     @State private var selectedID: UUID?
     @State private var name = ""
+    private struct Draft { let name: String; let symbol: String; let color: String; let revision: Date?; let generation: Int }
+    @State private var discardDraft = false
+    @State private var loadedRevision: Date?
+    @State private var draftGeneration = 0
+    @State private var activeType = "Expense"
+    private func draftKey(_ id: UUID?, type: String) -> String { MacEditorDraftStore.key("category-"+type,id?.uuidString ?? "new",context:context) }
+    private func keepDraft() {
+        let originalName=selected.map {MacOverviewStyle.category($0.name)} ?? ""
+        let originalStyle=selected.map {MacCategoryCatalog.style(name:$0.name,type:$0.type)} ?? MacCategoryStyle()
+        if name != originalName || symbol != originalStyle.symbol || color != originalStyle.color {
+            MacEditorDraftStore.shared.save(Draft(name:name,symbol:symbol,color:color,revision:loadedRevision,generation:draftGeneration),key:draftKey(selectedID,type:activeType),generation:draftGeneration)
+        } else {MacEditorDraftStore.shared.remove(draftKey(selectedID,type:activeType))}
+        MacEditorDraftStore.shared.save(selectedID?.uuidString ?? "new",key:MacEditorDraftStore.key("category-selection",activeType,context:context),generation:draftGeneration)
+    }
+
     @State private var symbol = "tag"
     @State private var color = "orange"
     @State private var message: String?
@@ -114,6 +133,13 @@ struct MacCategoriesSettingsView: View {
     }
     var body: some View {
         let rows = self.rows
+        let _=bodyPoints;let _=captionPoints;let _=interfaceFont
+        let captionFont=MacInterfaceFonts.font(size:MacUI.fontTier.captionSize)
+        let countFont=MacInterfaceFonts.font(size:MacUI.fontTier.bodySize,monospacedDigits:true)
+        let iconWidth=max(40,ceil(("图标" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
+        let largestCount=rows.map {row in ((usageSnapshot.map{String($0.count(for:row))} ?? "—") as NSString).size(withAttributes:[.font:countFont]).width}.max() ?? 0
+        let referenceWidth=max(70,max(ceil(("引用" as NSString).size(withAttributes:[.font:captionFont]).width)+12,ceil(largestCount)+12))
+        let actionWidth=max(76,ceil(("操作" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
             HStack(spacing: MacUI.space(0)) {
                 categoryTab("支出分类", value: "Expense", icon: "arrow.down", color: .red)
@@ -122,21 +148,22 @@ struct MacCategoriesSettingsView: View {
             HStack { Text("排序").foregroundStyle(.secondary); MacSettingsMenu(selection: $sorting, options: ["手动顺序", "名称 A–Z", "名称 Z–A", "引用最多", "引用最少"].map { ($0, $0) }).frame(width: 180); Spacer() }
             MacSettingsColumns(wide: wide) {
                 MacSettingsCard(title: type == "Expense" ? "支出分类" : "收入分类", icon: "tag", headerColor: .red, action: AnyView(Button("添加分类", systemImage: "plus") { select(nil) }.accessibilityIdentifier("settingsCategoryAdd")), compactHeader: true) {
-                    HStack { Text("图标").frame(width: MacUI.space(40)); Text("名称"); Spacer(); Text("引用数量").frame(width: MacUI.space(70)); Text("操作").frame(width: MacUI.space(76)) }.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
+                    HStack(spacing:13) {Text("图标").fixedSize().frame(width:iconWidth);Text("名称").frame(maxWidth:.infinity,alignment:.leading);Text("引用").accessibilityLabel("引用数量").fixedSize().frame(width:referenceWidth,alignment:.trailing);Text("操作").fixedSize().frame(width:actionWidth)}.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
                     VStack(spacing: MacUI.space(0)) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                            HStack(spacing: MacUI.space(9)) {
+                            HStack(spacing:13) {
                                 Button { select(row) } label: {
-                                    HStack(spacing: MacUI.space(13)) {
-                                        MacCategoryBadge(name: row.name, type: row.type, size: 34, suppliedStyle: MacCategoryCatalog.style(name: row.name, type: row.type, in: styles))
-                                        Text(MacOverviewStyle.category(row.name)).appFont(.body, weight: .medium, design: .default)
-                                        Spacer(minLength: 0)
-                                        Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(55))
+                                    HStack(spacing:13) {
+                                        MacCategoryBadge(name: row.name, type: row.type, size: 34, suppliedStyle: MacCategoryCatalog.style(name: row.name, type: row.type, in: styles)).frame(width:iconWidth)
+                                        Text(MacOverviewStyle.category(row.name)).appFont(.body, weight: .medium, design: .default).lineLimit(2).frame(maxWidth:.infinity,alignment:.leading)
+                                        Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).monospacedDigit().fixedSize().frame(width:referenceWidth,alignment:.trailing)
                                     }.contentShape(Rectangle())
                                 }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCategoryRow-" + row.name)
+                                HStack(spacing:9) {
                                 Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                 Menu { Button("编辑") { select(row) }; Button("上移") { move(row, by: -1) }.disabled(index == 0); Button("下移") { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(24)) }.menuStyle(.borderlessButton).fixedSize()
                                     .accessibilityLabel("分类操作：" + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
+                                }.frame(width:actionWidth,alignment:.trailing)
                             }.appPadding(.horizontal, 9).appMinHeight(51).background(selectedID == row.id ? MacSettingsVisual.accent.opacity(0.04) : .clear)
                             Divider()
                         }
@@ -161,7 +188,17 @@ struct MacCategoriesSettingsView: View {
             }
         }
         .onAppear {
-            refreshStyles(); select(rows.first)
+            refreshStyles()
+            let value=MacEditorDraftStore.shared.load(MacEditorDraftStore.key("category-selection",type,context:context),as:String.self)
+            let id=value.flatMap(UUID.init(uuidString:))
+            select(value == "new" ? nil : rows.first(where:{$0.id == id}) ?? rows.first, retainingCurrent:false)
+        }
+        .onDisappear { keepDraft() }
+        .confirmationDialog("放弃未保存修改？",isPresented:$discardDraft) {
+            Button("放弃并重新载入",role:.destructive) {
+                MacEditorDraftStore.shared.remove(draftKey(selectedID,type:activeType))
+                select(selected ?? rows.first,retainingCurrent:false)
+            }
         }
         .task(id: usageRevision) { refreshUsage() }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { notification in
@@ -198,13 +235,23 @@ struct MacCategoriesSettingsView: View {
     private func categoryTab(_ title: String, value: String, icon: String, color: Color) -> some View {
         Button { type = value } label: { Label(title, systemImage: icon).appFont(.body, weight: .semibold, design: .default).frame(maxWidth: .infinity).appMinHeight(42).contentShape(Rectangle()).foregroundStyle(type == value ? color : .primary).background(type == value ? color.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(MacInteractiveButtonStyle())
     }
-    private func select(_ row: Category?) {
-        selectedID = row?.id; name = row.map { MacOverviewStyle.category($0.name) } ?? ""
-        let style = row.map { MacCategoryCatalog.style(name: $0.name, type: $0.type) } ?? MacCategoryStyle()
-        symbol = style.symbol; color = style.color; error = nil; message = nil
+    private func select(_ row: Category?, retainingCurrent: Bool = true) {
+        if retainingCurrent { keepDraft() }
+        selectedID=row?.id;activeType=type;draftGeneration=MacEditorDraftStore.shared.generation
+        if let d=MacEditorDraftStore.shared.load(draftKey(row?.id,type:type),as:Draft.self) {
+            name=d.name;symbol=d.symbol;color=d.color;loadedRevision=d.revision;draftGeneration=d.generation
+            message="有未保存修改；切页后可继续编辑"
+        } else {
+            name=row.map {MacOverviewStyle.category($0.name)} ?? ""
+            let style=row.map {MacCategoryCatalog.style(name:$0.name,type:$0.type)} ?? MacCategoryStyle()
+            symbol=style.symbol;color=style.color;loadedRevision=row?.updatedAt;message=nil
+        }
+        error=nil
     }
     private func save() {
         do {
+            guard loadedRevision == selected?.updatedAt, draftGeneration == MacEditorDraftStore.shared.generation, selectedID == nil || selected != nil else { throw MacSettingsFailure.invalid("分类已变化，草稿仍保留。请重新选择分类并核对。") }
+            try MacRecoveryJournal.perform(in: context) {
             var clean = try MacTransactionCRUD.validatedCategory(name)
             var order = selected.map { MacCategoryCatalog.style(name: $0.name, type: type).order } ?? ((rows.map { MacCategoryCatalog.style(name: $0.name, type: type).order }.max() ?? -1) + 1)
             if let selected {
@@ -226,7 +273,9 @@ struct MacCategoriesSettingsView: View {
             // Coalesce save and budget notifications into the task below.
             // A style-only save does not change references.
             refreshStyles()
-            name = MacOverviewStyle.category(clean); error = nil; message = "分类已保存"
+            name = MacOverviewStyle.category(clean);loadedRevision=try context.fetch(FetchDescriptor<Category>()).first(where:{$0.id == selectedID})?.updatedAt
+            MacEditorDraftStore.shared.remove(draftKey(selectedID,type:type));error = nil; message = "分类已保存"
+            }
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
     }
     private func refreshStyles() {

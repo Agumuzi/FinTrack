@@ -1,7 +1,6 @@
 import Foundation
 
-@MainActor
-enum MacCSVKind: String, CaseIterable, Identifiable {
+nonisolated enum MacCSVKind: String, CaseIterable, Identifiable {
     case transactions, deposits, loans, recurring
     nonisolated var id: String { rawValue }
     var title: String {
@@ -21,7 +20,7 @@ enum MacCSVKind: String, CaseIterable, Identifiable {
     }
     var templateName: String { "FinTrack_\(rawValue)_Template_v1.csv" }
     var exportName: String { "FinTrack_\(rawValue)_Data.csv" }
-    func blankTemplate(bookCurrency: String) -> String {
+    @MainActor func blankTemplate(bookCurrency: String) -> String {
         let marker = ["#FinTrackTemplate", "1", rawValue, bookCurrency] + Array(repeating: "", count: headers.count - 4)
         let instructions = ["#AIInstructions", MacCSVFormat.templateInstructions(kind: self, bookCurrency: bookCurrency)] + Array(repeating: "", count: headers.count - 2)
         return MacCSVFormat.csv(headers: marker, rows: [instructions, headers])
@@ -153,9 +152,8 @@ enum MacCSVFormat {
 }
 
 /// Strict structural preflight prevents legacy readers from silently dropping cells/sections.
-@MainActor
-struct MacCSVDocument {
-    struct Record { let line: Int; let cells: [String] }
+nonisolated struct MacCSVDocument: Sendable {
+    struct Record: Sendable { let line: Int; let cells: [String] }
     let records: [Record]
     let templateKind: MacCSVKind?
     let templateBaseCurrency: String?
@@ -207,7 +205,7 @@ struct MacCSVDocument {
             let marker = result[0].cells
             guard marker.count >= 4, marker[1] == "1", let kind = MacCSVKind(rawValue: marker[2]),
                   marker.count == kind.headers.count, marker.dropFirst(4).allSatisfy({ $0.isEmpty }),
-                  marker[3] == marker[3].uppercased(), (try? MacCurrency.code(marker[3])) == marker[3],
+                  marker[3] == marker[3].uppercased(), (try? MacFXPair(base: marker[3], quote: marker[3]).base) == marker[3],
                   result.count >= 3 else { throw MacCSV.Failure.invalid("模板版本、类型、本位币或说明区结构无效") }
             let instructions = result[1].cells
             guard instructions.count == kind.headers.count, instructions[0] == "#AIInstructions",

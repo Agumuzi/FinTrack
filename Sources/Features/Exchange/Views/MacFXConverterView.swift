@@ -5,6 +5,7 @@ struct MacFXConverterView: View {
     @ObservedObject var service: MacFXMonitor
     @ObservedObject var query: MacFXQuerySession
     var showsTools = true
+    @State private var addingCurrency = false
     @AppStorage("v2_grouping", store: MacPreferences.defaults) private var grouping = "comma"
     private var codes: [String] {
         let selected = service.configuration.converterCurrencies.filter { MacFXCatalog.codes.contains($0) }
@@ -36,11 +37,12 @@ struct MacFXConverterView: View {
                     }
                 }.scrollTargetLayout().padding(.bottom, 8)
                 if codes.isEmpty {
-                    ContentUnavailableView("尚未选择换算币种", systemImage: "arrow.left.arrow.right", description: Text("请在货币与汇率设置中选择换算币种。"))
+                    ContentUnavailableView {Label("尚未选择换算币种",systemImage:"arrow.left.arrow.right")} description:{Text("选择需要换算的货币。")} actions:{Button("添加换算币种") {addingCurrency=true}.accessibilityIdentifier("fxEmptyAddCurrency")}
                 }
             }.scrollPosition(id: $query.converterScrollCode, anchor: .top).accessibilityIdentifier("fxConverterScroll")
             MacFXLastUpdatedView(service:service)
         }
+        .popover(isPresented:$addingCurrency) {MacFXCurrencyPicker(service:service){addingCurrency=false}}
         .onAppear { reconcile() }
         .onChange(of: MacFXCatalog.codes + service.configuration.converterCurrencies) { _, _ in reconcile() }
         .task { await service.pageOpened() }

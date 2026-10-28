@@ -24,7 +24,7 @@ enum MacDepositSettlement {
             case .notDue: "No bank interest payment is due on this date."
             case .corruptedSchedule: "Original monthly payout dates do not match the saved schedule."
             case .duplicateReceipt: "This deposit interest period already has a posted receipt."
-            case .tooManyPeriods: "More than 24 unpaid periods: review before posting."
+            case .tooManyPeriods: "待结息超过24期，本次未入账。请先创建备份，再通过“核对历史”按银行凭证确认下一未入账日期。"
             case .noLongerActive: "This deposit is inactive or has already been settled."
             case .possibleManualReceipt: "发现同日同金额的手动利息账目，请先核对历史，避免重复入账。"
             }
@@ -74,6 +74,7 @@ enum MacDepositSettlement {
         _ deposit: DepositRecord, now: Date, bookCurrency: String,
         exchangeRates: [Int64: Double] = [:], estimated: Bool = false, in context: ModelContext
     ) throws -> PostingResult {
+        try MacRecoveryJournal.assertWritable(in:context)
         guard isManaged(deposit) else { throw PostingError.legacyRecord }
         if let sourceID = deposit.sourceDepositID {
             let parents = try context.fetch(FetchDescriptor<DepositRecord>())

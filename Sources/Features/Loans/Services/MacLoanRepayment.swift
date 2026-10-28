@@ -59,10 +59,28 @@ enum MacLoanRepayment {
     }
 
     static func resolvedSchedule(_ loan: LoanRule, transactions: [Transaction]) -> [LoanAmortizationEngine.Payment] {
-        let legacy = loan.legacyAmortizationSchedule
-        let historical = Dictionary(uniqueKeysWithValues: legacy.filter {
-            payment in transactions.contains { $0.note == receiptNote(loan, payment: payment) && $0.originalAmount == payment.total }
-        }.map { ($0.index, $0) })
+        let pinned = MacLoanSchedule.dates(loan)
+        let legacy = loan.legacyAmortizationSchedule.enumerated().map { index, p in
+            LoanAmortizationEngine.Payment(index: p.index, date: pinned?[index] ?? p.date, total: p.total,
+                principal: p.principal, interest: p.interest, remainingBalance: p.remainingBalance)
+        }
+        let prefix="[FTLoan:\(loan.id.uuidString):"
+        let scoped:[(Int,Transaction)]=transactions.compactMap { row in
+            guard let note=row.note,let marker=note.range(of:prefix),let index=Int(note[marker.upperBound...].prefix(while:{$0 != ":"})),(1...legacy.count).contains(index) else{return nil}
+            return(index,row)
+        }
+        var historical: [Int: LoanAmortizationEngine.Payment] = [:]
+        // Original legacy receipts and reconciled-cent receipts both retain
+        // their own proven date. Never infer payment from date/amount alone.
+        for _ in 0..<2 {
+            let candidates = historical.isEmpty ? legacy : LoanAmortizationEngine.reconciled(principal: loan.principal, schedule: legacy, historical: historical)
+            for (index,row) in scoped {
+                let payment=candidates[index-1]
+                let dated = LoanAmortizationEngine.Payment(index: payment.index, date: row.date, total: payment.total,
+                    principal: payment.principal, interest: payment.interest, remainingBalance: payment.remainingBalance)
+                if row.note == receiptNote(loan, payment: dated), row.originalAmount == payment.total { historical[payment.index] = dated }
+            }
+        }
         return LoanAmortizationEngine.reconciled(principal: loan.principal, schedule: legacy, historical: historical)
     }
 
@@ -133,6 +151,7 @@ enum MacLoanRepayment {
         _ loan: LoanRule, now: Date, bookCurrency: String,
         in context: ModelContext
     ) throws -> Preview {
+        guard MacLoanSchedule.valid(loan) else { throw PostingError.inconsistentLedger }
         guard isManaged(loan) else { throw PostingError.legacyLoan }
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let deposits = try context.fetch(FetchDescriptor<DepositRecord>())
@@ -181,6 +200,7 @@ enum MacLoanRepayment {
         expectedScheduleCount: Int? = nil, expectedOriginalCurrency: String? = nil,
         saveImmediately: Bool = true, in context: ModelContext
     ) throws -> Recorded {
+        try MacRecoveryJournal.assertWritable(in:context)
         let preview = try nextPayment(loan, now: now, bookCurrency: bookCurrency,
                                       in: context)
         guard preview.payment.index == expectedIndex else {

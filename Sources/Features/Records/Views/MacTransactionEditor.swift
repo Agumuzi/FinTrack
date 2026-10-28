@@ -104,20 +104,9 @@ struct MacTransactionEditor: View {
                     if !sameCurrencyEditable {
                         Text("This record requires reconciliation before editing.").foregroundStyle(.red).accessibilityIdentifier("foreignEditBlocked")
                     }
-                    HStack(alignment: .top, spacing: MacUI.space(14)) {
-                        field("金额") {
-                            HStack(spacing: MacUI.space(3)) {
-                                Text(type == .expense ? "−" : "+").foregroundStyle(.secondary)
-                                MacNumericInput(text: $amountText, identifier: "entryAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), large: true).frame(minHeight: 36)
-                                    .appFont(.amount, weight: .medium, design: .default).appMinHeight(36)
-                                    .accessibilityLabel("金额").accessibilityIdentifier("entryAmount")
-                            }.appFont(.amount, weight: .medium, design: .default).appPadding(.horizontal, 14).appMinHeight(44)
-                                .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 9))
-                                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(amountFocused ? Color.blue : .gray.opacity(0.25), lineWidth: amountFocused ? 2 : 1))
-                        }
-                        field("货币") {
-                            MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyChoices,identifier:"entryCurrencyMenu",textIdentifier:"entryCurrency")
-                        }.frame(width:MacCurrencyMenuStyle.width)
+                    ViewThatFits(in:.horizontal) {
+                        HStack(alignment:.top,spacing:14) {amountInput.frame(minWidth:MacNumberInput.minimumEditingWidth(large:true));currencyInput}
+                        VStack(alignment:.leading,spacing:14) {amountInput;currencyInput}
                     }
                     field("分类") {
                         HStack(spacing: MacUI.space(12)) {
@@ -244,6 +233,21 @@ struct MacTransactionEditor: View {
     }
 
     private var entryDateLabel: String { MacEntryDateDisplay.string(date) }
+    private var amountInput:some View {
+        field("金额") {
+                            HStack(spacing: MacUI.space(3)) {
+                                Text(type == .expense ? "−" : "+").foregroundStyle(.secondary)
+                                MacNumericInput(text: $amountText, identifier: "entryAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), large: true).frame(minHeight: 36)
+                                    .appFont(.amount, weight: .medium, design: .default).appMinHeight(36)
+                                    .accessibilityLabel("金额").accessibilityIdentifier("entryAmount")
+                            }.appFont(.amount, weight: .medium, design: .default).appPadding(.horizontal, 14).appMinHeight(44)
+                                .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 9))
+                                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(amountFocused ? Color.blue : .gray.opacity(0.25), lineWidth: amountFocused ? 2 : 1))
+                        }
+    }
+    private var currencyInput:some View {
+        field("货币") {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyChoices,identifier:"entryCurrencyMenu",textIdentifier:"entryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
+    }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         MacEntryField(title:title,content:content)
     }

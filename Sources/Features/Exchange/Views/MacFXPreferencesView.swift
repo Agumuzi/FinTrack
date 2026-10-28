@@ -147,7 +147,7 @@ struct MacFXSourceManagementCard: View {
         .sheet(item: $editing) { MacFXSourceEditor(source: $0, from: "USD", to: "CNY") }
         .alert("删除自定义数据源？", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button("取消", role: .cancel) { removing = nil }
-            Button("删除", role: .destructive) { if let source = removing { do { try MacFXService.remove(source); MacFXApplication.shared.reload(); removing = nil } catch { self.error = error.localizedDescription } } }
+            Button("删除", role: .destructive) { if let source = removing { Task {do{try await MacFXService.removeAsync(source);MacFXApplication.shared.reload();removing=nil}catch{self.error=error.localizedDescription}} } }
         } message: { Text("同时移除对应 API Key，历史账目保持不变。") }
     }
 }

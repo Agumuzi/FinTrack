@@ -61,5 +61,5 @@ enum MacFinanceSplitSizing {
         let card = max(250 + max(0, bodySize - 16) * 9, titleWidth + 32 + 8 + 24)
         return CGFloat(columns == 2 ? 2 : 1) * card + (columns == 2 ? 10 : 0) + 38
     }
-    static func detailMinimum(bodySize: CGFloat) -> CGFloat { max(260, 260 + (bodySize - 16) * 2) }
+    static func detailMinimum(bodySize: CGFloat) -> CGFloat { max(320, 320 + max(0, bodySize - 16) * 8) }
 }

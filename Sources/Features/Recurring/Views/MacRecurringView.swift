@@ -64,7 +64,7 @@ struct MacRecurringView: View {
             HStack(spacing: MacUI.space(0)) {
                 filters.frame(width: filterWidth)
                 Divider()
-                list(wide: wide).accessibilityIdentifier("recurringListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
+                list(wide: wide).accessibilityElement(children:.contain).accessibilityIdentifier("recurringListPane").frame(width: wide ? min(max(300, listWidth), maximum) : nil).frame(maxWidth: wide ? nil : .infinity, maxHeight: .infinity)
                 if wide {
                     MacFinanceListDivider(width: widthBinding, maximum: maximum) { value in
                         if listColumns == 2 { doubleListWidth = value } else { singleListWidth = value }

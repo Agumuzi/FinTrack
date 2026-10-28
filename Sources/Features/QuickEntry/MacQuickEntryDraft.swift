@@ -25,6 +25,7 @@ final class MacQuickEntryDraft: ObservableObject {
     private(set) var draftID = UUID()
     private var committed: Set<UUID> = []
     private var requestID = UUID()
+    private var quoteBase: String?
     var quotes: any MacFXAccountingQuotes = MacFXAccountingAdapter()
     var type: TransactionType { income ? .income : .expense }
 
@@ -33,20 +34,24 @@ final class MacQuickEntryDraft: ObservableObject {
         if let code { currency = code; customCurrencyEntry = false }
         else { customCurrencyEntry = true }
     }
-    func setManualRate(_ text: String) {
+    func setManualRate(_ text: String, base: String) {
+        quoteBase = base
         requestID = UUID(); fetching = false; quoteMessage = nil; useBankAmount = false; rate = text
     }
-    func setManualBaseAmount(_ text: String) {
+    func setManualBaseAmount(_ text: String, base: String) {
+        quoteBase = base
         requestID = UUID(); fetching = false; quoteMessage = nil; bankAmount = text; useBankAmount = true
     }
     func resetAmountToRate() { useBankAmount = false }
     func amountText(base: String) -> String {
+        guard quoteBase == nil || quoteBase == base else { return "" }
         if useBankAmount { return bankAmount }
         guard let amount = try? MacTransactionCRUD.amount(amount), let rate = try? MacCurrency.rate(rate),
               let value = try? MacCurrency.snapshot(amount:amount,original:currency,base:base,rate:rate) else { return "" }
         return MacBankSettlement.amountText(value.baseAmount)
     }
     func displayedRate(base: String) -> String {
+        guard quoteBase == nil || quoteBase == base else { return "" }
         guard useBankAmount else { return rate }
         guard let value = try? MacBankSettlement.snapshot(originalText:amount,actualText:bankAmount,original:currency,base:base) else { return "" }
         return MacBankSettlement.rateText(value.rate)
@@ -63,6 +68,7 @@ final class MacQuickEntryDraft: ObservableObject {
             let result = try await quotes.accountingQuote(pair:MacFXPair(base:source,quote:base),day:day)
             guard token == requestID, source == currency, day == MacFXDates.tag(date,calendar:.current) else { return }
             guard result.identity.purpose == .accountingDay, result.identity.requested == .day(day), result.identity.pair == (try MacFXPair(base:source,quote:base)) else { throw MacFXContractFailure.invalidEvidence }
+            quoteBase = base
             rate = String(format: "%.6f", result.unitRate)
             quoteMessage = "交易日 " + day + " · " + MacFXApplication.shared.sourceLabel(result.identity.sourceID) + "，请核对银行结算。"
         } catch {
@@ -83,6 +89,9 @@ final class MacQuickEntryDraft: ObservableObject {
             guard let id = categoryID, let category = categories.first(where: { $0.id == id && $0.deletedAt == nil && $0.type == type.rawValue }) else {
                 throw MacSettingsFailure.invalid("分类已变更，请重新选择有效分类。")
             }
+            guard source == base || quoteBase == nil || quoteBase == base else {
+                throw MacSettingsFailure.invalid("账本本位币已变化，请重新核对汇率或本币记账金额。草稿尚未保存。")
+            }
             let resolvedRate: Double
             if source == base { resolvedRate = 1 }
             else if useBankAmount { resolvedRate = 1 }
@@ -93,6 +102,7 @@ final class MacQuickEntryDraft: ObservableObject {
             amount = ""; note = ""; error = nil
             // The next transaction may reuse its rate, never the previous
             // transaction's explicitly settled monetary amount.
+            quoteBase = base
             rate = MacBankSettlement.reusableRateText(saved.exchangeRateToBase)
             useBankAmount = false; bankAmount = ""
             requestID = UUID(); fetching = false; quoteMessage = nil

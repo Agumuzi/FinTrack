@@ -222,7 +222,14 @@ final class MacFXMonitor: ObservableObject {
         case .manual: manual = true
         }
         pending.formUnion(requiredPairs(manual: manual).union(extraPairs))
-        if let task = refreshTask { await task.value; return }
+        if let task = refreshTask {
+            let requestedGeneration = generation
+            await task.value
+            if requestedGeneration == generation, pending.isEmpty { return }
+            // An old generation cannot satisfy a request made after reconfiguration.
+            if !pending.isEmpty { lastAttempt = nil; await refresh(reason: reason, extraPairs: extraPairs) }
+            return
+        }
         if let lastAttempt, now().timeIntervalSince(lastAttempt) < 2 {
             pending = []; status = "更新冷却中，请稍后重试"; return
         }
@@ -242,7 +249,7 @@ final class MacFXMonitor: ObservableObject {
         var nextCache = cache
         var baselines: [(MacFXPair, MacFXEvidenceQuote)] = []
         var accepted: [MacFXEvidenceQuote] = []
-        while let pair = pending.sorted(by: { $0.key < $1.key }).first {
+        while requestGeneration == generation, let pair = pending.sorted(by: { $0.key < $1.key }).first {
             pending.remove(pair)
             guard attempted.insert(pair).inserted else { continue }
             var failures: [String] = [], returned: MacFXEvidenceQuote?
@@ -262,7 +269,7 @@ final class MacFXMonitor: ObservableObject {
                     }
                 }
             }
-            guard requestGeneration == generation else { continue }
+            guard requestGeneration == generation else { pending.insert(pair); break }
             if let returned {
                 if nextCache.accept(returned, now: now(), calendar: calendar) {
                     accepted.append(returned)

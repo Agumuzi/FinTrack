@@ -66,7 +66,7 @@ struct MacGoalSettingsView: View {
                 if let goal = selected {
                     VStack(spacing: MacUI.space(14)) {
                         MacGoalInlineEditor(goal: goal, currency: currency, netWorth: netWorth, baseline: baseline).id(goal.id)
-                        MacSettingsCard(title: "目标趋势", icon: "chart.bar", headerColor: .blue, action: AnyView(MacSettingsSegments(selection: $range, options: ["6个月", "1年", "全部"]).frame(width: MacUI.space(190)))) {
+                        MacSettingsCard(title: "目标趋势", icon: "chart.bar", headerColor: .blue, action: MacSettingsVisual.preview ? AnyView(MacSettingsSegments(selection: $range, options: ["6个月", "1年", "全部"]).frame(width: MacUI.space(190))) : nil) {
                             if MacSettingsVisual.preview {
                                 let count = range == "6个月" ? 6 : 12
                                 Chart(0..<count, id: \.self) { index in
@@ -97,12 +97,39 @@ struct MacGoalInlineEditor: View {
     @State private var presentation = MacGoalPresentation()
     @State private var error: String?
     @State private var saved = false
+    private struct Draft {
+        let title: String; let amount: String; let deadline: Date; let hasDeadline: Bool
+        let precision: TargetDatePrecision; let presentation: MacGoalPresentation
+        let revision: Date; let currency: String?; let generation: Int
+    }
+    @State private var discardDraft = false
+    @State private var loadedRevision = Date.distantPast
+    @State private var loadedCurrency: String?
+    @State private var loadedGeneration = 0
+    private var draftKey: String { MacEditorDraftStore.key("goal", goal.id.uuidString, context: context) }
+    private var dirty: Bool { title != goal.title || amount != MacTransactionCRUD.amountEditingText(goal.targetAmount) || hasDeadline != (goal.deadline != nil) || (hasDeadline && (deadline != goal.targetTime.resolvedDate() || timePrecision != goal.targetTime.precision)) || presentation != currentPresentation }
+    private var currentPresentation: MacGoalPresentation { let all: [String: MacGoalPresentation] = MacSettingsStore.load("v2_goal_presentation", fallback: [:]); return all[goal.id.uuidString] ?? .init() }
+    private func loadDraft(discard: Bool = false) {
+        if discard { MacEditorDraftStore.shared.remove(draftKey) }
+        if let d = MacEditorDraftStore.shared.load(draftKey, as: Draft.self) {
+            title=d.title; amount=d.amount; deadline=d.deadline; hasDeadline=d.hasDeadline; timePrecision=d.precision
+            presentation=d.presentation; loadedRevision=d.revision; loadedCurrency=d.currency; loadedGeneration=d.generation
+        } else {
+            title=goal.title; amount=MacTransactionCRUD.amountEditingText(goal.targetAmount)
+            deadline=goal.targetTime.resolvedDate() ?? Calendar.current.date(byAdding:.year,value:1,to:Date())!
+            hasDeadline=goal.deadline != nil; timePrecision=goal.targetTime.precision; presentation=currentPresentation
+            loadedRevision=goal.updatedAt; loadedCurrency=currency; loadedGeneration=MacEditorDraftStore.shared.generation
+        }
+    }
+    private func keepDraft() {
+        MacEditorDraftStore.shared.save(Draft(title:title,amount:amount,deadline:deadline,hasDeadline:hasDeadline,precision:timePrecision,presentation:presentation,revision:loadedRevision,currency:loadedCurrency,generation:loadedGeneration),key:draftKey,generation:loadedGeneration)
+    }
     private var progress: Double { goal.clampedProgressValue(currentNetWorth: netWorth, baselineNetWorth: baseline) }
     private var gap: Double { max(0, (goal.includesCurrentAssets ? goal.targetAmount : goal.creationNetWorth + goal.targetAmount) - netWorth) }
     private var status: String { goal.isPaused ? "已暂停" : goal.isAccomplished || goal.isCompleted(currentNetWorth: netWorth, baselineNetWorth: baseline) ? "已完成" : "进行中" }
     private var months: Int? { goal.targetTime.remainingMonths(from: Date()) }
     var body: some View {
-        MacSettingsCard(title: goal.title, icon: presentation.icon, subtitle: presentation.note, headerColor: MacAccent.color(presentation.color), action: AnyView(Toggle("目标启用状态", isOn: Binding(get: { !goal.isPaused }, set: { active in goal.isPaused = !active; goal.updatedAt = Date(); do { try context.save() } catch { context.rollback(); self.error = error.localizedDescription } })).labelsHidden().toggleStyle(.switch).tint(.blue).accessibilityIdentifier("settingsGoalPause")), heading: AnyView(TextField("目标名称", text: $title).textFieldStyle(.plain).appFont(.section, weight: .semibold, design: .default).accessibilityIdentifier("goalInlineTitle"))) {
+        MacSettingsCard(title: goal.title, icon: presentation.icon, subtitle: presentation.note, headerColor: MacAccent.color(presentation.color), action: AnyView(Toggle("目标启用状态", isOn: Binding(get: { !goal.isPaused }, set: { active in goal.isPaused = !active; goal.updatedAt = Date(); do { try context.save(); loadedRevision = goal.updatedAt } catch { context.rollback(); self.error = error.localizedDescription } })).labelsHidden().toggleStyle(.switch).tint(.blue).accessibilityIdentifier("settingsGoalPause")), heading: AnyView(TextField("目标名称", text: $title).textFieldStyle(.plain).appFont(.section, weight: .semibold, design: .default).accessibilityIdentifier("goalInlineTitle"))) {
             MacSettingsRow(label: "目标金额", labelWidth: 90) { HStack { MacNumericInput(text: $amount, identifier: "goalInlineAmount").frame(minHeight: 24).appFormControl(); Text(MacSettingsVisual.symbol(currency ?? "")).foregroundStyle(.secondary) } }
             MacSettingsRow(label: "当前净资产", labelWidth: 90) { Text(MacSettingsVisual.money(netWorth) + " " + MacSettingsVisual.symbol(currency ?? "")).appFont(.body, weight: .medium, design: .default).frame(maxWidth: .infinity, alignment: .leading).appPadding(.horizontal, 12).appMinHeight(36).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 8)) }
             MacSettingsRow(label: "期望时间", labelWidth: 90) { MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $timePrecision, date: $deadline, identifier: "settingsGoalTime") }
@@ -117,9 +144,13 @@ struct MacGoalInlineEditor: View {
                 stat(months.map { $0 > 0 ? "约 \($0) 个月" : "已到期望时间" } ?? "未设置", "规划时间", identifier: "goalPlanningTime")
                 stat(months.flatMap { $0 > 0 ? MacSettingsVisual.money(gap / Double($0)) : nil } ?? "—", "参考每月增长（估算）", identifier: "goalMonthlyGrowth")
             }
-            HStack { Text(saved ? "已保存" : "进度按净资产自动计算").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button("保存修改") { save() }.disabled(currency == nil).accessibilityIdentifier("settingsGoalSave") }
-            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red) }
-        }.onAppear { title = goal.title; amount = MacTransactionCRUD.amountEditingText(goal.targetAmount); deadline = goal.targetTime.resolvedDate() ?? Calendar.current.date(byAdding: .year, value: 1, to: Date())!; hasDeadline = goal.deadline != nil; timePrecision = goal.targetTime.precision; let all: [String: MacGoalPresentation] = MacSettingsStore.load("v2_goal_presentation", fallback: [:]); presentation = all[goal.id.uuidString] ?? .init() }
+            HStack { Text(dirty ? "有未保存修改；切页后可继续编辑" : saved ? "已保存" : "进度按净资产自动计算").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button("保存修改") { save() }.disabled(currency == nil).accessibilityIdentifier("settingsGoalSave") }
+            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red); Button("放弃草稿并重新载入") { discardDraft = true } }
+        }.onAppear { loadDraft() }.onDisappear { keepDraft() }
+        .confirmationDialog("放弃未保存修改？", isPresented: $discardDraft) {
+            Button("放弃并重新载入", role: .destructive) { loadDraft(discard: true); error = nil }
+        }
+
     }
     private func stat(_ value: String, _ label: String, identifier: String) -> some View {
         VStack(spacing: MacUI.space(6)) {
@@ -131,14 +162,17 @@ struct MacGoalInlineEditor: View {
     }
     private func save() {
         do {
+            guard loadedRevision == goal.updatedAt, loadedCurrency == currency, loadedGeneration == MacEditorDraftStore.shared.generation else { throw MacSettingsFailure.invalid("账本或目标已变化，草稿仍保留。请核对后重新载入。") }
             let title = try MacTransactionCRUD.validatedCategory(title), amount = try MacTransactionCRUD.editedAmount(amount, original: goal.targetAmount)
             guard presentation.note.count <= 200 else { throw MacSettingsFailure.invalid("备注请保持在200字以内") }
             var all: [String: MacGoalPresentation] = MacSettingsStore.load("v2_goal_presentation", fallback: [:]); all[goal.id.uuidString] = presentation
             let bytes = try JSONEncoder().encode(all)
             let timeValue = hasDeadline ? GoalTargetTime.capturedValue(deadline, precision: timePrecision) : nil
             guard timeValue == nil || GoalTargetTime.components(timeValue!, precision: timePrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            try MacRecoveryJournal.perform(in: context) {
             goal.title = title; goal.targetAmount = amount; goal.deadline = hasDeadline ? deadline : nil; goal.targetDatePrecisionRaw = hasDeadline ? timePrecision.rawValue : nil; goal.targetDateValueRaw = timeValue; goal.updatedAt = Date()
-            try context.save(); MacPreferences.defaults.set(bytes, forKey: "v2_goal_presentation"); saved = true; error = nil
+            try context.save(); MacPreferences.defaults.set(bytes, forKey: "v2_goal_presentation"); loadedRevision = goal.updatedAt; MacEditorDraftStore.shared.remove(draftKey); saved = true; error = nil
+            }
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
     }
 }

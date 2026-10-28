@@ -7,7 +7,12 @@ import AppKit
 struct FinTrackMacApp: App {
     @NSApplicationDelegateAdaptor(MacApplicationDelegate.self) private var applicationDelegate
     @StateObject private var entries = MacApplicationRuntime.shared.entries
-    init() { MacSettingsStore.migrateFontPreference() }
+    init() {
+        #if FINTRACK_LOCAL_VALIDATION
+        if MacV147RecoveryFixture.requested { MacV147RecoveryFixture.start(); RunLoop.current.run() }
+        #endif
+        MacSettingsStore.migrateFontPreference()
+    }
 
     @MainActor static let workspace = MacWorkspaceSession()
     @Environment(\.openWindow) private var openWindow

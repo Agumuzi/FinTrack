@@ -88,7 +88,7 @@ struct MacCurrencySettingsView: View {
         .sheet(isPresented: $showRebase) { MacCurrencyRebaseView() }
         .alert("删除自定义数据源？", isPresented: Binding(get: { removingSource != nil }, set: { if !$0 { removingSource = nil } })) {
             Button("取消", role: .cancel) { removingSource = nil }
-            Button("删除", role: .destructive) { if let removingSource { do { try MacFXService.remove(removingSource); self.removingSource = nil } catch { self.error = error.localizedDescription } } }
+            Button("删除", role: .destructive) { if let removingSource { Task {do {try await MacFXService.removeAsync(removingSource);self.removingSource=nil}catch{self.error=error.localizedDescription}} } }
         } message: { Text("同时移除对应 API Key，历史交易与报价保持不变。") }
     }
     private func consumeSectionRequest() {
@@ -155,7 +155,7 @@ struct MacCurrencySettingsView: View {
     private var currencyCard: some View {
         MacSettingsCard(title:"货币目录",icon:"banknote",subtitle:"记账和查询使用的统一货币目录。",action:AnyView(Button("添加货币",systemImage:"plus") { addingCurrency = true }.accessibilityIdentifier("settingsCurrencyAdd").popover(isPresented:$addingCurrency) { directoryAddForm })) {
             HStack {
-                Text("用于软件各处的货币选择，菜单栏列表在“菜单栏”中单独管理。").appFont(.caption).foregroundStyle(.secondary)
+                Text("管理可选币种；菜单栏显示另行设置。").appFont(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Text("\(directoryCodes.count) 个币种").appFont(.caption).foregroundStyle(.secondary)
             }
@@ -333,10 +333,10 @@ struct MacFXSourceEditor: View {
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(busy ? "测试中…" : "连接测试") { Task { await test() } }.disabled(busy).accessibilityIdentifier("fxConnectionTest")
                 Spacer()
-                Button("保存") { do { if template != .custom && key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw MacSettingsFailure.invalid("请填写 API Key / App ID") }; try MacFXService.save(source, key: key); dismiss() } catch { self.error = MacLocalization.error(error) } }.disabled(busy).accessibilityIdentifier("fxSourceSave")
+                Button("保存") { Task { busy=true;defer{busy=false};do { if template != .custom && key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw MacSettingsFailure.invalid("请填写 API Key / App ID") }; try await MacFXService.saveAsync(source, key: key); dismiss() } catch { self.error = MacLocalization.error(error) } } }.disabled(busy).accessibilityIdentifier("fxSourceSave")
             }
         }.appPadding(26).appDialog(width: 570)
-        .onAppear { template = source.provider.flatMap(MacFXTemplate.init(rawValue:)) ?? .custom; do { key = try MacFXSecrets.read(source.id, retryAuthorization: true) } catch { self.error = error.localizedDescription } }
+        .task { template = source.provider.flatMap(MacFXTemplate.init(rawValue:)) ?? .custom; busy=true;defer{busy=false};do {key=try await MacFXSecrets.readAsync(source.id,retryAuthorization:true)}catch{self.error=error.localizedDescription} }
         .onChange(of: template) { _, value in
             guard source.provider != (value == .custom ? nil : value.rawValue) else { return }
             let old = source

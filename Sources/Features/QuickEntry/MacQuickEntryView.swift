@@ -34,7 +34,7 @@ struct MacQuickEntryView: View {
             ScrollView {
                 VStack(alignment:.leading,spacing:MacUI.space(16)) {
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .top, spacing: 14) { amountField.frame(minWidth: 140); currencyField }
+                        HStack(alignment: .top, spacing: 14) { amountField.frame(minWidth:MacNumberInput.minimumEditingWidth()); currencyField }
                         VStack(alignment: .leading, spacing: 16) { amountField; currencyField }
                     }
                     MacEntryField(title: "分类") {
@@ -69,14 +69,14 @@ struct MacQuickEntryView: View {
                             if foreign {
                                 HStack(spacing:MacUI.space(10)) {
                                     Text("1 " + draft.currency.uppercased() + " =")
-                                    TextField("输入汇率",text:Binding(get:{draft.displayedRate(base:base)},set:{draft.setManualRate($0)}))
+                                    TextField("输入汇率",text:Binding(get:{draft.displayedRate(base:base)},set:{draft.setManualRate($0, base:base)}))
                                         .textFieldStyle(.roundedBorder).accessibilityIdentifier("menuRate")
                                     Text(base)
                                 }.appFont(.body,weight:.regular)
                                 Button(draft.fetching ? "获取中…" : "获取当日汇率") { Task { await draft.fetchRate(base:base) } }
                                     .disabled(draft.fetching).accessibilityIdentifier("menuFetchRate")
                                 MacEntryField(title:"本币记账金额 · " + base) {
-                                    TextField("自动计算，也可手动修改",text:Binding(get:{draft.amountText(base:base)},set:{draft.setManualBaseAmount($0)}))
+                                    TextField("自动计算，也可手动修改",text:Binding(get:{draft.amountText(base:base)},set:{draft.setManualBaseAmount($0, base:base)}))
                                         .textFieldStyle(.roundedBorder).accessibilityIdentifier("menuBankAmount")
                                 }
                                 if draft.useBankAmount {
@@ -127,7 +127,7 @@ struct MacQuickEntryView: View {
     private var currencyField: some View {
         MacEntryField(title: "货币") {
             MacEditableCurrencyMenu(currency:$draft.currency,custom:$draft.customCurrencyEntry,codes:currencyChoices,identifier:"menuCurrency",textIdentifier:"menuCurrencyText")
-        }.frame(width:MacCurrencyMenuStyle.width + max(0,MacUI.fontTier.bodySize-16)*5)
+        }.frame(width:MacCurrencyMenuStyle.fieldWidth)
     }
     private var keepAdding: some View {
         Toggle("保存后继续添加",isOn:$draft.continueAdding).toggleStyle(.checkbox).appFont(.body).accessibilityIdentifier("menuKeepAdding")

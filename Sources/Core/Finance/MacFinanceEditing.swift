@@ -33,6 +33,20 @@ enum MacFinanceEditing {
         }
     }
 
+    static func inputAmounts(_ text: String, downText: String, existing: MacFinanceRecord?) throws -> (total:Double,down:Double,principal:Double) {
+        let original:Double?
+        switch existing {case .deposit(let r):original=r.originalPrincipal;case .recurring(let r):original=r.originalAmount;case .goal(let r):original=r.targetAmount;case .loan(let r):original=r.totalAmount;case nil:original=nil}
+        let total=try original.map {try MacTransactionCRUD.editedAmount(text,original:$0)} ?? MacTransactionCRUD.amount(text)
+        guard case .loan(let loan)=existing else{return(total,0,total)}
+        let down=try unchangedNonnegative(downText,original:loan.downPaymentAmount)
+        let principal=total == loan.totalAmount && down == loan.downPaymentAmount ? loan.principal:FinancialPrecision.roundAmountForStorage(total-down)
+        return(total,down,principal)
+    }
+    static func unchangedNonnegative(_ text:String,original:Double) throws -> Double {
+        if text == String(original),original.isFinite,(0...1e12).contains(original){return original}
+        return try MacFinancialSettings.nonnegativeAmount(text)
+    }
+
     static func update(_ target: MacFinanceRecord, name: String, amountText: String, annualRate: Double,
                        start: Date, maturity: Date, months: Int, method: RepaymentMethod,
                        depositMode: DepositInterestSettlementMode, type: RecurringTransactionType,
@@ -43,6 +57,7 @@ enum MacFinanceEditing {
                        goalPaused: Bool? = nil, goalPrecision: TargetDatePrecision? = nil, reminder: MacReminderSettings? = nil,
                        recurringSettings: MacRecurringSettings? = nil, userNote: String? = nil,
                        expectedInterestOverride: Double? = nil, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         try reminder?.validate()
         var capturedGoalValue: String?
         if case .goal = target, let goalDeadline, let goalPrecision {
@@ -51,11 +66,30 @@ enum MacFinanceEditing {
             capturedGoalValue = raw
         }
         if let end = recurringSettings?.endDate, end < start { throw MacFinanceRecords.Failure.invalidDateRange }
-        _ = try MacCurrency.ledgerCurrency(in: context, preferred: book)
+        guard try MacCurrency.ledgerCurrency(in: context, preferred: book) == book else { throw MacCurrency.Failure.mixedBooks }
         let name = try MacTransactionCRUD.validatedCategory(name)
-        let amount = try MacTransactionCRUD.amount(amountText)
+        let original: Double
+        switch target {
+        case .deposit(let row): original = row.originalPrincipal
+        case .loan(let row): original = row.principal
+        case .recurring(let row): original = row.originalAmount
+        case .goal(let row): original = row.targetAmount
+        }
+        let amount = try MacTransactionCRUD.editedAmount(amountText, original: original)
         let rows = try context.fetch(FetchDescriptor<Transaction>())
-        let snapshot = try MacCurrency.snapshot(amount: amount, original: source, base: book, rate: principalRate)
+        let previous:MacCurrencySnapshot?
+        switch target {
+        case .deposit(let r):previous = .init(originalAmount:r.originalPrincipal,originalCurrency:r.originalCurrency,baseAmount:r.basePrincipal,baseCurrency:r.baseCurrencyCode,rate:r.principalExchangeRateToBase)
+        case .loan(let r):previous = .init(originalAmount:r.principal,originalCurrency:r.currency,baseAmount:r.basePrincipal,baseCurrency:r.baseCurrencyCode,rate:r.exchangeRateToBase)
+        case .recurring(let r):previous = .init(originalAmount:r.originalAmount,originalCurrency:r.originalCurrency,baseAmount:r.baseAmount,baseCurrency:r.baseCurrencyCode,rate:r.exchangeRateToBase)
+        case .goal:previous=nil
+        }
+        let snapshot:MacCurrencySnapshot
+        if let previous,amount == previous.originalAmount,source == previous.originalCurrency,book == previous.baseCurrency,
+           (principalRate ?? previous.rate) == previous.rate {
+            try MacBankSettlement.validateSavedSnapshot(amount:amount,actual:previous.baseAmount,source:source,base:book,rate:previous.rate,allowLegacyPrecision:true)
+            snapshot=previous
+        } else {snapshot=try MacCurrency.snapshot(amount:amount,original:source,base:book,rate:principalRate)}
         guard annualRate.isFinite, (0...100).contains(annualRate) else { throw MacFinanceRecords.Failure.invalidRate }
         switch target {
         case .deposit(let r):
@@ -100,6 +134,12 @@ enum MacFinanceEditing {
                 guard !rows.contains(where: { ($0.note ?? "").contains("[FTLoan:\(r.id.uuidString):") }) else { throw Failure.paidHistory }
                 guard r.generatedRules.isEmpty else { throw Failure.legacyRules }
             }
+            // Build date metadata before touching a managed model; on failure
+            // an editor must not leave partial changes in its ModelContext.
+            let candidate = LoanRule(title: name, principal: amount, annualRate: annualRate, termMonths: months,
+                methodRawValue: method.rawValue, currency: snapshot.originalCurrency, startDate: start,
+                category: category, note: MacFinanceNotes.replacing(r.note, with: userNote ?? MacFinanceNotes.visible(r.note)) ?? "")
+            if changed { try MacLoanSchedule.pin(candidate) }
             r.title = name
             r.category = category
             if let userNote { r.note = MacFinanceNotes.replacing(r.note, with: userNote) ?? "" }
@@ -108,9 +148,12 @@ enum MacFinanceEditing {
                 r.baseCurrencyCode = book; r.exchangeRateToBase = snapshot.rate
                 r.annualRate = FinancialPrecision.roundInterestRateForStorage(annualRate)
                 r.startDate = start; r.termMonths = months; r.method = method
+                r.note = candidate.note
             }
-            r.totalAmount = totalAmount ?? amount; r.downPaymentAmount = downPayment
-            r.downPaymentPercent = r.totalAmount > 0 ? FinancialPrecision.roundAmountForDisplay(downPayment / r.totalAmount * 100) : 0
+            if r.totalAmount != (totalAmount ?? amount) || r.downPaymentAmount != downPayment {
+                r.totalAmount = totalAmount ?? amount; r.downPaymentAmount = downPayment
+                r.downPaymentPercent = r.totalAmount > 0 ? FinancialPrecision.roundAmountForDisplay(downPayment / r.totalAmount * 100) : 0
+            }
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
         case .recurring(let r):
             guard (1...365).contains(interval) else { throw MacFinanceRecords.Failure.invalidRecurrence }
@@ -142,6 +185,7 @@ enum MacFinanceEditing {
     }
 
     static func retire(_ target: MacFinanceRecord, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in:context)
         let now = Date()
         let rules = try context.fetch(FetchDescriptor<RecurringTransaction>())
         switch target {

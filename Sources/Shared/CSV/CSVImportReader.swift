@@ -1,7 +1,7 @@
 import Foundation
 
-struct CSVImportTable: Hashable {
-    struct RawRow: Hashable {
+nonisolated struct CSVImportTable: Hashable, Sendable {
+    struct RawRow: Hashable, Sendable {
         let rowIndex: Int
         let values: [String: String]
     }
@@ -10,8 +10,8 @@ struct CSVImportTable: Hashable {
     let rows: [RawRow]
 }
 
-struct CSVImportSectionTable: Hashable {
-    struct RawRow: Hashable {
+nonisolated struct CSVImportSectionTable: Hashable, Sendable {
+    struct RawRow: Hashable, Sendable {
         let rowIndex: Int
         let values: [String: String]
     }
@@ -21,7 +21,7 @@ struct CSVImportSectionTable: Hashable {
     let rows: [RawRow]
 }
 
-struct CSVImportReader {
+nonisolated struct CSVImportReader {
     enum ReaderError: LocalizedError {
         case emptyFile
         case malformedCSV
@@ -444,11 +444,11 @@ struct CSVImportReader {
     ]
 }
 private extension String {
-    func removingUTF8BOM() -> String {
+    nonisolated func removingUTF8BOM() -> String {
         hasPrefix("\u{FEFF}") ? String(dropFirst()) : self
     }
 
-    func normalizingCSVLineEndings() -> String {
+    nonisolated func normalizingCSVLineEndings() -> String {
         replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\u{2028}", with: "\n")
@@ -457,7 +457,7 @@ private extension String {
             .replacingOccurrences(of: "\0", with: "")
     }
 
-    func headerAliasKey() -> String {
+    nonisolated func headerAliasKey() -> String {
         unicodeScalars.reduce(into: "") { result, scalar in
             if CharacterSet.alphanumerics.contains(scalar) || scalar.value >= 0x4E00 && scalar.value <= 0x9FFF {
                 result.unicodeScalars.append(scalar)

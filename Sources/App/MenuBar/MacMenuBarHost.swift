@@ -30,6 +30,8 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         runtime.entries.menuIsRegistered = { [weak self] in self?.item?.button != nil }
         insertion = runtime.entries.$isMenuInserted.sink { [weak self] value in self?.setInserted(value) }
         if !MacApplicationRuntime.isPrototype {
+            subscriptions.append(runtime.session.objectWillChange.sink{[weak self] _ in self?.queueLabel()})
+            subscriptions.append(MacFXApplication.shared.query.objectWillChange.sink{[weak self] _ in self?.queueLabel()})
             subscriptions.append(runtime.entries.$configuration.sink { [weak self] _ in self?.queueLabel() })
             subscriptions.append(MacFXApplication.shared.monitor.objectWillChange.sink { [weak self] _ in self?.queueLabel() })
             subscriptions.append(NotificationCenter.default.publisher(for:UserDefaults.didChangeNotification).sink { [weak self] _ in self?.queueLabel() })
