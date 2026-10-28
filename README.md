@@ -65,6 +65,10 @@ v1.1 及之后版本内置官方签名更新源，可在“设置 → 关于 Fin
 
 可通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新，或使用 v1.1 起内置的官方签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
 
-## 许可证
+## 许可证与品牌素材
 
-FinTrack 采用 [MIT 许可证](LICENSE)。第三方素材和平台组件遵循各自条款，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。
+本仓库当前提供的原创源代码采用 [PolyForm Noncommercial 1.0.0](LICENSE)：允许符合许可条件的个人使用、学习、修改和非商业再分发；**商业使用必须另行取得授权**。本项目属于源码公开（source-available），并非 OSI 定义的开源许可。
+
+**FinTrack 应用图标、Agumuzi 品牌标识、原创宣传图及截图**不包含在代码授权中；未经许可不得移作其他项目的品牌或素材。详见[品牌与视觉资产授权声明](ASSETS-LICENSE.md)。第三方素材与平台组件仍遵循各自条款，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。
+
+**历史许可：**此前按 MIT 发布的版本及其已授予的权利不受本次调整追溯撤销；原 MIT 文本存档于[历史许可证](docs/LEGACY_MIT_LICENSE.md)。商业授权或品牌素材复用请通过本仓库联系维护者。
