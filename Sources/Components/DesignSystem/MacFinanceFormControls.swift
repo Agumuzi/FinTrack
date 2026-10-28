@@ -5,14 +5,14 @@ import SwiftData
 /// The binding stays ungrouped; native editing displays separators without rounding.
 enum MacNumberInput {
     static func minimumEditingWidth(large:Bool = false)->CGFloat {max(160,MacUI.fontTier.bodySize*(large ? 10:8))}
-    static func raw(_ display: String, grouping: String) -> String {
+    nonisolated static func raw(_ display: String, grouping: String) -> String {
         let separator = grouping == "space" ? " " : ","
         guard display.contains(separator), grouping != "none" else { return display }
         let escaped = NSRegularExpression.escapedPattern(for: separator)
         guard display.range(of: "^[0-9]{1,3}(" + escaped + "[0-9]{3})+(\\.[0-9]*)?$", options: .regularExpression) != nil else { return display }
         return display.replacingOccurrences(of: separator, with: "")
     }
-    static func display(_ raw: String, grouping: String) -> String {
+    nonisolated static func display(_ raw: String, grouping: String) -> String {
         guard grouping != "none", raw.range(of: #"^[0-9]+(\.[0-9]*)?$"#, options: .regularExpression) != nil else { return raw }
         let pieces = raw.split(separator: ".", omittingEmptySubsequences: false)
         let digits = Array(String(pieces[0])), separator = grouping == "space" ? " " : ","
@@ -117,7 +117,8 @@ struct MacNumericInput: NSViewRepresentable {
                 render(lastDisplay, in: field); NSSound.beep(); return
             }
             parent.text = raw; observedText = raw
-            render(MacNumberInput.display(raw, grouping: parent.grouping), in: field)
+            if field.formatter == nil {render(MacNumberInput.display(raw,grouping:parent.grouping),in:field)}
+            else {lastDisplay=value}
         }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             guard !parent.rate, parent.grouping != "none", textView.selectedRange().length == 0 else { return false }
@@ -156,6 +157,8 @@ struct MacNumericInput: NSViewRepresentable {
     }
     func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.parent = self
+        if rate {field.formatter=nil}
+        else if (field.formatter as? MacAmountEditingFormatter)?.grouping != grouping {field.formatter=MacAmountEditingFormatter(grouping:grouping)}
         let coordinator = context.coordinator
         if !coordinator.editing {
             let value = presented(text, editing: false)
