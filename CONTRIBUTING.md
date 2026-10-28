@@ -1,6 +1,8 @@
 # 参与 FinTrack
 
-感谢帮助改进 FinTrack。本项目的自有代码采用 [MIT 许可证](LICENSE)，第三方素材与平台组件遵循各自许可条款，具体见 [第三方素材说明](docs/THIRD_PARTY_NOTICES.md)。参与贡献前请先查看相关文档。
+感谢帮助改进 FinTrack。本仓库当前原创代码按 [PolyForm Noncommercial 1.0.0](LICENSE) 非商业授权；Logo、软件图标及原创视觉素材另见 [品牌素材声明](ASSETS-LICENSE.md)。第三方素材与平台组件遵循各自许可条款，具体见 [第三方素材说明](docs/THIRD_PARTY_NOTICES.md)。此前 MIT 版本的许可继续有效，历史文本见[存档](docs/LEGACY_MIT_LICENSE.md)。参与贡献前请先查看相关文档。
+
+提交代码或素材代表你有权提供相应内容，且同意针对本仓库按现行相关许可发布贡献。**如果未来需要将含外部贡献的代码单独商业授权，仍必须取得相关权利人的授权**；提交 PR 不自动转移版权。
 
 ## 反馈问题
 
