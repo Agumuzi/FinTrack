@@ -177,7 +177,7 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in self?.queued = false; self?.sizeColumns() }
         }
         private func columnResized(_ notification: Notification) {
-            guard !applying, let table else { return }
+            guard !applying,dragColumn != nil,let table else {return}
             let event = NSApp.currentEvent?.type
             guard event == .leftMouseDragged || event == .leftMouseUp else { return }
             userWidths = table.tableColumns.map(\.width)
@@ -205,7 +205,7 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             var preferred: [CGFloat] = parent.compact ? [parent.dateWidth, parent.categoryWidth, parent.amountWidth] : [parent.dateWidth, parent.categoryWidth, 240, max(48, MacUI.fontTier.bodySize*2.1+24), parent.amountWidth]
             var minimum: [CGFloat] = parent.compact ? [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), parent.amountWidth] : [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), 80, max(48,MacUI.fontTier.bodySize*2.1+24),parent.amountWidth]
             if parent.selecting { preferred.insert(28,at:0); minimum.insert(28,at:0) }
-            if let candidate = userWidths ?? saved, candidate.count == expected { preferred = candidate }
+            if let candidate = (userWidths?.count == expected ? userWidths:nil) ?? saved,candidate.count == expected {preferred=candidate}
             else {
                 let flexible = parent.compact ? (parent.selecting ? 2 : 1) : (parent.selecting ? 3 : 2)
                 preferred[flexible] = max(minimum[flexible], available - preferred.enumerated().filter { $0.offset != flexible }.reduce(0) { $0 + $1.element })
@@ -219,7 +219,9 @@ struct MacRecordsTableSizing: NSViewRepresentable {
                 if abs(column.width-width) > 0.5 { column.width = width }
             }
             if abs(table.frame.width-viewport) > 0.5 { table.setFrameSize(NSSize(width:viewport,height:table.frame.height)) }
-            if userWidths != nil { userWidths = widths; MacPreferences.defaults.set(widths.map(Double.init),forKey:key) }
+            // Fit temporary viewports without replacing the user's saved layout.
+            // Opening a detail pane is not a column-resize gesture.
+            if lockedColumn != nil {userWidths=widths;MacPreferences.defaults.set(widths.map(Double.init),forKey:key)}
             lockedColumn = nil
             lastConfiguration = configuration; appliedWidths = widths
             scheduleHeaderAlignment()
