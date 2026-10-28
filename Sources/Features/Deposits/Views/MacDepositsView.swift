@@ -238,9 +238,7 @@ struct MacDepositsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     detailHeader(deposit)
-                    if !MacFinanceNotes.visible(deposit.note).isEmpty {
-                        summaryCard(deposit)
-                    } else { summaryCard(deposit) }
+                    summaryCard(deposit)
                     timingCard(deposit)
                     MacFinanceCardRow(minimumWidth: 560) {
                         settlementCard(deposit, audit: audit)
@@ -317,7 +315,7 @@ struct MacDepositsView: View {
         let timing = MacDepositsData.timing(deposit, now: now)
         return card {
             ViewThatFits(in: .horizontal) {
-                HStack { metric("开始日期", MacDateDisplay.string(deposit.startDate)); Spacer(); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }.fixedSize(horizontal: true, vertical: false)
+                HStack(spacing:0) {metric("开始日期",MacDateDisplay.string(deposit.startDate)).fixedSize(horizontal:true,vertical:false);Spacer(minLength:24);metric("到期日期",MacDateDisplay.string(deposit.maturityDate)).fixedSize(horizontal:true,vertical:false)}
                 VStack(alignment: .leading, spacing: 10) { metric("开始日期", MacDateDisplay.string(deposit.startDate)); metric("到期日期", MacDateDisplay.string(deposit.maturityDate)) }
             }
             ProgressView(value: timing.progress).tint(MacUI.accent)

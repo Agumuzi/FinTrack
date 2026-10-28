@@ -80,6 +80,10 @@ struct MacCategoryBadge: View {
 }
 
 struct MacCategoriesSettingsView: View {
+    @AppStorage(MacCustomTypography.bodyKey,store:MacPreferences.defaults) private var bodyPoints=16
+    @AppStorage(MacCustomTypography.captionKey,store:MacPreferences.defaults) private var captionPoints=12
+    @AppStorage(MacInterfaceFonts.preferenceKey,store:MacPreferences.defaults) private var interfaceFont=""
+
     var wide: Bool
     @Environment(\.modelContext) private var context
     @Query private var categories: [Category]
@@ -129,6 +133,13 @@ struct MacCategoriesSettingsView: View {
     }
     var body: some View {
         let rows = self.rows
+        let _=bodyPoints;let _=captionPoints;let _=interfaceFont
+        let captionFont=MacInterfaceFonts.font(size:MacUI.fontTier.captionSize)
+        let countFont=MacInterfaceFonts.font(size:MacUI.fontTier.bodySize,monospacedDigits:true)
+        let iconWidth=max(40,ceil(("图标" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
+        let largestCount=rows.map {row in ((usageSnapshot.map{String($0.count(for:row))} ?? "—") as NSString).size(withAttributes:[.font:countFont]).width}.max() ?? 0
+        let referenceWidth=max(70,max(ceil(("引用" as NSString).size(withAttributes:[.font:captionFont]).width)+12,ceil(largestCount)+12))
+        let actionWidth=max(76,ceil(("操作" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
             HStack(spacing: MacUI.space(0)) {
                 categoryTab("支出分类", value: "Expense", icon: "arrow.down", color: .red)
@@ -137,21 +148,22 @@ struct MacCategoriesSettingsView: View {
             HStack { Text("排序").foregroundStyle(.secondary); MacSettingsMenu(selection: $sorting, options: ["手动顺序", "名称 A–Z", "名称 Z–A", "引用最多", "引用最少"].map { ($0, $0) }).frame(width: 180); Spacer() }
             MacSettingsColumns(wide: wide) {
                 MacSettingsCard(title: type == "Expense" ? "支出分类" : "收入分类", icon: "tag", headerColor: .red, action: AnyView(Button("添加分类", systemImage: "plus") { select(nil) }.accessibilityIdentifier("settingsCategoryAdd")), compactHeader: true) {
-                    HStack { Text("图标").frame(width: MacUI.space(40)); Text("名称"); Spacer(); Text("引用数量").frame(width: MacUI.space(70)); Text("操作").frame(width: MacUI.space(76)) }.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
+                    HStack(spacing:13) {Text("图标").fixedSize().frame(width:iconWidth);Text("名称").frame(maxWidth:.infinity,alignment:.leading);Text("引用").accessibilityLabel("引用数量").fixedSize().frame(width:referenceWidth,alignment:.trailing);Text("操作").fixedSize().frame(width:actionWidth)}.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
                     VStack(spacing: MacUI.space(0)) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                            HStack(spacing: MacUI.space(9)) {
+                            HStack(spacing:13) {
                                 Button { select(row) } label: {
-                                    HStack(spacing: MacUI.space(13)) {
-                                        MacCategoryBadge(name: row.name, type: row.type, size: 34, suppliedStyle: MacCategoryCatalog.style(name: row.name, type: row.type, in: styles))
-                                        Text(MacOverviewStyle.category(row.name)).appFont(.body, weight: .medium, design: .default)
-                                        Spacer(minLength: 0)
-                                        Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(55))
+                                    HStack(spacing:13) {
+                                        MacCategoryBadge(name: row.name, type: row.type, size: 34, suppliedStyle: MacCategoryCatalog.style(name: row.name, type: row.type, in: styles)).frame(width:iconWidth)
+                                        Text(MacOverviewStyle.category(row.name)).appFont(.body, weight: .medium, design: .default).lineLimit(2).frame(maxWidth:.infinity,alignment:.leading)
+                                        Text(usageSnapshot.map { String($0.count(for: row)) } ?? "—").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary).monospacedDigit().fixedSize().frame(width:referenceWidth,alignment:.trailing)
                                     }.contentShape(Rectangle())
                                 }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCategoryRow-" + row.name)
+                                HStack(spacing:9) {
                                 Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                 Menu { Button("编辑") { select(row) }; Button("上移") { move(row, by: -1) }.disabled(index == 0); Button("下移") { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(24)) }.menuStyle(.borderlessButton).fixedSize()
                                     .accessibilityLabel("分类操作：" + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
+                                }.frame(width:actionWidth,alignment:.trailing)
                             }.appPadding(.horizontal, 9).appMinHeight(51).background(selectedID == row.id ? MacSettingsVisual.accent.opacity(0.04) : .clear)
                             Divider()
                         }

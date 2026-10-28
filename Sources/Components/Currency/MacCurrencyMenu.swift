@@ -5,6 +5,8 @@ import AppKit
 enum MacCurrencyMenuStyle {
     static let width: CGFloat = 164
     static let height: CGFloat = 44
+    static var fieldWidth:CGFloat {width+max(0,MacUI.fontTier.bodySize-16)*5}
+    static var fieldHeight:CGFloat {MacInterfaceFonts.controlHeight(height)}
 }
 
 enum MacCurrencyGlyph {
@@ -195,13 +197,13 @@ struct MacEditableCurrencyMenu: View {
                     Button { custom = false } label: { Image(systemName:"chevron.down").frame(width:24,height:32) }
                         .fixedSize()
                         .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("返回货币选择").accessibilityIdentifier(identifier + "Back")
-                }.padding(.horizontal,12).frame(height:MacCurrencyMenuStyle.height).modifier(MacEntryFieldBorder())
+                }.padding(.horizontal,12).frame(height:MacCurrencyMenuStyle.fieldHeight).modifier(MacEntryFieldBorder())
             } else {
                 MacCurrencyMenu(selection:Binding(get:{currency},set:{ value in
                     if value == "__other__" { custom = true } else { currency = value }
                 }),codes:Array(Set(codes + [currency])).sorted(),identifier:identifier,suffixOptions:[("其他…","__other__")])
             }
-        }.frame(width:MacCurrencyMenuStyle.width,height:MacCurrencyMenuStyle.height)
+        }.frame(width:MacCurrencyMenuStyle.fieldWidth,height:MacCurrencyMenuStyle.fieldHeight)
             .onChange(of:custom) { _, value in if value { DispatchQueue.main.async { focused = true } } }
     }
 }

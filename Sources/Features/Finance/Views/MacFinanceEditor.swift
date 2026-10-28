@@ -110,12 +110,11 @@ struct MacFinanceEditor: View {
                         }.frame(height: 36)
                     }
                 }
-                HStack(alignment: .top, spacing: 14) {
-                    MacFinanceNumberField(title: panel == .goals ? "目标金额" : panel == .loans ? "总金额" : "本金 / 金额", text: $amountText, identifier: "financeEntryAmount")
-                    if panel != .goals {
-                        MacEntryField(title: "货币") {
-                            MacEditableCurrencyMenu(currency: $originalCurrency, custom: $customCurrency, codes: currencyCodes, identifier: "financeCurrencyMenu", textIdentifier: "financeEntryCurrency")
-                        }.frame(width: MacCurrencyMenuStyle.width)
+                if panel == .goals { amountField }
+                else {
+                    ViewThatFits(in:.horizontal) {
+                        HStack(alignment:.top,spacing:14) {amountField.frame(minWidth:MacNumberInput.minimumEditingWidth());currencyField}
+                        VStack(alignment:.leading,spacing:14) {amountField;currencyField}
                     }
                 }
                 if panel != .goals, originalCurrency.uppercased() != currency {
@@ -228,6 +227,13 @@ struct MacFinanceEditor: View {
         .onChange(of: maturity) { syncDepositRate() }
         .onChange(of: depositMode) { syncDepositRate() }
         .onChange(of: amountText) { syncDepositRate() }
+    }
+
+    private var amountField:some View {
+        MacFinanceNumberField(title:panel == .goals ? "目标金额":panel == .loans ? "总金额":"本金 / 金额",text:$amountText,identifier:"financeEntryAmount")
+    }
+    private var currencyField:some View {
+        MacEntryField(title:"货币") {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyCodes,identifier:"financeCurrencyMenu",textIdentifier:"financeEntryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
     }
 
     private func save() {

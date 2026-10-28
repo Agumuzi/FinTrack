@@ -34,7 +34,7 @@ struct MacQuickEntryView: View {
             ScrollView {
                 VStack(alignment:.leading,spacing:MacUI.space(16)) {
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .top, spacing: 14) { amountField.frame(minWidth: 140); currencyField }
+                        HStack(alignment: .top, spacing: 14) { amountField.frame(minWidth:MacNumberInput.minimumEditingWidth()); currencyField }
                         VStack(alignment: .leading, spacing: 16) { amountField; currencyField }
                     }
                     MacEntryField(title: "分类") {
@@ -127,7 +127,7 @@ struct MacQuickEntryView: View {
     private var currencyField: some View {
         MacEntryField(title: "货币") {
             MacEditableCurrencyMenu(currency:$draft.currency,custom:$draft.customCurrencyEntry,codes:currencyChoices,identifier:"menuCurrency",textIdentifier:"menuCurrencyText")
-        }.frame(width:MacCurrencyMenuStyle.width + max(0,MacUI.fontTier.bodySize-16)*5)
+        }.frame(width:MacCurrencyMenuStyle.fieldWidth)
     }
     private var keepAdding: some View {
         Toggle("保存后继续添加",isOn:$draft.continueAdding).toggleStyle(.checkbox).appFont(.body).accessibilityIdentifier("menuKeepAdding")

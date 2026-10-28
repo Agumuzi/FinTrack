@@ -4,6 +4,7 @@ import SwiftData
 
 /// The binding stays ungrouped; native editing displays separators without rounding.
 enum MacNumberInput {
+    static func minimumEditingWidth(large:Bool = false)->CGFloat {max(160,MacUI.fontTier.bodySize*(large ? 10:8))}
     static func raw(_ display: String, grouping: String) -> String {
         let separator = grouping == "space" ? " " : ","
         guard display.contains(separator), grouping != "none" else { return display }
