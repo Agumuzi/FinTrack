@@ -139,7 +139,7 @@ enum MacRecoveryJournal {
     }
     @discardableResult static func recoverIfNeeded(in context: ModelContext) throws -> Bool {
         guard let file = location(in: context), FileManager.default.fileExists(atPath: file.path) else { return false }
-        let data = try Data(contentsOf: file)
+        let data = try MacDataIO.read(file,limit:200*1024*1024)
         let record = try JSONDecoder().decode(Record.self, from: data)
         guard record.version == 1, record.store == file.deletingPathExtension().standardizedFileURL.path,
               record.sha256 == MacNativeBackup.digest(record.snapshot + record.preferences) else {

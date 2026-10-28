@@ -4,9 +4,14 @@ import Combine
 nonisolated enum MacDataIO {
     static func read(_ url: URL, limit: Int = 100*1024*1024) throws -> Data {
         let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
-        guard let size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize,size<=limit else{throw MacSettingsFailure.invalid("文件超过允许的大小")}
-        let data=try Data(contentsOf:url)
-        guard data.count<=limit else{throw MacSettingsFailure.invalid("文件在读取时发生变化或超过大小限制")}
+        let properties=try url.resourceValues(forKeys:[.fileSizeKey,.isRegularFileKey])
+        guard limit>0,limit<Int.max,properties.isRegularFile == true,let size=properties.fileSize,size<=limit else{throw MacSettingsFailure.invalid("文件类型无效或超过允许的大小")}
+        let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+        var data=Data()
+        while let chunk=try handle.read(upToCount:min(64*1024,limit-data.count+1)),!chunk.isEmpty {
+            guard chunk.count<=limit-data.count else{throw MacSettingsFailure.invalid("文件在读取时发生变化或超过大小限制")}
+            data.append(chunk)
+        }
         return data
     }
     static func write(_ data: Data, to url: URL) throws {
