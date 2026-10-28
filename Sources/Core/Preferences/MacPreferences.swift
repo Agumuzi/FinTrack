@@ -8,7 +8,7 @@ enum MacPreferences {
         #if FINTRACK_MENU_PROTOTYPE
         return true
         #else
-        return e["FINTRACK_V12_UI_TEST"] == "1" || e["FINTRACK_V13_TEST_STORE_PATH"] != nil
+        return e["FINTRACK_V12_UI_TEST"] == "1" || e["FINTRACK_V13_TEST_STORE_PATH"] != nil || MacTestStore.requiresExplicitIsolation(bundleURL:Bundle.main.bundleURL)
         #endif
     }()
 

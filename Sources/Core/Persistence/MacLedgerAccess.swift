@@ -35,6 +35,10 @@ final class MacLedgerAccess: ObservableObject {
         if MacPreferences.isTesting && env["FINTRACK_FX_ONLY"] == "1" && !createIfMissing { state = .unconfigured; return }
         let memory = env["FINTRACK_V12_UI_TEST"] == "1"
         let testPath = env["FINTRACK_V13_TEST_STORE_PATH"]
+        if !memory,testPath == nil,MacTestStore.requiresExplicitIsolation(bundleURL:Bundle.main.bundleURL) {
+            state = .failed("隔离验证副本缺少账本参数，已停止打开。请携带有效隔离路径重新启动；未打开个人账本。")
+            return
+        }
         let url: URL?
         if let testPath {
             guard MacTestStore.isIsolated(testPath) else { state = .failed("Invalid isolated test store. No personal ledger was opened."); return }

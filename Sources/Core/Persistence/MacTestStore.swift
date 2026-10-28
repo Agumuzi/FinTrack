@@ -2,6 +2,13 @@ import Foundation
 import Darwin
 
 enum MacTestStore {
+    /// Build outputs and explicitly named validation copies never fall back to
+    /// the personal ledger when a launcher drops their environment parameters.
+    static func requiresExplicitIsolation(bundleURL:URL)->Bool {
+        let path=bundleURL.standardizedFileURL
+        return path.pathComponents.contains(".build") || path.deletingLastPathComponent().lastPathComponent.hasPrefix("FinTrack-V13-")
+    }
+
     static func isIsolated(_ path: String) -> Bool {
         let candidate = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
         guard candidate.pathExtension == "sqlite",
