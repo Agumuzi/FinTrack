@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 nonisolated enum MacDataIO {
-    static func read(_ url: URL, limit: Int = 100*1024*1024) throws -> Data {
+    static func read(_ url: URL, limit: Int = MacBackupLimits.nativeBytes) throws -> Data {
         let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
         let properties=try url.resourceValues(forKeys:[.fileSizeKey,.isRegularFileKey])
         guard limit>0,limit<Int.max,properties.isRegularFile == true,let size=properties.fileSize,size<=limit else{throw MacSettingsFailure.invalid("文件类型无效或超过允许的大小")}

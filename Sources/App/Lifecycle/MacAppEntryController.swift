@@ -188,6 +188,14 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
                 }
                 guard MacApplicationRuntime.shared.mainWindow?.isVisible == true else { return }
             }
+            // A visible failure gate is not a healthy replacement. Keep the
+            // previous app until recovery and ledger initialization complete.
+            for _ in 0..<1000 {
+                if MacLedgerAccess.shared.canConfirmUpdateLaunch { break }
+                if case .failed = MacLedgerAccess.shared.state { return }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            guard MacLedgerAccess.shared.canConfirmUpdateLaunch else { return }
             Task.detached(priority: .utility) { MacUpdateInstallation.confirmLaunch() }
             #if FINTRACK_LOCAL_VALIDATION
             MacUpdateService.shared.loadInstallationFixture()
