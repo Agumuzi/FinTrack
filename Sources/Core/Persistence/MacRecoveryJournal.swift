@@ -82,7 +82,9 @@ enum MacRecoveryJournal {
         if let file {
             let record = Record(version: 1, store: file.deletingPathExtension().standardizedFileURL.path,
                                 snapshot: snapshot, preferences: settings, sha256: MacNativeBackup.digest(snapshot + settings))
-            let data = try JSONEncoder().encode(record)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            let data = try encoder.encode(record)
             guard data.count <= MacBackupLimits.journalBytes else { throw MacSettingsFailure.invalid("恢复记录超过安全上限，未更改账本。") }
             let free = try file.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
             if let free, free < Int64(data.count) * 2 + 64 * 1024 * 1024 { throw MacSettingsFailure.invalid("磁盘可用空间不足以保留恢复记录，未更改账本。") }
