@@ -14,6 +14,9 @@ final class MacLedgerAccess: ObservableObject {
     private var opening = false
     private(set) var containerOpenCount = 0
     var container: ModelContainer? { if case .ready(let c, _) = state { return c }; return nil }
+    var canConfirmUpdateLaunch: Bool {
+        switch state { case .ready, .unconfigured: true; case .notLoaded, .failed: false }
+    }
 
     func retry() {
         guard case .failed = state else { return }
@@ -82,7 +85,8 @@ final class MacLedgerAccess: ObservableObject {
                     try context.save()
                 }
             }
-            try MacLoanSchedule.pinExisting(in: container.mainContext)
+            // Legacy loans lack a contract timezone. Expose their explicit
+            // date review without changing the contract during ledger open.
             // Once per container open; imports and native restores repair inside their own transaction.
             try MacDataManagement.reconcileCategories(in: container.mainContext)
             state = .ready(container, lease)

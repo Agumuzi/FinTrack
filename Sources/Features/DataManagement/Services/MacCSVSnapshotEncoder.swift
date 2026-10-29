@@ -5,7 +5,9 @@ nonisolated enum MacCSVSnapshotEncoder {
         let transactions=p.transaction,recurringRules=p.recurringTransaction,deposits=p.depositRecord,loans=p.loanRule
         let goals=p.goal,profiles=p.financialProfile,categories=p.category,accounts=p.account
         let iso=ISO8601DateFormatter()
-        func isoDateString(from date: Date?) -> String {date.map{iso.string(from:$0)} ?? ""}
+        // Receipt and calendar identities use Int64 epoch seconds (toward zero).
+        // Match that convention for pre-1970 fractional dates as well.
+        func isoDateString(from date: Date?) -> String {date.map{iso.string(from:Date(timeIntervalSince1970:$0.timeIntervalSince1970.rounded(.towardZero)))} ?? ""}
         func escapeCSV(_ value:String) -> String {"\""+value.replacingOccurrences(of:"\"",with:"\"\"")+"\""}
         func sectionHeader(_ title:String) -> String {"\"Section\",\""+title+"\""}
         var sections: [String] = []

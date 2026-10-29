@@ -51,7 +51,7 @@ enum MacCSV {
     }
 
     static func exportAsync(in context: ModelContext, kind: MacCSVKind? = nil, transactionRange: DateInterval? = nil) async throws -> String {
-        var snapshot=try MacNativeBackup.capture(in:context)
+        var snapshot=try MacNativeBackup.capture(in:context,csvKind:kind)
         let section=kind?.sectionTitle
         if let kind {
             snapshot.transaction = kind == .transactions ? snapshot.transaction.filter{$0.deletedAt == nil && (transactionRange == nil || ($0.date >= transactionRange!.start && $0.date < transactionRange!.end))} : []

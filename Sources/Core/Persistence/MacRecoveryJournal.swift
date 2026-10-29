@@ -29,7 +29,9 @@ enum MacRecoveryJournal {
     private static func preferences() throws -> Data {
         var values: [String: Any] = [:]
         for key in preferenceKeys { if let value = MacPreferences.defaults.object(forKey: key) { values[key] = value } }
-        return try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
+        let data = try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
+        guard data.count <= MacBackupLimits.preferencesBytes else { throw MacSettingsFailure.invalid("设置快照超过安全上限，未更改账本。") }
+        return data
     }
     private static func restorePreferences(_ data: Data) throws {
         guard let values = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
@@ -80,7 +82,11 @@ enum MacRecoveryJournal {
         if let file {
             let record = Record(version: 1, store: file.deletingPathExtension().standardizedFileURL.path,
                                 snapshot: snapshot, preferences: settings, sha256: MacNativeBackup.digest(snapshot + settings))
-            try JSONEncoder().encode(record).write(to: file, options: .atomic)
+            let data = try JSONEncoder().encode(record)
+            guard data.count <= MacBackupLimits.journalBytes else { throw MacSettingsFailure.invalid("恢复记录超过安全上限，未更改账本。") }
+            let free = try file.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
+            if let free, free < Int64(data.count) * 2 + 64 * 1024 * 1024 { throw MacSettingsFailure.invalid("磁盘可用空间不足以保留恢复记录，未更改账本。") }
+            try data.write(to: file, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
             try synchronize(file)
         }
@@ -139,7 +145,7 @@ enum MacRecoveryJournal {
     }
     @discardableResult static func recoverIfNeeded(in context: ModelContext) throws -> Bool {
         guard let file = location(in: context), FileManager.default.fileExists(atPath: file.path) else { return false }
-        let data = try MacDataIO.read(file,limit:200*1024*1024)
+        let data = try MacDataIO.read(file,limit:MacBackupLimits.journalBytes)
         let record = try JSONDecoder().decode(Record.self, from: data)
         guard record.version == 1, record.store == file.deletingPathExtension().standardizedFileURL.path,
               record.sha256 == MacNativeBackup.digest(record.snapshot + record.preferences) else {

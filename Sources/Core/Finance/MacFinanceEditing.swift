@@ -94,20 +94,24 @@ enum MacFinanceEditing {
         switch target {
         case .deposit(let r):
             guard start < maturity else { throw MacFinanceRecords.Failure.invalidDateRange }
-            let terms = try MacDepositTerms.calculate(principal: amount, annualRate: annualRate, start: start, maturity: maturity, mode: depositMode, expectedOverride: expectedInterestOverride)
+            // Compare submitted inputs before deriving or rounding anything.
+            // Unchanged legacy financial values are authoritative, including
+            // independent principal/interest FX snapshots and posted history.
             let changed = r.originalPrincipal != amount || r.originalCurrency != snapshot.originalCurrency ||
-                (!terms.manuallyEdited && r.annualInterestRate != annualRate) || (terms.manuallyEdited && r.expectedInterest != terms.expectedInterest) || r.isInterestManuallyEdited != terms.manuallyEdited || r.startDate != start || r.maturityDate != maturity || r.typedInterestSettlementMode != depositMode ||
+                r.annualInterestRate != annualRate ||
+                (expectedInterestOverride != nil && r.expectedInterest != expectedInterestOverride) ||
+                r.isInterestManuallyEdited != (expectedInterestOverride != nil) ||
+                r.startDate != start || r.maturityDate != maturity || r.typedInterestSettlementMode != depositMode ||
                 r.principalExchangeRateToBase != snapshot.rate || (interestRate != nil && r.interestExchangeRateToBase != interestRate)
             if changed {
                 guard !r.hasCreditedInterest, r.lastInterestPayoutDate == nil, r.sourceDepositID == nil,
                       !rows.contains(where: { ($0.note ?? "").contains("[FTDep:\(r.id.uuidString):") })
                 else { throw Failure.paidHistory }
             }
-            let interest = terms.expectedInterest
-            let expected = try MacCurrency.snapshot(amount: interest, original: source, base: book, rate: interestRate)
-            // Compute everything before touching managed models.
-            r.bankName = name
             if changed {
+                let terms = try MacDepositTerms.calculate(principal: amount, annualRate: annualRate, start: start, maturity: maturity, mode: depositMode, expectedOverride: expectedInterestOverride)
+                let interest = terms.expectedInterest
+                let expected = try MacCurrency.snapshot(amount: interest, original: source, base: book, rate: interestRate)
                 r.principal = amount; r.originalPrincipal = amount; r.originalCurrency = snapshot.originalCurrency
                 r.basePrincipal = snapshot.baseAmount; r.principalExchangeRateToBase = snapshot.rate
                 r.currency = snapshot.originalCurrency; r.baseCurrencyCode = book
@@ -118,6 +122,7 @@ enum MacFinanceEditing {
                 r.nextInterestPayoutDate = depositMode == .monthly
                     ? min(Calendar.current.date(byAdding: .month, value: 1, to: start)!, maturity) : nil
             }
+            r.bankName = name
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
             if let notificationsEnabled { r.notificationsEnabled = notificationsEnabled }
             if let reminder { r.reminderDaysBefore = reminder.daysBefore; r.reminderHour = reminder.hour; r.reminderMinute = reminder.minute }
@@ -139,7 +144,7 @@ enum MacFinanceEditing {
             let candidate = LoanRule(title: name, principal: amount, annualRate: annualRate, termMonths: months,
                 methodRawValue: method.rawValue, currency: snapshot.originalCurrency, startDate: start,
                 category: category, note: MacFinanceNotes.replacing(r.note, with: userNote ?? MacFinanceNotes.visible(r.note)) ?? "")
-            if changed { try MacLoanSchedule.pin(candidate) }
+            if changed { try MacLoanSchedule.pin(candidate, replacingExisting: true) }
             r.title = name
             r.category = category
             if let userNote { r.note = MacFinanceNotes.replacing(r.note, with: userNote) ?? "" }
