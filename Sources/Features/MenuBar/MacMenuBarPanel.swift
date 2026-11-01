@@ -15,13 +15,9 @@ struct MacMenuBarPanel: View {
     @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     static func logicalSize(available: CGSize) -> CGSize {
         let factor = MacInterfaceZoom.factor
-        let runtime=MacApplicationRuntime.shared,monitor=MacFXApplication.shared.monitor
-        let body=MacUI.fontTier.bodySize
-        let content:CGFloat
-        if runtime.session.quickSettings || runtime.session.page == .quickEntry {content=720}
-        else if runtime.session.page == .converter {content=max(320,150+CGFloat(monitor.configuration.converterCurrencies.count)*max(78,body*3.6))}
-        else {content=max(320,160+CGFloat(monitor.configuration.watchedPairs.count)*max(100,body*4)+(MacFXApplication.shared.query.expandedPair == nil ? 0:260))}
-        let requested=CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? Double(min(720,content)))
+        // Keep one viewport while switching pages or expanding rate history.
+        // Each page scrolls its content inside the shared screen-bounded panel.
+        let requested=CGFloat(ProcessInfo.processInfo.environment["FINTRACK_MENU_TEST_HEIGHT"].flatMap(Double.init) ?? 720)
         return CGSize(width: min(408 + max(0, MacUI.fontTier.bodySize - 16) * 8, max(1,(available.width - 32) / factor)),
                       height: min(requested, max(1,(available.height - 32) / factor)))
     }
