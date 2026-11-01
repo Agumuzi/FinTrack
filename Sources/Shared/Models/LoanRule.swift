@@ -182,11 +182,11 @@ struct LoanAmortizationEngine {
         annualRate: Double,
         termMonths: Int,
         method: RepaymentMethod,
-        firstPaymentDate: Date
+        firstPaymentDate: Date,
+        calendar: Calendar = .current
     ) -> [Payment] {
         guard principal.isFinite,principal>0,annualRate.isFinite,(1...600).contains(termMonths),firstPaymentDate.timeIntervalSince1970.isFinite,abs(firstPaymentDate.timeIntervalSince1970)<253402300800 else{return []}
 
-        let calendar = Calendar.current
         let monthlyRate = max(annualRate, 0) / 100 / 12
         var balance = principal
         var payments: [Payment] = []

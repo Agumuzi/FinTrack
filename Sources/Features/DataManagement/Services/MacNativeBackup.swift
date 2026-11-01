@@ -546,7 +546,7 @@ enum MacNativeBackup {
 
         var isValid: Bool {
             !name.isEmpty && name.count <= 255 && name == URL(fileURLWithPath: name).lastPathComponent &&
-            !name.contains("\\") && size >= 0 && size <= 100 * 1024 * 1024 &&
+            !name.contains("\\") && size >= 0 && size <= MacBackupLimits.nativeBytes &&
             sha256.range(of: #"^[a-f0-9]{64}$"#, options: .regularExpression) != nil
         }
     }
@@ -589,7 +589,7 @@ enum MacNativeBackup {
         }
         return values
     }
-    static func capture(in context: ModelContext, logos: [String: Data] = [:]) throws -> Payload {
+    static func capture(in context: ModelContext, logos: [String: Data] = [:], csvKind: MacCSVKind? = nil) throws -> Payload {
         guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
         let updateURL = MacPreferences.defaults.string(forKey: "v2_update_url") ?? ""
         let updateKey = MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? ""
@@ -599,20 +599,23 @@ enum MacNativeBackup {
         return Payload(createdAt: Date(), applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
             settings: try MacSettingsStore.snapshot(), bankLogos: logos,
 
-            account: try context.fetch(FetchDescriptor<Account>()).map(MacBackupAccount.init),
-            transaction: try context.fetch(FetchDescriptor<Transaction>()).map(MacBackupTransaction.init),
-            category: try context.fetch(FetchDescriptor<Category>()).map(MacBackupCategory.init),
-            goal: try context.fetch(FetchDescriptor<Goal>()).map(MacBackupGoal.init),
-            financialProfile: try context.fetch(FetchDescriptor<FinancialProfile>()).map(MacBackupFinancialProfile.init),
-            recurringTransaction: try context.fetch(FetchDescriptor<RecurringTransaction>()).map(MacBackupRecurringTransaction.init),
-            depositRecord: try context.fetch(FetchDescriptor<DepositRecord>()).map(MacBackupDepositRecord.init),
-            loanRule: try context.fetch(FetchDescriptor<LoanRule>()).map(MacBackupLoanRule.init),
+            account: csvKind == nil ? try context.fetch(FetchDescriptor<Account>()).map(MacBackupAccount.init) : [],
+            transaction: csvKind == nil || csvKind == .transactions ? try context.fetch(FetchDescriptor<Transaction>()).map(MacBackupTransaction.init) : [],
+            category: csvKind == nil ? try context.fetch(FetchDescriptor<Category>()).map(MacBackupCategory.init) : [],
+            goal: csvKind == nil ? try context.fetch(FetchDescriptor<Goal>()).map(MacBackupGoal.init) : [],
+            financialProfile: csvKind == nil ? try context.fetch(FetchDescriptor<FinancialProfile>()).map(MacBackupFinancialProfile.init) : [],
+            recurringTransaction: csvKind == nil || csvKind == .recurring ? try context.fetch(FetchDescriptor<RecurringTransaction>()).map(MacBackupRecurringTransaction.init) : [],
+            depositRecord: csvKind == nil || csvKind == .deposits ? try context.fetch(FetchDescriptor<DepositRecord>()).map(MacBackupDepositRecord.init) : [],
+            loanRule: csvKind == nil || csvKind == .loans ? try context.fetch(FetchDescriptor<LoanRule>()).map(MacBackupLoanRule.init) : [],
             updateTrust: updateTrust, backupHistory: backupHistory)
 
     }
     nonisolated static func encode(_ payload: Payload) throws -> Data {
+        guard payload.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid("备份记录数量超出限制") }
         let bytes = try JSONEncoder().encode(payload)
-        return try JSONEncoder().encode(Envelope(sha256: digest(bytes), payload: bytes))
+        let data = try JSONEncoder().encode(Envelope(sha256: digest(bytes), payload: bytes))
+        try MacBackupLimits.checkNativeSize(data.count)
+        return data
     }
     static func createAsync(in context: ModelContext) async throws -> Data {
         let snapshot = try capture(in: context), directory = MacBankLogos.directory()
@@ -622,7 +625,7 @@ enum MacNativeBackup {
         }.value
     }
     nonisolated private static func decode(_ data: Data) throws -> Payload {
-        guard data.count <= 100*1024*1024 else {throw MacSettingsFailure.invalid("备份文件超过100 MB")}
+        try MacBackupLimits.checkNativeSize(data.count)
         let envelope=try JSONDecoder().decode(Envelope.self,from:data)
         guard envelope.format == "FinTrack.NativeBackup",envelope.version == 1,digest(envelope.payload) == envelope.sha256 else {throw MacSettingsFailure.invalid("备份格式、版本或完整性检查未通过")}
         return try JSONDecoder().decode(Payload.self,from:envelope.payload)

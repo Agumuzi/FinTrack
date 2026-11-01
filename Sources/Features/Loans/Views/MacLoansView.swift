@@ -24,6 +24,7 @@ struct MacLoansView: View {
     @State private var editing: MacFinanceRecord?
     @State private var reviewing: MacFinanceRecord?
     @State private var schedule: LoanRule?
+    @State private var calendarReview: LoanRule?
     @State private var legacy: MacLegacyLoanAudit.Report?
     @State private var receipt: Transaction?
     @State private var removal: LoanRule?
@@ -198,6 +199,7 @@ struct MacLoansView: View {
             .sheet(item: $schedule) { item in MacLoansScheduleView(loan: item, audit: MacLoansData.audit(item, transactions: transactions, rules: rules)) }
             .sheet(item: $legacy) { legacyReport($0) }
             .sheet(item: $receipt) { receiptDetail($0) }
+            .sheet(item: $calendarReview) { MacLoanCalendarReviewView(loan: $0) }
             .sheet(item: $confirmation) { paymentConfirmation($0) }
             .sheet(item: $removal) { removalConfirmation($0) }
     }
@@ -248,6 +250,10 @@ struct MacLoansView: View {
                     }
                 }
                 nextCard(loan, audit: audit)
+                if MacLoanSchedule.requiresReview(loan) {
+                    Button("核对并固定还款日期…") { calendarReview = loan }
+                        .accessibilityIdentifier("loansCalendarReview").disabled(bookCurrency == nil)
+                }
                 card {
                     HStack { Text("计划本息构成").appFont(.section, weight: .semibold); Spacer(); Text(loan.currency).appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                     Text(audit.reliable ? "展示接下来最多 12 期计划；计划不代表实际付款。" : "展示前 12 期计划；实际已还未知。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)

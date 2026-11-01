@@ -293,7 +293,7 @@ struct CSVExporter {
     }
 
     private static func isoDateString(from date: Date) -> String {
-        iso8601Formatter.string(from: date)
+        iso8601Formatter.string(from: Date(timeIntervalSince1970: date.timeIntervalSince1970.rounded(.towardZero)))
     }
 
     private static func isoDateString(from date: Date?) -> String {

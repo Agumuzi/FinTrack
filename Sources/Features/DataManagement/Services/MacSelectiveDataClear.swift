@@ -27,7 +27,9 @@ enum MacSelectiveDataClear {
         if kinds.contains(.goals) { result.goals = Set(try context.fetch(FetchDescriptor<Goal>()).filter { $0.deletedAt == nil }.map(\.id)) }
         return result
     }
-    static func apply(_ expected: Preview, kinds: Set<MacClearKind>, generated: Bool, in context: ModelContext) throws {
+    static func apply(_ expected: Preview, kinds: Set<MacClearKind>, generated: Bool, in context: ModelContext,
+                      save: ((ModelContext) throws -> Void)? = nil) throws {
+        try MacRecoveryJournal.assertWritable(in: context)
         guard !MacAutomaticPosting.isRunning, !context.hasChanges else { throw MacSettingsFailure.invalid("请等待入账或当前编辑结束后再清理") }
         guard try preview(kinds, generated: generated, in: context) == expected else { throw MacSettingsFailure.invalid("数据已变化，请重新预览后确认") }
         let now = Date()
@@ -39,7 +41,7 @@ enum MacSelectiveDataClear {
             for row in try context.fetch(FetchDescriptor<LoanRule>()) where expected.loans.contains(row.id) { row.deletedAt = now; row.updatedAt = now }
             for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) where expected.recurring.contains(row.id) { row.deletedAt = now; row.isActive = false; row.updatedAt = now }
             for row in try context.fetch(FetchDescriptor<Goal>()) where expected.goals.contains(row.id) { row.deletedAt = now; row.updatedAt = now }
-            try context.save()
+            if let save { try save(context) } else { try context.save() }
         } catch { context.rollback(); throw error }
     }
 }

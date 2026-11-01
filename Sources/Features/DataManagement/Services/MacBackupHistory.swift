@@ -44,8 +44,8 @@ enum MacBackupHistory {
             guard FileManager.default.fileExists(atPath: path) else { continue }
             let url = URL(fileURLWithPath: path)
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-            guard let size, size <= 100 * 1024 * 1024 else { throw MacSettingsFailure.invalid("备份文件已变化，本次未删除。请重新核对文件。") }
-            let data = try Data(contentsOf: url)
+            guard let size, size <= MacBackupLimits.nativeBytes else { throw MacSettingsFailure.invalid("备份文件已变化，本次未删除。请重新核对文件。") }
+            let data = try MacDataIO.read(url)
             guard data.count == row.size, MacNativeBackup.digest(data) == row.sha256 else {
                 throw MacSettingsFailure.invalid("备份文件已被覆盖或替换，本次未删除。请重新核对文件。")
             }

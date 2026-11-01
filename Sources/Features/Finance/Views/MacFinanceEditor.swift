@@ -364,6 +364,14 @@ struct MacFinanceEditor: View {
     }
 
     private func syncDepositRate() {
+        // Hydrating an existing editor is not a financial edit. In particular,
+        // deriving a displayed rate from a rounded legacy interest value would
+        // turn a name-only save into a different contract (or a paid-history error).
+        if case .deposit(let row) = existing,
+           overridesInterest == row.isInterestManuallyEdited,
+           (try? MacTransactionCRUD.editedAmount(amountText, original: row.originalPrincipal)) == row.originalPrincipal,
+           (try? MacFinanceEditing.unchangedNonnegative(expectedInterestText, original: row.expectedInterest)) == row.expectedInterest,
+           start == row.startDate, maturity == row.maturityDate, depositMode == row.typedInterestSettlementMode { return }
         guard panel == .deposits, overridesInterest,
               let principal = try? MacTransactionCRUD.amount(amountText),
               let interest = try? MacFinancialSettings.nonnegativeAmount(expectedInterestText),

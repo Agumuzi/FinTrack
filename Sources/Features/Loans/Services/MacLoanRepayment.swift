@@ -58,9 +58,10 @@ enum MacLoanRepayment {
         "Loan installment \(payment.index)/\(loan.termMonths) — Principal: \(payment.principal); Interest: \(payment.interest) \(marker(loanID: loan.id, payment: payment))"
     }
 
-    static func resolvedSchedule(_ loan: LoanRule, transactions: [Transaction]) -> [LoanAmortizationEngine.Payment] {
+    static func resolvedSchedule(_ loan: LoanRule, transactions: [Transaction], calendar: Calendar = .current) -> [LoanAmortizationEngine.Payment] {
         let pinned = MacLoanSchedule.dates(loan)
-        let legacy = loan.legacyAmortizationSchedule.enumerated().map { index, p in
+        let legacy = LoanAmortizationEngine.legacySchedule(principal: loan.principal, annualRate: loan.annualRate,
+            termMonths: loan.termMonths, method: loan.method, firstPaymentDate: loan.startDate, calendar: calendar).enumerated().map { index, p in
             LoanAmortizationEngine.Payment(index: p.index, date: pinned?[index] ?? p.date, total: p.total,
                 principal: p.principal, interest: p.interest, remainingBalance: p.remainingBalance)
         }
@@ -153,6 +154,7 @@ enum MacLoanRepayment {
     ) throws -> Preview {
         guard MacLoanSchedule.valid(loan) else { throw PostingError.inconsistentLedger }
         guard isManaged(loan) else { throw PostingError.legacyLoan }
+        guard !MacLoanSchedule.requiresReview(loan) else { throw MacSettingsFailure.invalid("旧贷款未保存合同所在时区，请先在贷款详情核对并固定还款日期。已有收据保持不变。") }
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let deposits = try context.fetch(FetchDescriptor<DepositRecord>())
         let loans = try context.fetch(FetchDescriptor<LoanRule>())
