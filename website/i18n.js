@@ -3,6 +3,9 @@
 (() => {
   'use strict';
   const dictionary = {
+  "November 1, 2026": "2026 年 11 月 1 日",
+  "Reliable backups and preserved financial history": "更可靠的备份与财务历史保留",
+  "Complete backups now use consistent size and recovery protection, while non-financial deposit edits preserve saved values and exchange-rate snapshots. Older loans without fixed dates offer an explicit contract-time-zone review; existing payment schedules and receipts stay intact. Updates wait for the ledger to be ready before confirming launch. The three menu-bar pages keep the same height, and CSV exports read only the selected record type.": "完整备份统一容量与恢复保护，存款的非财务编辑保留已存金额与汇率快照。未固定日期的旧贷款可明确核对合同所在时区；既有还款计划与收据保持不变。更新后等待账本就绪再确认启动。菜单栏三个页面保持等高，CSV导出只读取所选类型。",
   "October 29, 2026": "2026 年 10 月 29 日",
   "Safer financial edits and clearer layouts": "更安全的财务编辑与清晰布局",
   "Financial edits retain saved precision, loan payments remain recognizable across time zones, and interrupted category, currency, or restore operations can recover on the next launch. Drafts stay available during navigation. Larger text and smaller windows keep key amounts, currencies, dates, and actions readable; file processing and key-service waits run in the background. In Dock-only mode, closing a window keeps FinTrack running, while Command-Q quits normally.": "编辑保留已保存的金额精度，跨时区仍可识别贷款付款；分类、本位币或恢复操作被中断后，下次启动可恢复原状态。跨页保留编辑草稿，大字号和窄窗口保持金额、币种、日期与操作清晰，文件处理与密钥服务等待移至后台。仅使用Dock时关窗保留运行，Command-Q仍正常退出。",
@@ -35,7 +38,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.4.7 is available": "FinTrack v1.4.7 现已发布",
+  "FinTrack v1.4.8 is available": "FinTrack v1.4.8 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -167,6 +170,9 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "November 1, 2026": "1 ноября 2026 г.",
+  "Reliable backups and preserved financial history": "Надёжные резервные копии и сохранение финансовой истории",
+  "Complete backups now use consistent size and recovery protection, while non-financial deposit edits preserve saved values and exchange-rate snapshots. Older loans without fixed dates offer an explicit contract-time-zone review; existing payment schedules and receipts stay intact. Updates wait for the ledger to be ready before confirming launch. The three menu-bar pages keep the same height, and CSV exports read only the selected record type.": "Полные резервные копии используют согласованные ограничения размера и защиту восстановления. Изменение нефинансовых данных вклада сохраняет суммы и курсы. Для старых кредитов без закреплённых дат доступна явная проверка часового пояса договора; существующие графики и квитанции сохраняются. Обновление подтверждает запуск после готовности книги. Три страницы меню имеют одинаковую высоту, а экспорт CSV читает только выбранный тип записей.",
   "October 29, 2026": "29 октября 2026 г.",
   "Safer financial edits and clearer layouts": "Безопасное редактирование и удобная компоновка",
   "Financial edits retain saved precision, loan payments remain recognizable across time zones, and interrupted category, currency, or restore operations can recover on the next launch. Drafts stay available during navigation. Larger text and smaller windows keep key amounts, currencies, dates, and actions readable; file processing and key-service waits run in the background. In Dock-only mode, closing a window keeps FinTrack running, while Command-Q quits normally.": "При редактировании сохраняется точность сумм, платежи по кредитам распознаются при смене часового пояса. После прерывания переименования категорий, смены базовой валюты или восстановления исходное состояние возвращается при следующем запуске. Черновики сохраняются при переходе между страницами; крупный текст и небольшие окна лучше отображают суммы, валюты, даты и действия. Обработка файлов и ожидание службы ключей выполняются в фоне. В режиме только Dock закрывается окно, а Command-Q завершает приложение.",
@@ -199,7 +205,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.4.7 is available": "Вышла версия FinTrack v1.4.7",
+  "FinTrack v1.4.8 is available": "Вышла версия FinTrack v1.4.8",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",

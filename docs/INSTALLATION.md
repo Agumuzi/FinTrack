@@ -2,12 +2,12 @@
 
 ## 下载和校验
 
-从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.4.7-macOS.dmg` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.4.8-macOS.dmg` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
 
 在下载目录检查：
 
 ```sh
-shasum -a 256 FinTrack-v1.4.7-macOS.dmg
+shasum -a 256 FinTrack-v1.4.8-macOS.dmg
 ```
 
 将输出的摘要与 `SHA256.txt` 中 DMG 对应行核对。确认一致后打开 DMG，将 `FinTrack` 拖到同一窗口中的“应用程序”文件夹。安装包内只有应用和 Applications 链接。
@@ -53,3 +53,10 @@ Intel 实机、macOS 15 实机、完整 VoiceOver 及长期真实财务场景尚
 ## v1.4.2 / v1.4.3 安装确认页无响应
 
 这两版的安装确认窗口可能阻止旧进程退出。遇到此问题，请退出旧版，下载 v1.4.4 或更高版本 DMG，在 Finder 中将 FinTrack 拖入 Applications 并选择替换。已有账本保存在应用包之外，升级前仍请创建完整备份。v1.4.4 修复了后续更新的退出、重复任务与启动确认流程。
+
+
+## v1.4.8 的备份与旧贷款
+
+v1.4.8 继续读取受支持的旧版完整备份，单个完整备份的安全上限统一为256 MiB。超过100 MiB或含大备份历史元数据的新备份，请使用v1.4.8或更新版本恢复。超限时不会更改账本；请先退出应用，保留整个账本目录及独立偏好和银行图片的离线副本，再安排恢复，勿删除原库。CSV不能替代完整备份。
+
+缺少固定还款日期的旧贷款没有保存原合同的时区。请在贷款详情选择合同所在时区、逐期核对并确认日期后继续记账；已有固定计划和已付收据保持原值，账本其他功能可照常使用。
