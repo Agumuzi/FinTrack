@@ -1,6 +1,6 @@
-# 更新记录
+# Changelog
 
-此处记录已发布的应用版本。安装包与校验文件见 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases)。
+This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
 ## v1.5.1 — 2026-11-02
 
@@ -11,167 +11,167 @@
 
 ## v1.5 — 2026-11-02
 
-- 建立以英语为基础的语言模块，完整支持英语、简体中文、跟随系统和应用内切换；现有俄语资源保留，暂不开放选择。
-- 优化英语术语、表格标题、图表日期、菜单及多语言布局，修复文字重叠、截断和图标对齐；默认高亮色与官网一致。
-- 恢复账本确认口令随界面语言变化：英语为 RESTORE，简体中文为“恢复账本”。
-- 存款顶部新增紧凑收益概览，按原币种及计划结息年份展示待收利息、当年收益和未来年份收益；待核对收入不视为已到账，明确支持部分到账与最终金额调整的区分。
-- 保留既有数据库结构、历史金额及汇率快照、CSV 协议、备份格式和更新信任；未改动旧中文存储标识。
+- Introduced an English-first localization module with full support for English, Simplified Chinese, Follow System, and in-app language switching. Existing Russian resources are retained but are not yet selectable.
+- Refined English terminology, table headings, chart dates, menus, and multilingual layouts; fixed overlapping and truncated labels and icon alignment. The default accent color now matches the product website.
+- Made the ledger-restore confirmation phrase follow the interface language again: `RESTORE` in English and its localized confirmation phrase in Simplified Chinese.
+- Added a compact deposit-interest overview showing outstanding interest, current-year earnings, and future-year projections by original currency and scheduled interest year. Income awaiting verification is not counted as received; partial receipts and final amount adjustments remain distinct.
+- Preserved database structures, historical amounts and exchange-rate snapshots, CSV contracts, backup formats, and update trust. Existing Chinese storage identifiers were not changed.
 
 ## v1.4.8 — 2026-11-01
 
-- 统一完整备份创建、读取、历史记录与恢复日志的容量保护，支持最高 256 MiB 的完整备份；继续兼容旧版备份。超过 100 MiB 的备份须使用 v1.4.8 或更新版本恢复。
-- 存款仅修改名称、备注或提醒时保留原始财务精度和汇率快照，已结息存款仍可更正非财务信息。
-- 数据文件处理或恢复尚未完成时，选择性清理会安全停止。
-- 未保存固定还款日期的旧贷款提供合同所在时区与逐期日期核对，已有固定计划和已付收据保持不变。
-- 更新后等待账本就绪再确认启动；账本无法打开时保留上一版本副本。
-- 菜单栏快速记账、汇率列表与汇率换算使用一致的弹窗高度，切页与展开历史时保持稳定，并适配屏幕空间与界面缩放。
-- 单类型 CSV 导出只读取对应模型；修正 1970 年前小数秒日期与贷款收据整秒标识的一致性。
+- Standardized size limits for full-backup creation, reading, history, and restore journals, with support for full backups up to 256 MiB. Older backups remain supported. Backups larger than 100 MiB must be restored using v1.4.8 or later.
+- Preserved original financial precision and exchange-rate snapshots when editing only a deposit's name, notes, or reminder. Nonfinancial information can still be corrected on settled deposits.
+- Made selective cleanup stop safely if file processing or restoration has not finished.
+- Added a contract-time-zone review and installment-by-installment date verification for legacy loans without saved fixed repayment dates. Existing fixed schedules and paid receipts remain unchanged.
+- Delayed update startup confirmation until the ledger is ready, retaining the previous application copy if the ledger cannot open.
+- Standardized popover heights for menu-bar quick entry, exchange-rate lists, and currency conversion. Heights remain stable while navigating or expanding history and adapt to screen space and UI scaling.
+- Limited single-type CSV exports to their corresponding models, and corrected consistency for pre-1970 fractional-second dates and whole-second loan receipt identifiers.
 
 ## v1.4.7 — 2026-10-29
 
-- 仅使用 Dock 时，关闭主窗口后应用继续运行，点击 Dock 可重新打开；⌘Q 仍正常退出。
-- 加强 CSV 与完整备份的金额、状态、提醒和贷款日程校验；修复选区前导小数及异常数字分组识别，保留旧记录的金额精度。
-- 稳定贷款跨时区后的付款识别；分类重命名、本位币换算和完整恢复增加中断后的自动恢复保护。
-- 目标、预算和分类编辑保留当前会话的未保存草稿；本位币或账本改变后，阻止使用过期的编辑内容和换算结果保存。
-- 金额输入的粘贴、撤销与重做保持数值正确，自动分组不再影响原生文本编辑。
-- 改善大字号与窄窗口下的交易表头、金额和币种、日期、财务详情及备份记录布局，精简重复说明并补齐空白页面的操作入口。
-- 文件读写、导出编码和密钥服务等待移至后台，提供处理中状态与超时反馈；修复切换汇率来源后刷新遗漏及待发送提醒无法更新的问题。
+- When using Dock-only mode, closing the main window keeps the application running; clicking the Dock icon reopens it. ⌘Q still quits normally.
+- Strengthened amount, status, reminder, and loan-schedule validation for CSV and full backups. Fixed recognition of selected amounts with leading decimal points or unusual digit grouping without changing the precision of existing records.
+- Stabilized loan payment matching across time-zone changes. Added interruption recovery protection for category renaming, base-currency conversion, and full restoration.
+- Preserved unsaved drafts in goal, budget, and category editors during the current session. Prevented outdated editor content or conversion results from being saved after changes to the base currency or ledger.
+- Corrected amount-field paste, undo, and redo behavior; automatic digit grouping no longer interferes with native text editing.
+- Improved transaction headers, amounts and currencies, dates, financial details, and backup-history layouts under larger fonts and narrower windows. Simplified repeated explanations and added actions to empty states.
+- Moved file I/O, export encoding, and key-service waits off the main thread with progress and timeout feedback. Fixed missing refreshes after switching exchange-rate sources and pending reminders that could not be updated.
 
-升级前请创建完整备份。API Key 仍保存在系统钥匙串，不包含在备份中。
+Create a full backup before upgrading. API keys remain in the system Keychain and are not included in backups.
 
 ## v1.4.6 — 2026-10-26
 
-- 菜单栏历史汇率按数据源能力批量查询时间区间，切换时间范围复用缓存，支持读取已有历史缓存。
-- 网络加载期间保持卡片展开、收起和换算输入可用；减少重复绘图与后台响应处理对界面的影响。
-- 日级汇率按来源实际公布日比较，正确处理设备时区、周末和未公布日；补齐比较基准后即时保存并更新显示。
-- 历史图表保留实际报价日期和来源，不补造缺失报价；请求失败时保留有效缓存。
+- Batched menu-bar historical exchange-rate queries over date ranges according to provider capabilities, reused caches when switching ranges, and supported existing history caches.
+- Kept card expansion, collapsing, and conversion inputs responsive while loading; reduced redundant chart drawing and background-response processing on the UI.
+- Compared daily exchange rates using the actual provider publication date, correctly handling device time zones, weekends, and unpublished days. Saved and refreshed the display immediately after obtaining a missing comparison baseline.
+- Kept actual quote dates and providers in historical charts without fabricating missing rates; preserved valid cached data on request failures.
 
 ## v1.4.5 — 2026-10-26
 
-- 密钥改由独立签名、普通版本更新时保持不变的专用服务访问，避免旧钥匙串按每次构建指纹重新要求密码；应用与密钥服务相互验证签名，API Key 继续保存在系统钥匙串。
-- 后台汇率刷新不主动弹出密码窗口。旧密钥首次切换到密钥服务时可能需要确认一次；请在对应数据源设置中选择“始终允许”，后续普通应用更新会沿用授权。
-- 更新后明确恢复主窗口，不再受到普通启动时隐藏窗口的偏好影响；主窗口显示后才确认新版启动，保留下载签名校验和失败恢复。
+- Moved secret access to a separately signed helper whose identity stays unchanged across routine application updates, avoiding repeated Keychain password prompts tied to each build fingerprint. App and helper verify one another's signatures; API keys remain in the system Keychain.
+- Prevented background rate refreshes from prompting for the Keychain password. The first migration to the helper may require one authorization; choose `Always Allow` for the relevant provider to retain access across routine updates.
+- Explicitly restored the main window after updates rather than applying normal startup window-hiding preferences. Confirmed the new launch only after the main window appeared, preserving signed-download verification and failure recovery.
 
-从 v1.4.2 / v1.4.3 升级若仍停留在安装确认页，请退出旧版，通过本版 DMG 替换一次。升级前请创建完整备份。
+If upgrades from v1.4.2 or v1.4.3 remain on the installation confirmation screen, quit the old version and replace it once using this release's DMG. Create a full backup before upgrading.
 
 ## v1.4.4 — 2026-10-26
 
-- 修复安装确认窗口阻止应用退出的问题；安装过程保持忙碌状态，防止重复任务和旧包目录嵌套。新版启动确认后清理本次更新的回退副本，安装或启动失败时保留恢复路径。
-- 字体大小与界面缩放分开设置；⌘＋ / ⌘－以 10% 步进调整整体界面，范围 50%–150%，⌘0 恢复 100%，保留独立字号输入。
-- 修复菜单栏快速记账在放大后字段挤压、卡片重叠和按钮越界；窗口、弹窗和菜单按比例计算可用空间。
-- 调整主题缩略图和界面预览的自然尺寸，修复缩放时的变形、内容越界与引导窗口初始尺寸闪动。
-- 存款、周期和贷款保留单列、双列与分隔条拖动；按标题和字体计算初始宽度，保留手动调整，大字号时优先借用详情区域，显示完整标题和备注。
-- 统一大字号下的导航、筛选框、货币代码与字段标签；金额格式示例移入选项，账户面板支出优先，金额按红绿区分并跟随货币符号。
+- Fixed the installer confirmation window preventing the app from quitting. Maintained a busy state during installation to prevent duplicate tasks and nested old-package directories. Cleared the rollback copy after confirmed startup and retained recovery paths if installation or launch failed.
+- Separated font size from interface scaling. ⌘+ / ⌘− change overall scale in 10% steps between 50% and 150%; ⌘0 resets it to 100%. Independent font-size controls remain available.
+- Fixed crowded fields, overlapping cards, and out-of-bounds buttons in enlarged menu-bar quick entry. Windows, popovers, and menus now calculate usable space according to scale.
+- Corrected theme thumbnail and interface preview sizing to prevent distortion, overflow, and initial guide-window resizing flashes.
+- Preserved one- and two-column layouts and draggable dividers in deposits, recurring items, and loans. Initial widths account for heading and font metrics; manual adjustments remain, and large fonts favor full headings and notes by using available detail space.
+- Standardized large-font navigation, filters, currency codes, and field labels. Moved amount-format samples into options, put expenses first in account panels, and styled values with red/green and currency symbols.
 
-**从 v1.4.2 / v1.4.3 升级：**安装动作由当前运行的旧版更新器执行。如果确认页无法退出，请先退出旧版，再从本版 DMG 将 FinTrack 拖入 Applications 替换一次；后续版本使用修复后的安装流程。升级前请创建完整备份。
+**Upgrading from v1.4.2 or v1.4.3:** Installation is performed by the currently running old updater. If its confirmation page cannot exit, quit the old version and manually replace FinTrack using this DMG. Later updates use the corrected flow. Create a full backup first.
 
 ## v1.4.3 — 2026-10-26
 
-- 选区金额换算改为跟随鼠标的简洁浮层，自动显示并复制结果，移出浮层即可关闭；纯数字先选择原币，仅接受三位货币代码。
-- 选区换算与菜单栏共用货币快捷项、显示精度和数据源，优先复用有效缓存；自定义来源不可用时自动使用系统备用来源，汇率更新统一显示结果。
-- 启动引导与设置统一使用开关和绿色状态提示，删除重复权限入口；关闭后立即停用相关应用功能。
-- 修复账目表头点击与长按时的字体、裁切问题，改善内部列宽拖动；普通单击直接打开详情，多选模式保留选择操作。
-- 侧栏同步显示自定义头像，主窗口记住上次尺寸与位置；正文和说明字号支持输入、逐级调整及更宽的快捷键缩放范围。
+- Reworked selected-amount conversion into a minimal cursor-following overlay that automatically displays and copies the result, closing when the pointer leaves. Bare numbers first require a source currency; only three-letter currency codes are accepted.
+- Shared currency favorites, display precision, and providers between selected-amount conversion and the menu bar, prioritizing valid cached quotes. Used a system fallback if a custom provider was unavailable and unified rate-update feedback.
+- Standardized startup permissions and settings around switches and green status indicators, removed duplicate permission entry points, and disabled corresponding application features immediately when toggled off.
+- Fixed transaction table-header font and clipping behavior on click and long press; improved internal column resizing. A normal click opens details while selection mode retains multi-selection.
+- Reflected the custom avatar in the sidebar and remembered the main window's size and position. Supported direct entry and stepwise changes for body/explanatory text sizes and a wider shortcut scaling range.
 
-升级前请创建完整备份。通知和辅助功能的系统授权由 macOS 管理，应用内关闭会停用对应功能，撤销系统授权仍需前往系统设置。
+Create a full backup before upgrading. macOS manages notification and Accessibility authorizations: switching off related app features disables them, but revoking system authorization requires System Settings.
 
 ## v1.4.2 — 2026-10-26
 
-- 首次启动直接准备空白账本，显示统一的启动与权限引导；可稍后设置，也可从通用设置重新打开检查。
-- 通知由全软件共用授权，登录启动与辅助功能提供直达系统设置的入口；后台运行可单独选择。
-- 更新提示改为主窗口内的统一弹窗，发现版本、下载与安装确认沿用应用的字体、卡片与按钮，不再创建独立窗口。
-- 自动检查发现新版本时发送系统通知，点击通知查看更新；手动检查仍直接展示更新提示。
-- 更新 FinTrack 钱包图标，保留原图透明度；安装包采用暖色 Agumuzi 品牌背景、拖动提示和居中箭头，调整图标与窗口比例。
-- 主安装包改为 DMG，包含 FinTrack 与 Applications 链接，修复挂载卷图标；支持拖动安装和覆盖旧版。
-- 应用内更新支持 DMG 校验和安装准备，并保留旧版更新格式的兼容升级通道。
+- Started first launch with an empty ledger and unified startup/permissions guide, which can be deferred or reopened from General settings.
+- Shared one notification authorization throughout the app and linked login launch and Accessibility permissions to System Settings. Background operation can be configured independently.
+- Replaced separate update windows with a unified in-app dialog for version discovery, download, and installation confirmation, using existing typography, cards, and buttons.
+- Sent a system notification when automatic update checks discover a version; clicking opens the update dialog. Manual checks still open the prompt directly.
+- Updated the FinTrack wallet icon while preserving transparency. Introduced a warm Agumuzi-branded DMG background, drag instructions, and a centered arrow, adjusting window and icon proportions.
+- Switched the primary distribution to a DMG containing FinTrack and an Applications shortcut; corrected the mounted volume icon and supported drag-and-replace installation.
+- Added DMG verification and installation preparation to in-app updates while retaining compatibility with older update-package formats.
 
-升级前请创建完整备份。系统通知与辅助功能均按系统授权状态工作；未开启权限也可使用基本记账。
+Create a full backup before upgrading. Notifications and Accessibility follow macOS authorization; basic bookkeeping works without optional permissions.
 
 ## v1.4.1 — 2026-10-25
 
-- 增加登录启动、关闭窗口后继续后台运行、悬停说明开关；支持 ⌘0 恢复标准字号、⌘+ / ⌘− 调整字号。
-- 接通系统通知授权与提醒，覆盖存款、周期收支、预算和目标；计划入账按系统本地时间在当日 09:00 执行，唤醒或下次启动时补记错过的计划。
-- 增加全局选区金额快捷换算与可选的划取自动显示，识别金额与币种歧义，显示报价来源；复制结果由用户单独操作。
-- 概览和账目改为支出优先，压缩概览金额卡片；分类饼图支持区块悬停、选中放大、悬停信息和分类滚动定位。
-- 调整账目表格列宽控制，保持整表适配窗口，支持拖动内部列宽；单击选中、双击或详情按钮查看记录，改善文字裁切与选择稳定性。
-- 统一按钮按压与悬停反馈，调整通用设置和强调色排布；更新流程分为下载选择与下载后的安装确认，反馈直接前往 GitHub，项目主页链接到产品官网。
+- Added login launch, keep-running-after-window-close, and hover-help settings; supported ⌘0 for standard text size and ⌘+ / ⌘− for font adjustments.
+- Connected macOS notifications and reminders for deposits, recurring transactions, budgets, and goals. Scheduled posting runs at 09:00 local system time, with missed items caught up after wake or the next launch.
+- Added global selected-amount conversion shortcuts and optional selection-triggered display, with amount/currency ambiguity detection and provider information. Copying the result is a separate user action.
+- Prioritized expenses in overview and transaction views, condensed overview amount cards, and added hover, expanded selection, and scroll-to-category behavior to pie charts.
+- Improved table column-width handling within the window, with draggable internal widths. Single-click selection, double-click/details viewing, and clipping/stability refinements were included.
+- Unified button pressed/hover feedback; reorganized General settings and accent colors. Split updating into download selection and installation confirmation, linked feedback to GitHub, and pointed the homepage link at the product website.
 
-选区读取需要 macOS 辅助功能权限，系统通知需要用户允许。部分应用无法读取选区；自动显示默认关闭。软件更新固定使用官方签名源。账本位置及原有财务记录保持兼容，升级前请创建完整备份。
+Selected-text access requires macOS Accessibility permission; notifications require user authorization. Some apps cannot provide selected text; automatic display defaults to off. Updates use the official signed feed. Ledger locations and existing financial records remain compatible. Create a full backup before upgrading.
 
 ## v1.4 — 2026-10-24
 
-- 修复金额跨千位输入与退格失效；输入中实时显示千位分隔符，保留光标位置，未修改的历史金额精度保持原值。
-- 修复同名备份覆盖后的重复历史与误删问题；删除前核对文件身份和摘要，部分删除失败时保留未删除项目。
-- 修复贷款总额与首付保存遗漏、还款分币差额、未来交易影响目标基线及原格式 CSV 金融数据校验；贷款负债依据核验收据扣减。
-- 改善账目多选、日期和金额列宽，压缩表单及详情卡片；统一分类图标与引用数排序，调整设置断点、颜色预览及深浅色显示。
-- 汇率历史改为渐进显示，切换范围取消旧请求，复用历史缓存并优化镜像顺序；减少重复读取钥匙串。
+- Fixed amount entry and backspace behavior across thousands separators; grouping appears during entry while preserving the caret, and historical amount precision is unchanged unless edited.
+- Fixed duplicate backup-history entries and accidental deletions after overwriting backups with the same name. File identity and digest are checked before deletion, and undeleted entries remain if part of a removal fails.
+- Fixed lost loan principal/down-payment fields, cent-level installment remainders, future transactions affecting goal baselines, and financial validation for original-format CSVs. Loan balances decrease based on verified receipts.
+- Improved multi-selection, dates, and amount-column widths in transactions and condensed forms/details. Standardized category icons and reference-count ordering; tuned settings breakpoints and color preview in both appearances.
+- Made historical exchange-rate charts progressive, canceled stale requests when switching ranges, reused history caches, refined mirror order, and reduced repeated Keychain access.
 
-发布包使用固定的本地签名身份，未经 Apple 公证。从旧签名版本首次升级时，macOS 仍可能要求重新授权钥匙串；后续版本继续使用此身份。升级前请创建完整备份，旧贷款存在的历史分币差异会保留原收据并提示核对。
+Releases use a fixed local signing identity and are not notarized by Apple. The first update from an older signing identity may trigger Keychain authorization again; later versions retain this identity. Back up before upgrading. Any historical cent-level differences in old loans retain original receipts and prompt review.
 
 ## v1.3 — 2026-10-23
 
-- 支持从 macOS 字体库选择界面字体，可恢复系统字体；提供 MIT 许可证及应用内许可说明。
-- 统一财务编辑表单、货币与分类选择、金额输入、日期和提醒时间；图标与颜色分别在独立窗口中选择。
-- 分类、预算和目标共用图标库；旧分类 Emoji 回到默认图标，可手动重新选择。系统结息和还款分类支持修改显示名称，保留原有账目关联。
-- 存款、周期和贷款支持单列/双列及独立列宽；存款增加复制、快速新增和紧凑详情。
-- 账目支持右键编辑、删除、多选和全选，Command+A 可选择全部筛选结果，多选时显示勾选框。
-- 手动预计利息统一用于计划与入账；到期自动生成的存款收入标记为待核对，可在详情确认或调整实际到账金额。应用关闭期间的计划在下次打开主窗口后补处理。
-- 货币目录本位币置顶并支持拖动排序；菜单栏增加自动来源，历史图使用独立的系统日级数据，保持记账汇率策略独立。
-- 按类别删除直接预览范围后确认；保留其他数据和防重复入账状态。修复预算空状态、按钮命中范围及日历年份显示。
+- Added installed macOS font selection with a reset to system font; displayed the MIT license and an in-app license summary.
+- Standardized financial editor forms, currency and category selection, amount fields, dates, and reminder times. Icon and color pickers open in separate windows.
+- Shared one icon library across categories, budgets, and goals. Legacy category emoji return to a default icon until manually reselected. Display names for system interest and repayment categories can be changed without breaking existing transaction links.
+- Added one-/two-column layouts and separate widths for deposits, recurring entries, and loans, plus deposit duplication, quick creation, and compact details.
+- Added transaction context-menu edit/delete, multi-select, and Select All. Command+A selects all filtered results and shows checkboxes in multi-select mode.
+- Used manually configured expected interest consistently for scheduling and posting. Automatically generated deposit-interest transactions are marked pending review and can be confirmed or adjusted to the actual received amount. Missed schedules are processed after reopening the main window.
+- Put the base currency first in the currency directory with drag-to-reorder. Added an automatic menu-bar rate source; historical charts use independent system daily data, keeping bookkeeping-rate policies separate.
+- Required a scope preview before category-based deletion; preserved other data and anti-duplicate posting state. Fixed empty budget views, button hit targets, and calendar year rendering.
 
-升级前请创建完整备份。既有账本与原币金额保持兼容；预计入账不等于银行已核实到账，可在存款详情核对。首次升级后请检查自动入账偏好及分类图标。
+Create a full backup before upgrading. Existing ledgers and original currency amounts remain compatible. Expected postings are not bank-verified receipts; review them in deposit details. Check automatic posting preferences and category icons after the first upgrade.
 
 ## v1.2.1 — 2026-10-23
 
-- 修复应用内更新逐字节接收安装包造成的高开销与下载超时，改为系统下载任务直接写入临时文件。
-- 显示下载进度和独立校验阶段，区分网络超时、断网、文件过大和安装包校验失败。
-- 保留官方签名清单、公钥、HTTPS跳转、下载大小限制及SHA256校验；验证成功后仍需确认安装。
+- Fixed excessive overhead and download timeouts from receiving update packages byte by byte; switched to a system download task writing directly to a temporary file.
+- Added download progress and a separate verification phase, distinguishing network timeouts, disconnections, oversized files, and checksum failures.
+- Retained the official signed manifest, public key, HTTPS redirect handling, size limits, and SHA256 verification; installation still requires user confirmation.
 
-v1.2及更早版本中的旧下载实现无法通过发布新包自行修复；若旧版下载超时，请先从本版Release手动下载、校验并替换一次。安装v1.2.1后使用新的下载流程。升级前请创建完整备份。
+The downloader shipped in v1.2 and earlier cannot be fixed by merely publishing a new installer. If downloading times out in an older release, manually download, verify, and replace the app with v1.2.1 once. Later upgrades use the new downloader. Back up first.
 
-[下载与版本说明](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2.1) · [安装指南](docs/INSTALLATION.md)
+[Downloads and release notes](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2.1) · [Installation](docs/INSTALLATION.md)
 
 ## v1.2 — 2026-10-23
 
-- 减少分类维护、概览与预算中的重复计算，优化较多账目下的操作响应。
-- 统一账目筛选为图标与名称；类别跟随收入/支出选择，调整明细金额列、窄窗布局与底部分页。
-- 统一日期选择与键盘焦点；目标支持无日期、年、年月和完整日期，保留精确金额并区分期望时间与完成状态。
-- 导入、导出、备份和恢复提供明确的✅成功、⚠️提示、❌错误反馈；结果提示支持完成、Esc与空白处关闭。
-- 首次直接进入内置空白账本；已有账本仍使用原应用标识与数据位置，打开失败时保留恢复入口。
-- 调整900pt账户卡片、目标金额和深色控件图标显示。
+- Reduced repeated calculations in category maintenance, overview, and budgets to improve responsiveness with larger ledgers.
+- Standardized transaction filters around category icons and names; categories follow income/expense type. Refined amount columns, narrow-window layouts, and bottom pagination.
+- Unified date selection and keyboard focus. Goals support no deadline, year, year/month, or full dates while retaining precise amounts and distinguishing target dates from completion.
+- Added clear success, warning, and error states for imports, exports, backups, and restores. Result messages can be dismissed with Done, Esc, or a click outside.
+- Opened a built-in empty ledger on first launch while retaining the original app identifier and data locations for existing users, with recovery access if a ledger fails to open.
+- Refined account cards at 900 pt and goal amounts and dark-mode control icons.
 
-升级前请保存完整备份；需要回退时使用升级前的对应版本备份。既有贷款计划口径、无ID旧CSV重新导入规则保持不变。分类合并和恢复期间请避免强制退出；跨存储异常中断一致性仍有边界。
+Create a full backup before upgrading, and use a backup made for the corresponding older version when rolling back. Existing loan schedule conventions and legacy CSV re-import rules without IDs remain unchanged. Avoid forced quits during category merges and restores; consistency after interrupted changes across storage areas still has limitations.
 
-已在隔离数据上完成完整模型及47项关键界面回归，并追加导入与长时操作验证。部分页面切换仍有短暂停顿，后续继续优化；本次不宣称全部交互均低于250毫秒。
+Full-model checks and 47 key UI regressions passed on isolated data, supplemented with import and long-operation validation. Some page transitions still pause briefly; this release does not claim every interaction completes within 250 ms.
 
-系统要求：macOS 15.0+；Universal（Apple Silicon / Intel）。Ad-hoc签名，未经Apple公证；Intel/macOS 15实机、完整VoiceOver及长期真实财务使用仍有验证边界。
+Requirements: macOS 15.0+; Universal (Apple Silicon / Intel). Ad-hoc signed, not notarized by Apple. Physical Intel/macOS 15 testing, full VoiceOver, and extended real-world financial use remain unverified.
 
-应用内更新检查可识别新版本；当前环境的旧版下载曾出现网络超时，公开安装包直接下载与独立校验通过。遇到超时请使用 Releases 附件手动更新，实际安装与重启回滚仍需用户验证。
+In-app update checks detect new versions. An older downloader timed out in the test environment, while a direct public download and independent checksum verification passed. Use Releases to update manually if necessary; actual installation, relaunch, and rollback still require user verification.
 
-[下载与版本说明](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2) · [安装指南](docs/INSTALLATION.md)
+[Downloads and release notes](https://github.com/Agumuzi/FinTrack/releases/tag/v1.2) · [Installation](docs/INSTALLATION.md)
 
 ## v1.1 — 2026-10-20
 
-- CSV 导入时同步登记收支分类；升级后进入分类管理会补齐旧导入账目的分类，并可重命名已有引用。
-- 全新安装以空白账本、空白分类和空白关注货币对开始；升级保留已有账本、分类与汇率设置。
-- 内置官方 Ed25519 签名更新源；从 v1.1 起可在“关于 FinTrack”中检查、下载并校验后续版本，确认后安装。
-- 保持原有账本位置和应用标识，无需重新导入已有数据。更新前建议创建一次完整备份。
+- Registered income/expense categories during CSV import. Opening category management after upgrading backfills categories for older imported transactions; existing referenced categories can be renamed.
+- Started fresh installs with an empty ledger, empty categories, and no watched currency pairs while retaining existing ledger, categories, and rate settings on upgrade.
+- Included the official Ed25519-signed update feed. Starting in v1.1, **About FinTrack** can check for, download, verify, and confirm installation of later releases.
+- Preserved existing ledger locations and app identifiers, so existing data needs no re-import. A full backup is recommended before upgrading.
 
-系统要求：macOS 15.0+；Universal（Apple Silicon / Intel）。安装包为 Ad-hoc 签名，未经 Apple 公证。
+Requirements: macOS 15.0+; Universal (Apple Silicon / Intel). The distribution is ad-hoc signed and not notarized by Apple.
 
-[下载与版本说明](https://github.com/Agumuzi/FinTrack/releases/tag/v1.1) · [安装指南](docs/INSTALLATION.md)
+[Downloads and release notes](https://github.com/Agumuzi/FinTrack/releases/tag/v1.1) · [Installation](docs/INSTALLATION.md)
 
 ## v1.0 — 2026-10-19
 
-首个正式 macOS 版本。
+First official macOS release.
 
-- 收支记账、账户与资产、预算与财务目标。
-- 存款、贷款与周期记账管理。
-- 分类统计、趋势及期间比较。
-- 多币种账目、汇率查询与换算、记账汇率快照。
-- 菜单栏快速操作、浅色与深色外观。
-- 原生完整备份恢复，以及四类 CSV 导入导出。
+- Income/expense tracking, accounts and assets, budgets, and financial goals.
+- Deposit, loan, and recurring transaction management.
+- Category statistics, trends, and period comparisons.
+- Multi-currency transactions, exchange-rate lookup and conversion, and stored bookkeeping-rate snapshots.
+- Menu-bar shortcuts and light/dark appearances.
+- Native full backup and restore, plus import/export for four CSV formats.
 
-系统要求：macOS 15.0+；Universal（Apple Silicon / Intel）。当前安装包为 Ad-hoc 签名，未经 Apple 公证。Intel 实机、完整 VoiceOver 及长期真实财务使用尚未验证。
+Requirements: macOS 15.0+; Universal (Apple Silicon / Intel). The current distribution is ad-hoc signed and not notarized by Apple. Physical Intel tests, full VoiceOver testing, and long-term real-world financial use have not yet been completed.
 
-[下载与版本说明](https://github.com/Agumuzi/FinTrack/releases/tag/v1.0) · [安装指南](docs/INSTALLATION.md)
+[Downloads and release notes](https://github.com/Agumuzi/FinTrack/releases/tag/v1.0) · [Installation](docs/INSTALLATION.md)

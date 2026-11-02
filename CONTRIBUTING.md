@@ -1,22 +1,22 @@
-# 参与 FinTrack
+# Contributing to FinTrack
 
-感谢帮助改进 FinTrack。本仓库由作者有权授权的原创代码按 [MIT License](LICENSE) 发布（包含商业使用权）；Logo、软件图标及原创视觉素材另见 [品牌素材声明](ASSETS-LICENSE.md)。第三方素材与平台组件遵循各自许可条款，具体见 [第三方素材说明](docs/THIRD_PARTY_NOTICES.md)。参与贡献前请先查看相关文档。
+Thank you for helping improve FinTrack. Original source code that the maintainer has the rights to license is published under the [MIT License](LICENSE), including permission for commercial use. The logo, app icons, and original visual assets are covered separately by the [Brand & Visual Assets notice](ASSETS-LICENSE.md). Third-party assets and platform components follow their respective terms; see [Third-party notices](docs/THIRD_PARTY_NOTICES.md). Please read the relevant documentation before contributing.
 
-提交代码或素材代表你有权提供相应内容，并同意代码贡献按本项目 MIT 许可分发。MIT 允许商业使用，但贡献者仍保留自身版权；提交 PR 不自动转移版权。将贡献改为其他许可仍可能需要另行取得权利人同意。
+By submitting code or artwork, you represent that you have the right to provide it and agree that code contributions may be distributed under the project's MIT license. MIT allows commercial use, while contributors retain their own copyrights; opening a pull request does not automatically transfer ownership. Relicensing contributions under different terms may require permission from the relevant rights holders.
 
-## 反馈问题
+## Reporting issues
 
-请在 [Issues](https://github.com/Agumuzi/FinTrack/issues) 说明应用版本、macOS 版本、设备架构、复现步骤、预期结果和实际结果。界面问题可以附截图，计算问题请用虚构的最小数据说明。
+Use [GitHub Issues](https://github.com/Agumuzi/FinTrack/issues) and include the application version, macOS version, device architecture, steps to reproduce, expected behavior, and actual behavior. Screenshots can help with UI issues; for calculation bugs, provide the smallest useful example with fictional values.
 
-不要公开上传真实账本、原生备份、银行卡或账户信息、API 密钥、日志中的凭据。截图中的个人信息应先遮盖。安全或隐私问题请先通过 [GitHub 私密漏洞报告](https://github.com/Agumuzi/FinTrack/security/advisories/new) 联系维护者，勿在公开 Issue 中披露敏感细节。
+**Never upload** an actual ledger, native backup, bank or account details, API keys, or credentials appearing in logs. Redact personal information from screenshots. For security or privacy vulnerabilities, use [private vulnerability reporting](https://github.com/Agumuzi/FinTrack/security/advisories/new), not a public issue.
 
-## 提交改动
+## Proposing changes
 
-较大的功能或界面方案，请先在 Issue 中讨论范围。保持改动集中，避免将代码格式整理与业务行为变更混在一起。
+Discuss the scope of major features or interface redesigns in an issue first. Keep changes focused; do not combine unrelated code formatting and business-logic changes.
 
-1. 按[构建指南](docs/BUILDING.md)验证源码可编译。
-2. 使用独立的示例账本验证行为，覆盖保存、退出重开及相关计算。
-3. 涉及模型、Bundle Identifier 或持久化配置时，说明兼容性及迁移影响；不要以删除数据库作为一般修复方案。
-4. Pull Request 写明问题、改动、验证结果和未覆盖的情况；新增素材应提供来源及可用的许可依据。
+1. Follow the [build guide](docs/BUILDING.md) to verify compilation.
+2. Test with an isolated fictional ledger, including saving, quitting/relaunching, and relevant calculations.
+3. Explain compatibility and migration effects when modifying models, the Bundle Identifier, or persistence settings. Database deletion is not an acceptable default repair strategy.
+4. Describe the issue, changes, test results, and validation gaps in the pull request. Provide provenance and licensing evidence for new artwork.
 
-安装包通过 Releases 分发。请勿提交本地缓存、真实财务数据、签名材料或安装包副本。
+Installers are distributed through Releases. Do not commit local caches, real financial records, signing materials, or copied installers.

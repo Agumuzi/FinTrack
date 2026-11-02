@@ -1,0 +1,77 @@
+<p align="center">
+  <img src="website/assets/app-icon.png" width="96" alt="FinTrack 应用图标">
+</p>
+
+<h1 align="center">FinTrack</h1>
+<p align="center">为 Mac 打造的个人财务工作台。记录收支，整理资产，把计划看清楚。</p>
+<p align="center"><strong>v1.5.1 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
+<p align="center">
+  <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5.1">下载 macOS 版</a> ·
+  <a href="docs/INSTALLATION.md">安装指南</a> ·
+  <a href="CHANGELOG.md">更新记录</a> ·
+  <a href="https://ko-fi.com/agumuzi">支持开发</a>
+</p>
+<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/overview-dark.png">
+  <img src="website/assets/screenshots/overview-light.png" alt="FinTrack 概览">
+</picture>
+
+*真实软件界面，使用虚构示例数据展示。应用不预装示例账本。*
+
+## 在一个工作台里，整理个人财务
+
+- **日常记账**：管理收入与支出，按日期、类别和币种查找；类别跟随收支范围，明细保留原币与历史汇率，查看趋势与分类统计。
+- **资产与计划**：整理账户与资产，管理存款、贷款、周期记账、预算及财务目标。银行图片支持自行上传，与银行名称关联保存；再次输入相同名称会自动匹配，无需重复添加。
+- **存款收益概览**：按原币种查看预期利息、当年已到账及未到账收益、未来各年份预计收益；待核对的计划收入不视为已确认到账。
+- **多币种**：保留原币、记账汇率和本位币金额，查询与换算汇率，分别选择记账及菜单栏的数据来源。
+- **Mac 原生体验**：SwiftUI 界面、菜单栏快速操作、键盘交互与浅色 / 深色外观；支持从 macOS 字体库选择界面字体、调整字号与界面缩放、登录启动与后台运行。
+- **选区金额换算**：在其他应用选中金额后通过全局快捷键换算，可选划取后自动显示；需允许辅助功能权限。
+- **本地数据管理**：原生完整备份与恢复，四类 CSV 模板及导入导出。
+- **语言切换**：提供英语、简体中文和跟随系统选项，可在应用内切换；俄语资源保留但暂不开放选择。
+
+更多真实界面见[产品官网](https://agumuzi.github.io/FinTrack/#showcase)。
+
+## 下载与安装
+
+[**下载 FinTrack v1.5.1 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.1/FinTrack-v1.5.1-macOS.dmg) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.1/SHA256.txt)
+
+1. 下载并校验 DMG，打开后将 `FinTrack` 拖到旁边的“应用程序”文件夹。
+2. 首次打开可能受到 macOS 安全检查限制。当前安装包采用 **固定本地身份签名，未经 Apple 公证**，详见[安装指南（英语）](docs/INSTALLATION.md)。
+3. 首次启动提供权限引导，可稍后设置，也可从通用设置重新打开。先录入少量数据，确认保存、退出重开和备份恢复符合需要，再逐步投入日常使用。
+
+v1.1 及之后版本内置官方签名更新源，可在“设置 → 关于 FinTrack”中检查、下载并校验新版，再确认安装。v1.0 用户需手动下载当前版本并替换应用。升级前请先创建完整备份。应用内下载如遇网络超时，可使用上方链接手动下载并校验。
+
+需要 **macOS 15.0 或更高版本**。安装包包含 arm64 与 x86_64；已在 Apple Silicon 实机运行，Intel 实机兼容性尚未验证。
+
+## 数据与隐私
+
+账本保存在本机，与应用和源代码目录分开。用户自行录入数据、选择图片，并通过完整备份保存账本。API 密钥使用本机钥匙串，不随账本备份迁移。
+
+汇率查询会连接所选的外部数据来源；备份和 CSV 包含财务信息，应妥善保管。账本不是加密保险库。更多细节见[数据与隐私（英语）](docs/PRIVACY.md)。
+
+## 项目与文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [文档导航](docs/README.md) | 使用、开发及维护文档（英语） |
+| [构建指南](docs/BUILDING.md) | 环境要求、源码编译与工程生成（英语） |
+| [源码结构](docs/ARCHITECTURE.md) | 应用入口、业务模块、共享模型和资源（英语） |
+| [安装指南](docs/INSTALLATION.md) | 安装、校验与安全更新（英语） |
+| [更新记录](CHANGELOG.md) | 正式应用版本（英语） |
+| [参与项目](CONTRIBUTING.md) | 反馈问题和提交改动（英语） |
+| [安全政策](SECURITY.md) | 私密报告安全问题（英语） |
+| [社区行为准则](CODE_OF_CONDUCT.md) | 项目讨论规范（英语） |
+| [素材与组件](docs/THIRD_PARTY_NOTICES.md) | 平台组件及资源来源（英语） |
+
+可通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新，或使用 v1.1 起内置的官方签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
+
+## 许可证与品牌素材
+
+本仓库由作者拥有授权权利的原创源代码采用 [MIT License](LICENSE)，允许使用、复制、修改、分发和商业使用，条件是保留版权及许可声明。软件按现状提供，不附带担保。
+
+**FinTrack 应用图标、Agumuzi 品牌标识、原创宣传图及截图**不包含在代码授权中；未经许可不得移作其他项目的品牌或素材。详见[品牌与视觉资产授权声明（英语）](ASSETS-LICENSE.md)。第三方素材与平台组件仍遵循各自条款，参见[素材与组件说明（英语）](docs/THIRD_PARTY_NOTICES.md)。
+
+**历史许可：**此前版本曾采用不同许可，其中已授予的权利不因当前变更而撤销。早期 MIT 许可证文本仍存档于[历史许可证](docs/LEGACY_MIT_LICENSE.md)。品牌素材复用请通过本仓库联系维护者。
