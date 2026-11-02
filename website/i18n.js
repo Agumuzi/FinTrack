@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   const dictionary = {
+  "Same-day receipts reflected in current assets": "当天到账及时计入当前资产",
+  "Today's recorded income and expenses now appear in current assets even when their saved time is later today; future days remain excluded. Deposit interest cards fit their content at a shared height without internal scrolling, with larger totals, a planned-year distribution, and a single expand/collapse symbol. Existing financial records are preserved.": "当天已记账的收入和支出，即使保存时间晚于当前时刻，也会计入当前资产；未来日期仍排除。存款收益卡按内容统一高度，无内部滚动，放大总额并展示计划年份占比，使用单个符号展开或收起。既有财务记录保持原值。",
   "Compact summaries, more room for your records": "紧凑概览，为账目腾出更多空间",
   "Deposit interest cards start collapsed and expand from the info control with less empty space. Financial schedule entries use two lines and stay within the neighboring goal card height. Transaction summary cards no longer repeat the book currency beneath each amount.": "存款收益卡默认收起，点击信息按钮展开，减少多余留白。财务日程每条最多两行，卡片与旁边的财务目标保持等高。账目汇总卡不再在金额下重复显示本位币。",
   "Clearer financial summaries and settings": "更清晰的财务概览与设置",
@@ -42,7 +44,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.5.2 is available": "FinTrack v1.5.2 现已发布",
+  "FinTrack v1.5.3 is available": "FinTrack v1.5.3 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -174,6 +176,8 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Same-day receipts reflected in current assets": "Поступления за сегодня отражаются в текущих активах",
+  "Today's recorded income and expenses now appear in current assets even when their saved time is later today; future days remain excluded. Deposit interest cards fit their content at a shared height without internal scrolling, with larger totals, a planned-year distribution, and a single expand/collapse symbol. Existing financial records are preserved.": "Записанные за сегодня доходы и расходы учитываются в текущих активах, даже если сохранённое время ещё не наступило. Будущие дни исключены. Карточки процентов имеют общую высоту по содержимому без внутренней прокрутки, увеличенные суммы, распределение по плановым годам и один символ раскрытия. Существующие финансовые записи сохранены.",
   "Compact summaries, more room for your records": "Компактные сводки — больше места для записей",
   "Deposit interest cards start collapsed and expand from the info control with less empty space. Financial schedule entries use two lines and stay within the neighboring goal card height. Transaction summary cards no longer repeat the book currency beneath each amount.": "Карточки процентов по вкладам изначально свёрнуты и раскрываются кнопкой информации, занимая меньше места. События финансового календаря занимают две строки; высота карточки совпадает с соседней целью. Валюта учёта больше не повторяется под каждой суммой в сводке операций.",
   "Clearer financial summaries and settings": "Более понятные финансовые сводки и настройки",
@@ -213,7 +217,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.5.2 is available": "Вышла версия FinTrack v1.5.2",
+  "FinTrack v1.5.3 is available": "Вышла версия FinTrack v1.5.3",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
