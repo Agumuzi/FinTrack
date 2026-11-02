@@ -1,62 +1,69 @@
-# 安装与更新
+# Installation and Updates
 
-## 下载和校验
+## Download and verify
 
-从 [最新正式版 Release](https://github.com/Agumuzi/FinTrack/releases/latest) 下载 `FinTrack-v1.5-macOS.dmg` 和 `SHA256.txt`。需要 macOS 15.0 或更高版本；安装包包含 Apple Silicon 和 Intel 架构。
+Download `FinTrack-v1.5-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
 
-在下载目录检查：
+Run this command in the download directory:
 
 ```sh
 shasum -a 256 FinTrack-v1.5-macOS.dmg
 ```
 
-将输出的摘要与 `SHA256.txt` 中 DMG 对应行核对。确认一致后打开 DMG，将 `FinTrack` 拖到同一窗口中的“应用程序”文件夹。安装包内只有应用和 Applications 链接。
+Compare the resulting digest against the DMG entry in `SHA256.txt`. When it matches, open the DMG and drag `FinTrack` to the `Applications` folder shown in the same window. The disk image contains only the app and the Applications shortcut.
 
-## 首次打开
+## First launch
 
-当前发布包采用固定的本地自签名身份，没有 Apple Developer ID 签名，也未经过 Apple 公证。首次打开网络下载的应用时，macOS 可能阻止运行。确认下载来源与校验值后，可按 [Apple 官方说明](https://support.apple.com/zh-cn/102445)，在尝试打开后进入“系统设置 → 隐私与安全性”，为该应用选择“仍要打开”。不同系统版本或管理策略下的提示可能不同。
+The published application uses a fixed **local signing identity**, not an Apple Developer ID signature, and is **not notarized by Apple**. macOS may block an app downloaded from the internet on first launch. After verifying the source and checksum, follow [Apple's official instructions](https://support.apple.com/en-us/102445): attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway** if that option is offered. Prompts vary by macOS version and device-management policies.
 
-不需要关闭整个系统的安全保护。若系统报告应用损坏或恶意内容，应停止并核对下载来源。
+You do **not** need to disable system-wide security protections. If macOS reports that the app is damaged or contains malware, stop and investigate the source instead of bypassing the warning.
 
-## 开始使用
+## Getting started
 
-首次使用会直接准备空白账本，不预装示例记录，并显示“启动与权限设置”。通知、后台运行、登录启动和选区换算可按需开启，也可选择“稍后设置”；以后可从“设置 → 通用设置”重新打开此引导。系统权限提供直达对应系统设置的按钮。先录入少量数据，退出后重新打开，核对金额与记录；创建一次原生完整备份，妥善保存。大量录入前，应在独立副本中验证恢复能力。
+FinTrack creates an empty ledger automatically on first use. It does not preload any sample records. The **Startup & Permissions** guide offers notifications, background operation, launch at login, and selected-amount conversion. You can enable these features selectively or choose **Set Up Later**, then reopen the guide from **Settings → General**. System permissions include shortcuts to their corresponding macOS settings.
 
-网站截图中的记录均为示例，不随应用交付。
+Enter a small number of transactions, quit and reopen the app, and check that amounts and records persist. Create a native full backup and store it safely. Before importing large amounts of data, verify restore behavior using an independent copy.
 
-## 安全更新
+All records in website screenshots are fictional and are not distributed with the app.
 
-1. 在旧版中创建完整备份，妥善保存，再完全退出 FinTrack。
-2. 从 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 下载目标版本的 DMG 和同版 `SHA256.txt`，核验后打开 DMG。
-3. 将新的 `FinTrack` 拖到 DMG 中的“应用程序”文件夹，选择替换旧应用，再打开并核对版本和已有账目。
+## Secure updating
 
-账本独立保存在本机，替换 `.app` 会沿用已有账本和配置。不要手动删除账本目录或移动运行中的 SQLite 文件。钥匙串 API Key 不随原生账本备份导出。
+1. Make and safeguard a full backup in your existing version, then quit FinTrack completely.
+2. Download the target version's DMG and matching `SHA256.txt` from [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases). Verify the digest, then open the DMG.
+3. Drag the new `FinTrack` into the `Applications` folder in the DMG, choose to replace the existing app, then launch and check both the version and your existing transactions.
 
-v1.0 用户需按上述步骤手动替换为当前版本。v1.1 及之后版本内置官方签名更新源：可在“设置 → 关于 FinTrack”中点击“立即检查”，下载经 Ed25519 签名清单和 SHA256 校验的安装包，再确认安装并重启。自动检查可由用户选择开启；允许系统通知后，发现新版本会发送通知，点击通知打开应用内更新弹窗，选择下载或取消。手动检查会直接打开更新弹窗；下载并校验后再单独确认安装并重启。应用所在目录必须允许当前用户写入；否则使用 Releases 手动替换。安装前仍建议保存完整账本备份。若应用内下载提示网络失败或超时，可直接使用本页的 Releases 手动下载步骤；确认 DMG 与同版 SHA256 匹配后再替换应用。
+The ledger resides independently on your Mac. Replacing the `.app` normally retains the existing ledger and settings. Do not manually delete the ledger directory or move SQLite files while the app is running. Keychain API keys are not exported with native ledger backups.
 
-v1.4.2 起应用内更新支持 DMG。Release 中的 ZIP 只供旧版自动升级兼容使用，手动安装选择 DMG。
+Users coming from v1.0 must manually replace the app as described above. Starting with v1.1, FinTrack includes an official signed update feed. In **Settings → About FinTrack**, use **Check Now** to check for a new release, download a package verified with an Ed25519-signed manifest and SHA256 digest, and separately confirm installation and relaunch.
 
-v1.2.1修复了更新下载流程。旧版程序中的下载实现不会随新版本发布而改变；如果v1.2及更早版本下载超时，请按本页手动下载步骤替换一次。
+Automatic checks are optional. With system notifications enabled, a detected version triggers a notification that opens the in-app update prompt when clicked; users can download or cancel. Manual checks open the prompt directly. Installation is separately confirmed after download and verification. The app directory must be writable by the current user; otherwise, replace the app manually from Releases. Make a full backup before either method.
 
-如需降级，请使用升级前对应版本的完整备份；不保证旧版本直接读取新版账本。分类合并与恢复涉及多种本地存储，操作完成前请避免强制退出。
+If an in-app download fails or times out, use the manual Releases procedure. Verify that the DMG matches the checksum file from the **same release** before replacing the app.
 
-Intel 实机、macOS 15 实机、完整 VoiceOver 及长期真实财务场景尚未完成验证。
+In-app updates support DMGs beginning with v1.4.2. ZIP files included with Releases are retained for compatibility with older automatic updaters; choose the DMG for manual installation.
 
-## 自定义显示字体
+v1.2.1 fixed the update download mechanism. An older application's downloader is not repaired just because a newer package exists. If v1.2 or earlier times out, perform a one-time manual replacement using the procedure above.
 
-在“设置 → 外观与语言 → 显示字体”中点击“选择字体”，使用 macOS 原生字体面板选择本机已安装字体；可打开“字体册”管理字体，或点击“恢复系统字体”。正文支持 10–32 pt、说明支持 8–28 pt，可直接输入或逐级调整；正文和说明字号分别设置，字体卡片可恢复正文 16 / 说明 12 pt。界面缩放独立以 100% 为基准，⌘+ / ⌘− 每次调整 10%，范围 50%–150%；⌘0 恢复 100%。备份保留字体选择；在未安装该字体的设备上恢复时自动使用系统字体。
+For downgrades, use a full backup created with the corresponding earlier version before upgrading. Older versions are not guaranteed to open ledgers written by newer versions. Avoid force quitting during category merges and restores, which involve multiple local storage components.
 
-官方应用使用独立签名且在普通版本更新中保持不变的密钥服务访问系统钥匙串。旧密钥首次切换到该服务时，macOS 可能需要确认一次；选择“始终允许”后，普通应用更新会沿用授权。仅固定主应用的签名证书不足以兼容所有旧钥匙串条目。
+Physical Intel testing, physical macOS 15 testing, complete VoiceOver testing, and prolonged real-world financial use remain outstanding.
 
-密钥服务会验证调用方的官方签名，应用也会验证服务签名；不会开放给任意程序。后台汇率刷新不主动弹出密码窗口，需要授权时请打开对应数据源设置。API Key 保存在本机钥匙串，不包含在账本备份或安装包中，软件不会保存登录钥匙串密码。
+## Custom display fonts
 
-## v1.4.2 / v1.4.3 安装确认页无响应
+Open **Settings → Appearance & Language → Display Font → Choose Font** to select an installed font using the native macOS font panel. Use Font Book to manage installed fonts, or choose **Restore System Font**.
 
-这两版的安装确认窗口可能阻止旧进程退出。遇到此问题，请退出旧版，下载 v1.4.4 或更高版本 DMG，在 Finder 中将 FinTrack 拖入 Applications 并选择替换。已有账本保存在应用包之外，升级前仍请创建完整备份。v1.4.4 修复了后续更新的退出、重复任务与启动确认流程。
+Body text supports 10–32 pt and explanatory text supports 8–28 pt, with direct entry and step controls. Body and explanatory sizes are independent; the font card can reset them to 16 pt and 12 pt respectively. Interface scaling is separate: 100% is the baseline, ⌘+ / ⌘− adjust in 10% steps from 50% to 150%, and ⌘0 resets to 100%. Backups retain font choices. If a selected font is unavailable on another Mac, the system font is used instead.
 
+The official application accesses the system Keychain through an independently signed helper whose identity remains stable across routine updates. When migrating old keys to this helper, macOS may require authorization once; selecting **Always Allow** lets later ordinary updates reuse that authorization. Fixing the main app's signing identity alone cannot preserve every legacy Keychain entry.
 
-## v1.4.8 的备份与旧贷款
+The helper checks the official signature of its caller, and the app also verifies the helper's signature. It is not available to arbitrary programs. Background exchange-rate refreshes do not intentionally trigger password dialogs; if authorization is needed, open the relevant provider's settings. API keys are in the local Keychain, not the ledger backup or installer. FinTrack never saves the login Keychain password.
 
-v1.4.8 继续读取受支持的旧版完整备份，单个完整备份的安全上限统一为256 MiB。超过100 MiB或含大备份历史元数据的新备份，请使用v1.4.8或更新版本恢复。超限时不会更改账本；请先退出应用，保留整个账本目录及独立偏好和银行图片的离线副本，再安排恢复，勿删除原库。CSV不能替代完整备份。
+## Unresponsive installation confirmation in v1.4.2 / v1.4.3
 
-缺少固定还款日期的旧贷款没有保存原合同的时区。请在贷款详情选择合同所在时区、逐期核对并确认日期后继续记账；已有固定计划和已付收据保持原值，账本其他功能可照常使用。
+In these two versions, the confirmation window can prevent the old process from exiting. Quit the old app, download the v1.4.4 or newer DMG, drag FinTrack into Applications in Finder, and choose to replace it. The ledger is outside the app bundle; still create a full backup before upgrading. v1.4.4 fixed the exit, duplicate-operation, and post-install launch-confirmation flows used by subsequent updates.
+
+## Backup limits and legacy loans in v1.4.8
+
+v1.4.8 continues to read supported legacy full backups and standardizes the per-backup safety limit at **256 MiB**. Restore backups larger than **100 MiB**, or newer backups containing large backup-history metadata, using v1.4.8 or later. When a backup exceeds the supported limit, the ledger is not changed. Quit FinTrack and preserve an offline copy of the entire ledger directory, separate preferences, and bank images before planning a restore; do not delete the original store. CSV is not a full-backup substitute.
+
+Legacy loans without stored fixed repayment dates also lack the original contract time zone. Select the contract's time zone in loan details, review each installment date, and confirm before continuing. Existing fixed schedules and paid receipts retain their original values, and other ledger features remain available.
