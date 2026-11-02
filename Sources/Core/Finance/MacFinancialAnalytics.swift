@@ -42,7 +42,11 @@ enum MacFinancialSettings {
 
     static func snapshot(profile: FinancialProfile?, transactions: [Transaction], loans: [LoanRule],
                          deposits: [DepositRecord], currency: String, asOf date: Date) -> FinancialProfileSnapshot {
-        let cash = transactions.filter { $0.deletedAt == nil && $0.date <= date }
+        // Ledger dates are calendar days: settlement may retain a time later
+        // today even after the user has confirmed receipt. Match the overview's
+        // daily accounting boundary without rewriting historical timestamps.
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: date)) ?? date
+        let cash = transactions.filter { $0.deletedAt == nil && $0.date < nextDay }
         let currentLoans = loans.filter { $0.deletedAt == nil && $0.baseCurrencyCode == currency }
         let original = FinancialProfileSnapshotRule.snapshot(profile: profile,
             transactions: cash, loans: [], deposits: deposits.filter { $0.deletedAt == nil },
