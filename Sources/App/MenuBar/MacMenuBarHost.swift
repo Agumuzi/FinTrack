@@ -26,9 +26,10 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         #else
         panel = AnyView(MacMenuBarPanel(runtime: runtime, session: runtime.session, entries: runtime.entries))
         #endif
-        popover.contentViewController = NSHostingController(rootView: panel)
+        popover.contentViewController = NSHostingController(rootView: panel.modifier(LocalizationEnvironment()).labelStyle(MacCenteredLabelStyle()))
         runtime.entries.menuIsRegistered = { [weak self] in self?.item?.button != nil }
         insertion = runtime.entries.$isMenuInserted.sink { [weak self] value in self?.setInserted(value) }
+        subscriptions.append(LocalizationController.shared.$revision.sink { [weak self] _ in self?.queueLabel() })
         if !MacApplicationRuntime.isPrototype {
             subscriptions.append(runtime.session.objectWillChange.sink{[weak self] _ in self?.queueLabel()})
             subscriptions.append(MacFXApplication.shared.query.objectWillChange.sink{[weak self] _ in self?.queueLabel()})
@@ -47,7 +48,7 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         guard item == nil else { return }
         let value = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         value.button?.image = FinTrackMacApp.menuIcon
-        value.button?.setAccessibilityLabel(MacApplicationRuntime.isPrototype ? "FinTrack 原型" : "FinTrack")
+        value.button?.setAccessibilityLabel(MacApplicationRuntime.isPrototype ? L10n.text("mac.menuBarHost.setInserted.2fb461fbdb") : "FinTrack")
         value.button?.setAccessibilityIdentifier(MacApplicationRuntime.isPrototype ? "fintrackPrototypeStatus" : "fintrackMenuStatus")
         value.button?.target = self
         value.button?.action = #selector(toggle)
@@ -75,8 +76,8 @@ final class MacMenuBarHost: NSObject, NSPopoverDelegate {
         if button.title != title { button.title = title }
         guard MacPreferences.defaults.object(forKey: "v141_show_help") as? Bool != false else { button.toolTip = nil; return }
         if let pair = config.displayPair, let quote = app.monitor.quote(pair) {
-            button.toolTip = "FinTrack · " + pair.key + "\n每1单位：" + String(quote.unitRate) + "\n" + app.monitor.sourceName(quote) + "\n" + MacFXDates.label(quote.quoteTime) + (app.monitor.isCached(pair) ? "\n缓存" : "")
-        } else { button.toolTip = "FinTrack · 点击打开快速记账、汇率列表与换算" }
+            button.toolTip = "FinTrack · " + pair.key + L10n.text("mac.menuBarHost.updateLabel.8d3f621f34") + String(quote.unitRate) + "\n" + app.monitor.sourceName(quote) + "\n" + MacFXDates.label(quote.quoteTime) + (app.monitor.isCached(pair) ? L10n.text("mac.menuBarHost.updateLabel.6dbcce64d6") : "")
+        } else { button.toolTip = L10n.text("mac.menuBarHost.updateLabel.3734d5b228") }
     }
 
     @objc private func toggle() {

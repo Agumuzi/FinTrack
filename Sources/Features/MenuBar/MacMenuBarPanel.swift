@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct MacMenuBarPanel: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject var runtime: MacApplicationRuntime
     @ObservedObject var session: MacMenuBarSession
     @ObservedObject var entries: MacAppEntryController
@@ -31,17 +32,17 @@ struct MacMenuBarPanel: View {
                 Spacer()
                 HStack(spacing:4) {
                     if session.page != .quickEntry {
-                        tool("plus",title:session.page == .rates ? "添加货币对" : "添加换算币种",identifier:session.page == .rates ? "fxAddPair" : "fxAddCurrency") { adding = true }
+                        tool("plus",title:session.page == .rates ? L10n.text("mac.menuBarPanel.tool.00c06565a0") : L10n.text("mac.menuBarPanel.tool.300cf004a6"),identifier:session.page == .rates ? "fxAddPair" : "fxAddCurrency") { adding = true }
                             .popover(isPresented:$adding) {
                                 Group {
                                     if session.page == .rates { MacFXPairPicker { _ in adding = false } }
                                     else { MacFXCurrencyPicker(service:service) { adding = false } }
                                 }.interfaceZoom()
                             }
-                        tool("arrow.clockwise",title:"更新汇率",identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
-                            .disabled(service.busy).appHelp(service.busy ? "正在更新…" : service.status)
+                        tool("arrow.clockwise",title:L10n.text("mac.menuBarPanel.tool.657cb849f3"),identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
+                            .disabled(service.busy).appHelp(service.busy ? L10n.text("mac.menuBarPanel.body.e6442ce18f") : service.status)
                     }
-                    tool("gearshape",title:"设置",identifier:"menuSettings") { session.quickSettings.toggle() }
+                    tool("gearshape",title:L10n.text("mac.menuBarPanel.tool.df3d58c7d8"),identifier:"menuSettings") { session.quickSettings.toggle() }
                 }
             }.padding(.horizontal, 18).padding(.top, 8)
             HStack(spacing: 4) {
@@ -50,7 +51,7 @@ struct MacMenuBarPanel: View {
                         Label(page.title, systemImage: page.symbol).appFont(.label, weight: .medium)
                             .frame(maxWidth: .infinity).frame(height: 40)
                             .background(session.page == page ? MacUI.accent.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
-                    }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("menuPage-" + page.rawValue).accessibilityValue(session.page == page ? "已选中" : "未选中")
+                    }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("menuPage-" + page.rawValue).accessibilityValue(session.page == page ? L10n.text("mac.menuBarPanel.ForEach.a737fd72b0") : L10n.text("mac.menuBarPanel.ForEach.0e0c21de69"))
                 }
             }.padding(.horizontal, 14).padding(.bottom, 12)
             Divider()
@@ -84,9 +85,9 @@ struct MacMenuBarPanel: View {
         } else {
             VStack(spacing: 18) {
                 Image(systemName: "square.and.pencil").appIconFont(40).foregroundStyle(MacUI.accent)
-                Text("快速记账").appFont(.section, weight:.semibold)
-                Text("尚未打开账本，请先在主窗口设置记账。").appFont(.body, weight:.regular).foregroundStyle(.secondary)
-                Button("打开主窗口") { runtime.showMain() }.buttonStyle(MacSettingsButtonStyle(height:40))
+                Text(L10n.text("mac.menuBarPanel.quickEntry.e81051e879")).appFont(.section, weight:.semibold)
+                Text(L10n.text("mac.menuBarPanel.quickEntry.6f2e6a5753")).appFont(.body, weight:.regular).foregroundStyle(.secondary)
+                Button(L10n.text("mac.menuBarPanel.quickEntry.f6b64b637b")) { runtime.showMain() }.buttonStyle(MacSettingsButtonStyle(height:40))
             }.frame(maxWidth:.infinity,maxHeight:.infinity)
         }
     }

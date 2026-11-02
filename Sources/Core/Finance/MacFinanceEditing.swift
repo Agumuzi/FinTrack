@@ -26,9 +26,9 @@ enum MacFinanceEditing {
         case paidHistory, badDate, legacyRules
         var errorDescription: String? {
             switch self {
-            case .paidHistory: "Amounts or dates with posted receipts require reconciliation. The saved history was not changed."
-            case .badDate: "The next occurrence must be later than the last recorded occurrence."
-            case .legacyRules: "Review the old loan payment rules before changing its schedule."
+            case .paidHistory: L10n.text("mac.financeEditing.errorDescription.e34fc5e702")
+            case .badDate: L10n.text("mac.financeEditing.errorDescription.a174838e2b")
+            case .legacyRules: L10n.text("mac.financeEditing.errorDescription.447b99cc23")
             }
         }
     }
@@ -62,7 +62,7 @@ enum MacFinanceEditing {
         var capturedGoalValue: String?
         if case .goal = target, let goalDeadline, let goalPrecision {
             let raw = GoalTargetTime.capturedValue(goalDeadline, precision: goalPrecision)
-            guard GoalTargetTime.components(raw, precision: goalPrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            guard GoalTargetTime.components(raw, precision: goalPrecision) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.financeEditing.update.520803061b")) }
             capturedGoalValue = raw
         }
         if let end = recurringSettings?.endDate, end < start { throw MacFinanceRecords.Failure.invalidDateRange }

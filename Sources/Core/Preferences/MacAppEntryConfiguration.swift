@@ -52,11 +52,11 @@ struct MacAppEntryConfiguration: Codable, Equatable {
 enum MacMenuBarPage: String, Codable, CaseIterable, Identifiable {
     case quickEntry, rates, converter
     var id: String { rawValue }
-    var title: String { switch self { case .quickEntry: "快速记账"; case .rates: "汇率列表"; case .converter: "汇率换算" } }
+    var title: String { switch self { case .quickEntry: L10n.text("mac.appEntryConfiguration.title.e81051e879"); case .rates: L10n.text("mac.appEntryConfiguration.title.f9200d1d46"); case .converter: L10n.text("mac.appEntryConfiguration.title.473e46f09c") } }
     var symbol: String { switch self { case .quickEntry: "square.and.pencil"; case .rates: "chart.line.uptrend.xyaxis"; case .converter: "arrow.left.arrow.right" } }
 }
 
 enum MacMenuBarPageMemory: String, Codable, CaseIterable {
     case none, runtime, restart
-    var title: String { switch self { case .none: "不记忆"; case .runtime: "本次运行内"; case .restart: "跨重启" } }
+    var title: String { switch self { case .none: L10n.text("mac.appEntryConfiguration.title.5a234726fe"); case .runtime: L10n.text("mac.appEntryConfiguration.title.fa7b0aae57"); case .restart: L10n.text("mac.appEntryConfiguration.title.5134c071bb") } }
 }

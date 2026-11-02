@@ -41,8 +41,8 @@ enum MacCategoryCatalog {
         try MacCategoryUsageSnapshot.load(in: context).count(for: row)
     }
     static func remove(_ row: Category, in context: ModelContext) throws {
-        guard !CategoryUsageHelper.isProtectedCategory(row) else { throw MacSettingsFailure.invalid("系统结息与贷款分类受保护") }
-        guard try usage(row, in: context) == 0 else { throw MacSettingsFailure.invalid("此分类仍被账目、规则或预算引用，请先重命名或合并分类") }
+        guard !CategoryUsageHelper.isProtectedCategory(row) else { throw MacSettingsFailure.invalid(L10n.text("mac.categoriesSettingsView.remove.2ddd6f38b5")) }
+        guard try usage(row, in: context) == 0 else { throw MacSettingsFailure.invalid(L10n.text("mac.categoriesSettingsView.remove.0f589de0c1")) }
         context.delete(row)
         do { try context.save() } catch { context.rollback(); throw error }
     }
@@ -56,7 +56,7 @@ enum MacCategoryCatalog {
         try MacSettingsStore.save(all, key: "v2_category_styles")
     }
     static func saveStyle(_ style: MacCategoryStyle, name: String, type: String) throws {
-        guard style.emoji == nil || MacCategoryEmoji.isValid(style.emoji!) else { throw MacSettingsFailure.invalid("请选择或输入一个 emoji") }
+        guard style.emoji == nil || MacCategoryEmoji.isValid(style.emoji!) else { throw MacSettingsFailure.invalid(L10n.text("mac.categoriesSettingsView.saveStyle.a8111bad5d")) }
         var all: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
         all[key(name: name, type: type)] = style
         try MacSettingsStore.save(all, key: "v2_category_styles")
@@ -80,6 +80,7 @@ struct MacCategoryBadge: View {
 }
 
 struct MacCategoriesSettingsView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacCustomTypography.bodyKey,store:MacPreferences.defaults) private var bodyPoints=16
     @AppStorage(MacCustomTypography.captionKey,store:MacPreferences.defaults) private var captionPoints=12
     @AppStorage(MacInterfaceFonts.preferenceKey,store:MacPreferences.defaults) private var interfaceFont=""
@@ -136,19 +137,19 @@ struct MacCategoriesSettingsView: View {
         let _=bodyPoints;let _=captionPoints;let _=interfaceFont
         let captionFont=MacInterfaceFonts.font(size:MacUI.fontTier.captionSize)
         let countFont=MacInterfaceFonts.font(size:MacUI.fontTier.bodySize,monospacedDigits:true)
-        let iconWidth=max(40,ceil(("图标" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
+        let iconWidth=max(40,ceil((L10n.text("mac.categoriesSettingsView.ceil.0d720eeea2") as NSString).size(withAttributes:[.font:captionFont]).width)+12)
         let largestCount=rows.map {row in ((usageSnapshot.map{String($0.count(for:row))} ?? "—") as NSString).size(withAttributes:[.font:countFont]).width}.max() ?? 0
-        let referenceWidth=max(70,max(ceil(("引用" as NSString).size(withAttributes:[.font:captionFont]).width)+12,ceil(largestCount)+12))
-        let actionWidth=max(76,ceil(("操作" as NSString).size(withAttributes:[.font:captionFont]).width)+12)
+        let referenceWidth=max(70,max(ceil((L10n.text("mac.categoriesSettingsView.ceil.e0ec651f0d") as NSString).size(withAttributes:[.font:captionFont]).width)+12,ceil(largestCount)+12))
+        let actionWidth=max(76,ceil((L10n.text("mac.categoriesSettingsView.ceil.ed31fbb483") as NSString).size(withAttributes:[.font:captionFont]).width)+12)
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
             HStack(spacing: MacUI.space(0)) {
-                categoryTab("支出分类", value: "Expense", icon: "arrow.down", color: .red)
-                categoryTab("收入分类", value: "Income", icon: "arrow.up", color: .green)
+                categoryTab(L10n.text("mac.categoriesSettingsView.categoryTab.b6a1a504a8"), value: "Expense", icon: "arrow.down", color: .red)
+                categoryTab(L10n.text("mac.categoriesSettingsView.categoryTab.ba01282192"), value: "Income", icon: "arrow.up", color: .green)
             }.background(.gray.opacity(0.045), in: RoundedRectangle(cornerRadius: 9)).frame(maxWidth: MacUI.space(520))
-            HStack { Text("排序").foregroundStyle(.secondary); MacSettingsMenu(selection: $sorting, options: ["手动顺序", "名称 A–Z", "名称 Z–A", "引用最多", "引用最少"].map { ($0, $0) }).frame(width: 180); Spacer() }
+            HStack { Text(L10n.text("mac.categoriesSettingsView.body.a96c9a8541")).foregroundStyle(.secondary); MacSettingsMenu(selection: $sorting, options: ["手动顺序", "名称 A–Z", "名称 Z–A", "引用最多", "引用最少"].map { (L10n.builtIn($0), $0) }).frame(width: 180); Spacer() }
             MacSettingsColumns(wide: wide) {
-                MacSettingsCard(title: type == "Expense" ? "支出分类" : "收入分类", icon: "tag", headerColor: .red, action: AnyView(Button("添加分类", systemImage: "plus") { select(nil) }.accessibilityIdentifier("settingsCategoryAdd")), compactHeader: true) {
-                    HStack(spacing:13) {Text("图标").fixedSize().frame(width:iconWidth);Text("名称").frame(maxWidth:.infinity,alignment:.leading);Text("引用").accessibilityLabel("引用数量").fixedSize().frame(width:referenceWidth,alignment:.trailing);Text("操作").fixedSize().frame(width:actionWidth)}.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
+                MacSettingsCard(title: type == "Expense" ? L10n.text("mac.categoriesSettingsView.MacSettingsColumns.b6a1a504a8") : L10n.text("mac.categoriesSettingsView.MacSettingsColumns.ba01282192"), icon: "tag", headerColor: .red, action: AnyView(Button(L10n.text("mac.categoriesSettingsView.AnyView.c6f37061bf"), systemImage: "plus") { select(nil) }.accessibilityIdentifier("settingsCategoryAdd")), compactHeader: true) {
+                    HStack(spacing:13) {Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.0d720eeea2")).fixedSize().frame(width:iconWidth);Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.d44e9b3d3b")).frame(maxWidth:.infinity,alignment:.leading);Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.e0ec651f0d")).accessibilityLabel(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.2cb3b77f75")).fixedSize().frame(width:referenceWidth,alignment:.trailing);Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.ed31fbb483")).fixedSize().frame(width:actionWidth)}.appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary).appPadding(9).background(.gray.opacity(0.04))
                     VStack(spacing: MacUI.space(0)) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             HStack(spacing:13) {
@@ -161,8 +162,8 @@ struct MacCategoriesSettingsView: View {
                                 }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCategoryRow-" + row.name)
                                 HStack(spacing:9) {
                                 Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
-                                Menu { Button("编辑") { select(row) }; Button("上移") { move(row, by: -1) }.disabled(index == 0); Button("下移") { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Image(systemName: "ellipsis").frame(width: MacUI.space(24)) }.menuStyle(.borderlessButton).fixedSize()
-                                    .accessibilityLabel("分类操作：" + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
+                                Menu { Button(L10n.text("mac.categoriesSettingsView.Menu.0518365699")) { select(row) }; Button(L10n.text("mac.categoriesSettingsView.Menu.f853a70b12")) { move(row, by: -1) }.disabled(index == 0); Button(L10n.text("mac.categoriesSettingsView.Menu.e75e8b4e5c")) { move(row, by: 1) }.disabled(index == rows.count - 1) } label: { Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.ed31fbb483")).appFont(.caption).lineLimit(1) }.menuStyle(.borderlessButton).fixedSize()
+                                    .accessibilityLabel(L10n.text("mac.categoriesSettingsView.ForEach.896643fe85") + row.name).accessibilityIdentifier("settingsCategoryActions-" + row.name)
                                 }.frame(width:actionWidth,alignment:.trailing)
                             }.appPadding(.horizontal, 9).appMinHeight(51).background(selectedID == row.id ? MacSettingsVisual.accent.opacity(0.04) : .clear)
                             Divider()
@@ -171,18 +172,18 @@ struct MacCategoriesSettingsView: View {
                 }
             } right: {
                 VStack(spacing: MacUI.space(14)) {
-                    MacSettingsCard(title: selected.map { MacOverviewStyle.category($0.name) } ?? "新建分类", icon: symbol, headerColor: MacAccent.color(color), action: AnyView(Button("删除分类", systemImage: "trash", role: .destructive) { remove = true }.disabled(selected == nil || selected.map(CategoryUsageHelper.isProtectedCategory) == true).accessibilityIdentifier("settingsCategoryDelete")), compactHeader: true) {
-                        MacSettingsRow(label: "名称", labelWidth: 60) { TextField("分类名称", text: $name).accessibilityIdentifier("managedCategoryName") }
-                        MacSymbolColorPicker(icon: $symbol, color: $color, title: "分类", identifierPrefix: "categoryIcon")
-                        if let selected, CategoryUsageHelper.isProtectedCategory(selected) { Text("系统分类的显示名称和图标可以修改；内部结息/还款关联保持稳定。").appFont(.caption).foregroundStyle(.secondary) }
+                    MacSettingsCard(title: selected.map { MacOverviewStyle.category($0.name) } ?? L10n.text("mac.categoriesSettingsView.MacSettingsColumns.197d990056"), icon: symbol, headerColor: MacAccent.color(color), action: AnyView(Button(L10n.text("mac.categoriesSettingsView.AnyView.e6bd4829e1"), systemImage: "trash", role: .destructive) { remove = true }.disabled(selected == nil || selected.map(CategoryUsageHelper.isProtectedCategory) == true).accessibilityIdentifier("settingsCategoryDelete")), compactHeader: true) {
+                        MacSettingsRow(label: L10n.text("mac.categoriesSettingsView.MacSettingsColumns.d44e9b3d3b"), labelWidth: 60) { TextField(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.9f304633b3"), text: $name).accessibilityIdentifier("managedCategoryName") }
+                        MacSymbolColorPicker(icon: $symbol, color: $color, title: L10n.text("mac.categoriesSettingsView.MacSymbolColorPicker.515559957f"), identifierPrefix: "categoryIcon")
+                        if let selected, CategoryUsageHelper.isProtectedCategory(selected) { Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.9e8ecfa4a5")).appFont(.caption).foregroundStyle(.secondary) }
                         if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red).accessibilityIdentifier("categorySettingsError") }
                         if let message { Text(message).appFont(.caption, weight: .regular).foregroundStyle(.green) }
-                        HStack { Spacer(); Button("保存修改") { if let selected, name.trimmingCharacters(in: .whitespacesAndNewlines) != selected.name && name != MacOverviewStyle.category(selected.name) { rename = true } else { save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveManagedCategory") }
+                        HStack { Spacer(); Button(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.991bb7cfe5")) { if let selected, name.trimmingCharacters(in: .whitespacesAndNewlines) != selected.name && name != MacOverviewStyle.category(selected.name) { rename = true } else { save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveManagedCategory") }
                     }
                     if let selected {
-                        HStack { Label("历史引用", systemImage: "doc.text"); Spacer(); Text(usageSnapshot.map { "\($0.count(for: selected)) 次" } ?? "待核对") }.appFont(.caption).foregroundStyle(.secondary)
+                        HStack { Label(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.11e5f33386"), systemImage: "doc.text"); Spacer(); Text(usageSnapshot.map { L10n.format("mac.categoriesSettingsView.MacSettingsColumns.7ce874913e", "\($0.count(for: selected))") } ?? L10n.text("mac.categoriesSettingsView.MacSettingsColumns.33df16b4af")) }.appFont(.caption).foregroundStyle(.secondary)
                     }
-                    Text("重命名同步更新引用；使用中的分类不可删除。").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("mac.categoriesSettingsView.MacSettingsColumns.0761748a71")).appFont(.caption).foregroundStyle(.secondary)
 
                 }
             }
@@ -194,8 +195,8 @@ struct MacCategoriesSettingsView: View {
             select(value == "new" ? nil : rows.first(where:{$0.id == id}) ?? rows.first, retainingCurrent:false)
         }
         .onDisappear { keepDraft() }
-        .confirmationDialog("放弃未保存修改？",isPresented:$discardDraft) {
-            Button("放弃并重新载入",role:.destructive) {
+        .confirmationDialog(L10n.text("mac.categoriesSettingsView.body.46c8da8a29"),isPresented:$discardDraft) {
+            Button(L10n.text("mac.categoriesSettingsView.body.ab0eba1876"),role:.destructive) {
                 MacEditorDraftStore.shared.remove(draftKey(selectedID,type:activeType))
                 select(selected ?? rows.first,retainingCurrent:false)
             }
@@ -211,21 +212,21 @@ struct MacCategoriesSettingsView: View {
         .onChange(of: budgetRevision) { usageRevision &+= 1 }
         .onChange(of: revision) { refreshStyles() }
         .onChange(of: type) { select(rows.first) }
-        .alert("更新分类及全部引用？", isPresented: $rename) {
-            Button("取消", role: .cancel) {}
-            Button("重命名或合并") { save() }.accessibilityIdentifier("settingsCategoryRenameConfirm")
-        } message: { Text("历史账目、周期规则和贷款会使用新名称；同名分类将合并，原有金额保持不变。") }
+        .alert(L10n.text("mac.categoriesSettingsView.body.f623346d16"), isPresented: $rename) {
+            Button(L10n.text("mac.categoriesSettingsView.body.2cd0f3be87"), role: .cancel) {}
+            Button(L10n.text("mac.categoriesSettingsView.body.88aea11c2d")) { save() }.accessibilityIdentifier("settingsCategoryRenameConfirm")
+        } message: { Text(L10n.text("mac.categoriesSettingsView.body.f02a91385e")) }
         .sheet(isPresented: $remove) {
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
-                Text("删除分类？").appFont(.dialogTitle, weight: .semibold)
-                Text("只有未被账目、金融规则或预算引用的分类可以删除。")
-                if extraCategoryConfirmation { Toggle("我已核对分类及历史引用", isOn: $categoryAcknowledged) }
+                Text(L10n.text("mac.categoriesSettingsView.body.0e1df5a6c9")).appFont(.dialogTitle, weight: .semibold)
+                Text(L10n.text("mac.categoriesSettingsView.body.941b16a55e"))
+                if extraCategoryConfirmation { Toggle(L10n.text("mac.categoriesSettingsView.body.43b93fcc1a"), isOn: $categoryAcknowledged) }
                 HStack {
-                    Button("取消") { remove = false }
+                    Button(L10n.text("mac.categoriesSettingsView.body.2cd0f3be87")) { remove = false }
                     Spacer()
-                    Button("删除", role: .destructive) {
+                    Button(L10n.text("mac.categoriesSettingsView.body.2f9daa8289"), role: .destructive) {
                         guard let selected else { return }
-                        do { try MacCategoryCatalog.remove(selected, in: context); select(nil); message = "分类已删除"; remove = false }
+                        do { try MacCategoryCatalog.remove(selected, in: context); select(nil); message = L10n.text("mac.categoriesSettingsView.body.3bc9b99371"); remove = false }
                         catch { self.error = MacLocalization.error(error); remove = false }
                     }.disabled(extraCategoryConfirmation && !categoryAcknowledged).accessibilityIdentifier("settingsCategoryDeleteConfirm")
                 }
@@ -240,7 +241,7 @@ struct MacCategoriesSettingsView: View {
         selectedID=row?.id;activeType=type;draftGeneration=MacEditorDraftStore.shared.generation
         if let d=MacEditorDraftStore.shared.load(draftKey(row?.id,type:type),as:Draft.self) {
             name=d.name;symbol=d.symbol;color=d.color;loadedRevision=d.revision;draftGeneration=d.generation
-            message="有未保存修改；切页后可继续编辑"
+            message=L10n.text("mac.categoriesSettingsView.select.58937dd581")
         } else {
             name=row.map {MacOverviewStyle.category($0.name)} ?? ""
             let style=row.map {MacCategoryCatalog.style(name:$0.name,type:$0.type)} ?? MacCategoryStyle()
@@ -250,7 +251,7 @@ struct MacCategoriesSettingsView: View {
     }
     private func save() {
         do {
-            guard loadedRevision == selected?.updatedAt, draftGeneration == MacEditorDraftStore.shared.generation, selectedID == nil || selected != nil else { throw MacSettingsFailure.invalid("分类已变化，草稿仍保留。请重新选择分类并核对。") }
+            guard loadedRevision == selected?.updatedAt, draftGeneration == MacEditorDraftStore.shared.generation, selectedID == nil || selected != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.categoriesSettingsView.save.a90c8b48e9")) }
             try MacRecoveryJournal.perform(in: context) {
             var clean = try MacTransactionCRUD.validatedCategory(name)
             var order = selected.map { MacCategoryCatalog.style(name: $0.name, type: type).order } ?? ((rows.map { MacCategoryCatalog.style(name: $0.name, type: type).order }.max() ?? -1) + 1)
@@ -274,7 +275,7 @@ struct MacCategoriesSettingsView: View {
             // A style-only save does not change references.
             refreshStyles()
             name = MacOverviewStyle.category(clean);loadedRevision=try context.fetch(FetchDescriptor<Category>()).first(where:{$0.id == selectedID})?.updatedAt
-            MacEditorDraftStore.shared.remove(draftKey(selectedID,type:type));error = nil; message = "分类已保存"
+            MacEditorDraftStore.shared.remove(draftKey(selectedID,type:type));error = nil; message = L10n.text("mac.categoriesSettingsView.save.9f4c4eb182")
             }
         } catch { context.rollback(); self.error = MacLocalization.error(error) }
     }

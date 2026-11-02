@@ -7,6 +7,7 @@ enum MacSettingsPage: String, CaseIterable, Identifiable {
     case account = "账户与偏好", currency = "货币与汇率", categories = "分类管理", budgets = "预算设置", goals = "目标管理"
     case backup = "数据备份与导出", appearance = "外观与语言", general = "通用设置", about = "关于 FinTrack"
     var id: String { String(describing: self) }
+    var title: String { L10n.text("settings.\(id).title") }
     var icon: String {
         switch self {
         case .account: "person.crop.circle"
@@ -22,20 +23,21 @@ enum MacSettingsPage: String, CaseIterable, Identifiable {
     }
     var subtitle: String {
         switch self {
-        case .account: "管理个人资料、账本与常用偏好。"
-        case .currency: "通用货币、记账汇率与菜单栏汇率分别管理。"
-        case .categories: "统一管理记账、周期规则和统计使用的收支分类。"
-        case .budgets: "按月设置总预算与分类预算，跟踪实际支出。"
-        case .goals: "基于净资产追踪财务目标，集中管理进度与状态。"
-        case .backup: "手动创建完整备份、恢复账本及导入导出 CSV。"
-        case .appearance: "调整主题、强调色与界面显示偏好。"
-        case .general: "管理日期、金额、列表及应用行为。"
-        case .about: "应用信息、版本更新与项目链接。"
+        case .account: L10n.text("mac.settingsView.subtitle.212832719e")
+        case .currency: L10n.text("mac.settingsView.subtitle.c83f955b44")
+        case .categories: L10n.text("mac.settingsView.subtitle.f130dbff2f")
+        case .budgets: L10n.text("mac.settingsView.subtitle.2f6a2057fd")
+        case .goals: L10n.text("mac.settingsView.subtitle.8dffcbaba3")
+        case .backup: L10n.text("mac.settingsView.subtitle.4007b279a0")
+        case .appearance: L10n.text("mac.settingsView.subtitle.0fc175ac28")
+        case .general: L10n.text("mac.settingsView.subtitle.894ac59479")
+        case .about: L10n.text("mac.settingsView.subtitle.765ab3c019")
         }
     }
 }
 
 struct MacSettingsView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
     @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var layoutCaptionPoints = 12
     @Binding var previewCurrency: String
@@ -43,7 +45,7 @@ struct MacSettingsView: View {
     @Environment(\.modelContext) private var context
     @AppStorage("v2_settings_page") private var pageName = "account"
     @AppStorage("base_currency") private var baseCurrency = "USD"
-    @AppStorage("v2_display_name") private var displayName = "我的账本"
+    @AppStorage("v2_display_name") private var displayName = ""
     @AppStorage("color_theme_mode") private var theme = "system"
     @AppStorage("v2_week_start") private var weekStart = 2
     @AppStorage("v2_avatar") private var avatar = Data()
@@ -120,24 +122,24 @@ struct MacSettingsView: View {
         .onChange(of: baseCurrency) { _, value in pendingCurrency = value }
         .sheet(isPresented: $showClear) {
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
-                Label("清空全部账本数据", systemImage: "exclamationmark.triangle.fill").appFont(.dialogTitle, weight: .semibold).foregroundStyle(.red)
-                Text("将删除所有账目、存款、贷款、周期规则、分类、目标与预算。请先手动创建完整备份。")
+                Label(L10n.text("mac.settingsView.body.4ba3447ef1"), systemImage: "exclamationmark.triangle.fill").appFont(.dialogTitle, weight: .semibold).foregroundStyle(.red)
+                Text(L10n.text("mac.settingsView.body.30f30e8ece"))
                 if clearStage == 0 {
-                    HStack { Button("取消") { showClear = false }; Spacer(); Button("继续确认", role: .destructive) { clearStage = 1 }.accessibilityIdentifier("clearContinue") }
+                    HStack { Button(L10n.text("mac.settingsView.body.2cd0f3be87")) { showClear = false }; Spacer(); Button(L10n.text("mac.settingsView.body.9907489e09"), role: .destructive) { clearStage = 1 }.accessibilityIdentifier("clearContinue") }
                 } else {
-                    Text("输入“清空账本”完成最终确认。此操作无法撤销。")
-                    TextField("清空账本", text: $clearText).accessibilityIdentifier("clearConfirmationText")
+                    Text(L10n.text("ledger.clear.confirmation.prompt"))
+                    TextField("DELETE", text: $clearText).accessibilityIdentifier("clearConfirmationText")
                     HStack {
-                        Button("取消") { showClear = false }
+                        Button(L10n.text("mac.settingsView.body.2cd0f3be87")) { showClear = false }
                         Spacer()
-                        Button("永久清空", role: .destructive) {
+                        Button(L10n.text("mac.settingsView.body.7809fe40f7"), role: .destructive) {
                             perform {
                                 try MacDataManagement.clearLedger(in: context)
                                 try MacSettingsStore.save([MacBudget](), key: "v2_budgets")
                                 MacNotifications.clear(); MacSettingsStore.defaults.set(false, forKey: "fintrack_auto_posting")
-                                showClear = false; message = "账本数据已清空"
+                                showClear = false; message = L10n.text("mac.settingsView.perform.703662a17a")
                             }
-                        }.disabled(clearText != "清空账本").accessibilityIdentifier("clearFinalConfirm")
+                        }.disabled(!MacClearConfirmation.accepts(clearText)).accessibilityIdentifier("clearFinalConfirm")
                     }
                 }
             }.appPadding(28).appDialog(width: 500)
@@ -150,13 +152,13 @@ struct MacSettingsView: View {
             if compactMenu {
                 Menu {
                     ForEach(MacSettingsPage.allCases) { item in
-                        Button(item.rawValue, systemImage: item.icon) { pageName = item.id }.accessibilityIdentifier("settingsNav-" + item.id)
+                        Button(item.title, systemImage: item.icon) { pageName = item.id }.accessibilityIdentifier("settingsNav-" + item.id)
                     }
-                } label: { HStack { Text("设置页面").foregroundStyle(.secondary); Text(page.rawValue); Spacer(); Image(systemName: "chevron.down") } }
+                } label: { HStack { Text(L10n.text("mac.settingsView.Menu.832741195f")).foregroundStyle(.secondary); Text(page.title); Spacer(); Image(systemName: "chevron.down") } }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).appFormControl().accessibilityIdentifier("settingsPageMenu")
             }
             VStack(alignment: .leading, spacing: MacUI.space(7)) {
-                HStack { Text(page.rawValue).appFont(.pageTitle, weight: .bold, design: .default).accessibilityIdentifier("settingsPageTitle"); if MacSettingsVisual.preview { Text("演示").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).appPadding(.horizontal, 7).appPadding(.vertical, 3).background(.gray.opacity(0.06), in: Capsule()) }; Spacer() }
+                HStack { Text(page.title).appFont(.pageTitle, weight: .bold, design: .default).accessibilityIdentifier("settingsPageTitle"); if MacSettingsVisual.preview { Text(L10n.text("mac.settingsView.pageHeader.193538685f")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).appPadding(.horizontal, 7).appPadding(.vertical, 3).background(.gray.opacity(0.06), in: Capsule()) }; Spacer() }
                 if page != .account { Text(page.subtitle).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
             }
             if let message { Label(message, systemImage: "checkmark.circle").foregroundStyle(.green).accessibilityIdentifier("settingsMessage") }
@@ -170,9 +172,9 @@ struct MacSettingsView: View {
                 Button { pageName = item.id } label: {
                     HStack(spacing: MacUI.space(11)) {
                         Image(systemName: item.icon).appIconFont(20, weight: .regular, design: .default).frame(width: MacUI.space(25))
-                        Text(item.rawValue).appFont(.body, weight: item == page ? .semibold : .regular, design: .default)
+                        Text(item.title).appFont(.body, weight: item == page ? .semibold : .regular, design: .default).fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
-                    }.appPadding(.horizontal, 12).appMinHeight(47)
+                    }.appPadding(.horizontal, 12).appPadding(.vertical, 8).appMinHeight(47)
                         .foregroundStyle(item == page ? MacSettingsVisual.accent : .primary)
                         .background(item == page ? MacSettingsVisual.accent.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 9))
                         .contentShape(Rectangle())
@@ -195,15 +197,15 @@ struct MacSettingsView: View {
         }
     }
     private var accountLanguageCard: some View {
-        MacSettingsCard(title: "语言与日期", icon: "globe", headerColor: .blue, compactHeader: true) {
-            MacSettingsRow(label: "界面语言", labelWidth: 100) { MacLanguageChoice() }
-            MacSettingsRow(label: "一周开始于", labelWidth: 100) {
-                MacSettingsMenu(selection: $weekStart, options: [("星期一",2), ("星期日",1)]).accessibilityIdentifier("accountWeekStartMenu")
+        MacSettingsCard(title: L10n.text("mac.settingsView.accountLanguageCard.15d9b0f12d"), icon: "globe", headerColor: .blue, compactHeader: true, fillsHeight: true) {
+            MacSettingsRow(label: L10n.text("mac.settingsView.accountLanguageCard.3d13868593"), labelWidth: 100) { MacLanguageChoice() }
+            MacSettingsRow(label: L10n.text("mac.settingsView.accountLanguageCard.94513edaf6"), labelWidth: 100) {
+                MacSettingsMenu(selection: $weekStart, options: [(L10n.text("mac.settingsView.MacSettingsMenu.56451fdf19"),2), (L10n.text("mac.settingsView.MacSettingsMenu.7e06f3148f"),1)]).accessibilityIdentifier("accountWeekStartMenu")
             }
         }.accessibilityElement(children: .contain).accessibilityIdentifier("accountLanguageCard")
     }
     private var accountAppearanceCard: some View {
-        MacSettingsCard(title: "外观", icon: "paintpalette", headerColor: .blue, compactHeader: true) {
+        MacSettingsCard(title: L10n.text("mac.settingsView.accountAppearanceCard.86a63f23a0"), icon: "paintpalette", headerColor: .blue, compactHeader: true, fillsHeight: true) {
             MacThemeChoices(theme: $theme)
         }.accessibilityElement(children: .contain).accessibilityIdentifier("accountAppearanceCard")
     }
@@ -215,64 +217,75 @@ struct MacSettingsView: View {
                     else { Image(systemName: "person.crop.circle.fill").resizable().foregroundStyle(.secondary) }
                 }.frame(width: MacUI.space(74), height: MacUI.space(74)).clipShape(Circle())
                 VStack(alignment: .leading, spacing: MacUI.space(7)) {
-                    TextField("账本名称", text: $displayName).appFont(.dialogTitle, weight: .bold, design: .default).textFieldStyle(.plain).accessibilityIdentifier("settingsDisplayName")
-                    Text("个人财务管理").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
+                    TextField(L10n.text("mac.settingsView.account.ffa778f78d"), text: $displayName).appFont(.dialogTitle, weight: .bold, design: .default).textFieldStyle(.plain).accessibilityIdentifier("settingsDisplayName")
+                    Text(L10n.text("mac.settingsView.account.4666bca0fd")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                 }
                 Spacer()
-                MacImageImportControl(data: $avatar, title: "更换头像", cropTitle: "裁切头像", label: "头像", circularPreview: true, identifier: "settingsAvatar")
+                MacImageImportControl(data: $avatar, title: L10n.text("mac.settingsView.MacImageImportControl.42ece89848"), cropTitle: L10n.text("mac.settingsView.MacImageImportControl.e251ac5147"), label: L10n.text("mac.settingsView.MacImageImportControl.3ea2d23c90"), circularPreview: true, identifier: "settingsAvatar")
             }.appPadding(22).background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
-            MacSettingsColumns(wide: wide) {
-                accountLanguageCard
-            } right: {
-                accountAppearanceCard
+            if wide {
+                MacFinanceCardRow(minimumWidth: 0) { accountLanguageCard; accountAppearanceCard }
+            } else {
+                VStack(spacing: MacUI.space(16)) { accountLanguageCard; accountAppearanceCard }
             }
-            MacSettingsCard(title: "货币与汇率", icon: "banknote", headerColor: .blue, compactHeader: true) {
+            MacSettingsCard(title: L10n.text("mac.settingsView.account.5c3b324f5b"), icon: "banknote", headerColor: .blue, compactHeader: true) {
                 if wide {
                     HStack(alignment: .top, spacing: MacUI.space(20)) {
                         bookCurrencyRow(wide: true).frame(maxWidth: .infinity)
                         quickSourceRow.frame(maxWidth: .infinity)
-                        quickRefreshButton
                     }
                 } else {
                     VStack(alignment: .leading, spacing: MacUI.space(12)) { bookCurrencyRow(wide: false); quickSourceRow; HStack { Spacer(); quickRefreshButton } }
                 }
-                HStack { Button("管理货币与汇率") { pageName = MacSettingsPage.currency.id }.accessibilityIdentifier("manageCurrencies"); Spacer(); Button("编辑初始资产与负债") { showProfile = true }.accessibilityIdentifier("settingsEditProfile").disabled(currency == nil) }.appFont(.caption, weight: .regular, design: .default)
+                if wide { HStack { Spacer(); quickRefreshButton } }
+                ViewThatFits(in: .horizontal) {
+                    HStack { manageCurrencyButton; Spacer(); editProfileButton }
+                    VStack(alignment: .leading, spacing: MacUI.space(10)) { manageCurrencyButton; editProfileButton }
+                }.appFont(.caption)
             }
-            MacSettingsCard(title: "数据备份与导出", icon: "externaldrive", headerColor: .blue, compactHeader: true) {
+            MacSettingsCard(title: L10n.text("mac.settingsView.account.adc826dfd9"), icon: "externaldrive", headerColor: .blue, compactHeader: true) {
                 LazyVGrid(columns: wide ? Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4) : [GridItem(.adaptive(minimum: 230), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
-                    dataAction("创建完整备份", detail: "将所有应用数据保存为单个文件\n（可用于恢复）", icon: "square.and.arrow.down", dangerous: false, button: "选择备份位置…") { pageName = MacSettingsPage.backup.id }
-                    dataAction("导出数据", detail: "导出为 CSV 格式\n（用于查看和交换数据）", icon: "square.and.arrow.up", dangerous: false, button: "选择导出内容…") { pageName = MacSettingsPage.backup.id }
+                    dataAction(L10n.text("mac.settingsView.dataAction.7e9e370323"), detail: L10n.text("mac.settingsView.dataAction.cdab0ce22e"), icon: "square.and.arrow.down", dangerous: false, button: L10n.text("mac.settingsView.dataAction.6b08cd4a38")) { pageName = MacSettingsPage.backup.id }
+                    dataAction(L10n.text("mac.settingsView.dataAction.e86dd4d004"), detail: L10n.text("mac.settingsView.dataAction.2ba394114d"), icon: "square.and.arrow.up", dangerous: false, button: L10n.text("mac.settingsView.dataAction.7cdbe873bb")) { pageName = MacSettingsPage.backup.id }
                     selectiveClearCard
-                    dataAction("清空所有数据", detail: "此操作不可恢复\n请提前备份并谨慎操作", icon: "trash", dangerous: true, button: "清空数据") { beginClear() }
+                    dataAction(L10n.text("mac.settingsView.dataAction.b1e4cb77c8"), detail: L10n.text("mac.settingsView.dataAction.98a832c8bc"), icon: "trash", dangerous: true, button: L10n.text("mac.settingsView.dataAction.fa650a299a")) { beginClear() }
                 }
             }
-            MacSettingsCard(title: "计划入账", icon: "calendar.badge.clock", compactHeader: true) {
-                MacSettingsToggleRow(title: "存款到期自动记账", subtitle: "按计划金额记为待核对收入，可在存款详情确认实际到账。", value: $automaticDeposits)
-                MacSettingsToggleRow(title: "周期与贷款自动记账", subtitle: "仅处理已启用且已核对的规则。", value: $automaticPosting).accessibilityIdentifier("automaticPostingToggle")
-                Text("按系统本地时间在计划当日 09:00 入账；休眠或退出期间错过的计划，在唤醒或下次启动时补记。自动记账不代表银行已实际到账。").appFont(.caption).foregroundStyle(.secondary)
+            MacSettingsCard(title: L10n.text("mac.settingsView.account.68562b217e"), icon: "calendar.badge.clock", compactHeader: true) {
+                MacSettingsToggleRow(title: L10n.text("mac.settingsView.account.608607a7e4"), subtitle: L10n.text("mac.settingsView.account.58c1a52beb"), value: $automaticDeposits)
+                MacSettingsToggleRow(title: L10n.text("mac.settingsView.account.ffc8e17b68"), subtitle: L10n.text("mac.settingsView.account.79a0f4bfb4"), value: $automaticPosting).accessibilityIdentifier("automaticPostingToggle")
+                Text(L10n.text("mac.settingsView.account.0bda56a369")).appFont(.caption).foregroundStyle(.secondary)
             }
         }
     }
     private func bookCurrencyRow(wide: Bool) -> some View {
-        MacSettingsRow(label: "默认货币", labelWidth: 80) {
+        VStack(alignment: .leading, spacing: MacUI.space(8)) {
+            Text(L10n.text("mac.settingsView.bookCurrencyRow.4c99d6925c")).appFont(.body).foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 8) {
                 MacBookCurrencyChoice(currency: $pendingCurrency)
                 if pendingCurrency.uppercased() != baseCurrency && !pendingCurrency.isEmpty {
-                    Button("换算", systemImage: "arrow.left.arrow.right") { showRebase = true }
+                    Button(L10n.text("mac.settingsView.bookCurrencyRow.d9c792dfca"), systemImage: "arrow.left.arrow.right") { showRebase = true }
                         .buttonStyle(MacSettingsButtonStyle(height: 44)).accessibilityIdentifier("changeBookCurrency")
                         .disabled((try? MacCurrency.code(pendingCurrency)) == nil)
                 }
             }
-        }
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var quickSourceRow: some View {
         return VStack(alignment: .leading, spacing: MacUI.space(8)) {
-            MacSettingsRow(label: "记账汇率来源", labelWidth: 110) { MacSettingsMenu(selection: Binding(get: { monitor.configuration.accountingSourcePolicy }, set: { value in MacFXApplication.shared.update { $0.accountingSourcePolicy = value } }), options: MacFXSourceSelection.options(current:monitor.configuration.accountingSourcePolicy), minimumWidth: 260).accessibilityIdentifier("accountRateSourceMenu") }
-            Text("获取交易日期的参考汇率").appFont(.caption).foregroundStyle(.secondary).appPadding(.leading,124)
+            Text(L10n.text("mac.settingsView.quickSourceRow.4c6c9c8d37")).appFont(.body).foregroundStyle(.secondary)
+            MacSettingsMenu(selection: Binding(get: { monitor.configuration.accountingSourcePolicy }, set: { value in MacFXApplication.shared.update { $0.accountingSourcePolicy = value } }), options: MacFXSourceSelection.options(current:monitor.configuration.accountingSourcePolicy)).accessibilityIdentifier("accountRateSourceMenu")
+            Text(L10n.text("mac.settingsView.quickSourceRow.bc72617429")).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
+    private var manageCurrencyButton: some View {
+        Button(L10n.text("mac.settingsView.account.383f58f1e0")) { pageName = MacSettingsPage.currency.id }.accessibilityIdentifier("manageCurrencies")
+    }
+    private var editProfileButton: some View {
+        Button(L10n.text("mac.settingsView.account.2109f74eb1")) { showProfile = true }.accessibilityIdentifier("settingsEditProfile").disabled(currency == nil)
+    }
     private var quickRefreshButton: some View {
-        Button(refreshing ? "更新中…" : "更新", systemImage: "arrow.clockwise") { Task { await refreshQuickRate() } }
+        Button(refreshing ? L10n.text("mac.settingsView.quickRefreshButton.a0bacec44f") : L10n.text("mac.settingsView.quickRefreshButton.3055a035f0"), systemImage: "arrow.clockwise") { Task { await refreshQuickRate() } }
             .buttonStyle(MacSettingsButtonStyle(height: 40)).disabled(refreshing).accessibilityIdentifier("accountRefreshRates")
     }
     private var selectiveClearCard: some View {
@@ -280,18 +293,18 @@ struct MacSettingsView: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "trash.square").appIconFont(23).foregroundStyle(.orange)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("按类别删除").appFont(.body, weight: .semibold)
-                    Text("预览范围后确认，其他数据保留").appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(L10n.text("mac.settingsView.selectiveClearCard.37ffe16c5b")).appFont(.body, weight: .semibold)
+                    Text(L10n.text("mac.settingsView.selectiveClearCard.bab0265e6d")).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            MacSettingsMenu(selection: $selectedClearKind, options: MacClearKind.allCases.map { ($0.rawValue, $0) }).accessibilityIdentifier("selectiveClearKind")
+            MacSettingsMenu(selection: $selectedClearKind, options: MacClearKind.allCases.map { (L10n.builtIn($0.rawValue), $0) }).accessibilityIdentifier("selectiveClearKind")
             Spacer(minLength: 0)
-            Button { showsSelectiveClear = true } label: { Text("预览删除范围…").frame(maxWidth: .infinity) }.accessibilityIdentifier("selectiveClearOpen")
+            Button { showsSelectiveClear = true } label: { Text(L10n.text("mac.settingsView.selectiveClearCard.5f72fa013e")).frame(maxWidth: .infinity) }.accessibilityIdentifier("selectiveClearOpen")
         }.appPadding(15).frame(maxWidth: .infinity, minHeight: MacUI.space(180), alignment: .topLeading).overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.gray.opacity(0.15)))
     }
     private func dataAction(_ title: String, detail: String, icon: String, dangerous: Bool, button: String, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(16)) {
-            HStack(alignment: .top, spacing: MacUI.space(10)) { Image(systemName: icon).appIconFont(23, weight: .regular, design: .default).foregroundStyle(dangerous ? .red : .primary); VStack(alignment: .leading, spacing: MacUI.space(6)) { Text(title).appFont(.body, weight: .semibold, design: .default); Text(detail).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) } }
+            HStack(alignment: .center, spacing: MacUI.space(10)) { Image(systemName: icon).appIconFont(23, weight: .regular, design: .default).foregroundStyle(dangerous ? .red : .primary); VStack(alignment: .leading, spacing: MacUI.space(6)) { Text(title).appFont(.body, weight: .semibold, design: .default); Text(detail).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) } }
             Spacer(minLength: 0)
             Button(role: dangerous ? .destructive : nil, action: action) { Text(button).frame(maxWidth: .infinity) }.accessibilityIdentifier(dangerous ? "clearLocalLedger" : title)
         }.appPadding(15).frame(maxWidth: .infinity, minHeight: MacUI.space(180), alignment: .topLeading).overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.gray.opacity(0.15)))

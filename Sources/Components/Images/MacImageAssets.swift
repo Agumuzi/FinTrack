@@ -15,7 +15,7 @@ enum MacImageAssets {
     }
     enum Failure: LocalizedError {
         case invalid
-        var errorDescription: String? { "请选择有效的 PNG、JPEG 或 HEIC 图片（文件不超过 100 MB）。" }
+        var errorDescription: String? { L10n.text("mac.imageAssets.errorDescription.83294b5fe4") }
     }
     /// Decode a bounded preview directly from the file. Never retain original bytes.
     static func previewImage(_ url: URL) throws -> CGImage {
@@ -78,9 +78,10 @@ enum MacImageAssets {
 
 /// The UI owns a draft binding; cancelling either picker or crop leaves it untouched.
 struct MacImageImportControl: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var data: Data
-    var title = "更换图片"
-    var cropTitle = "裁切图片"
+    var title = L10n.text("mac.imageAssets.title.4c5bfb10fc")
+    var cropTitle = L10n.text("mac.imageAssets.cropTitle.6fb22151bd")
     var label = ""
     var circularPreview = false
     var identifier = "importImage"
@@ -90,17 +91,17 @@ struct MacImageImportControl: View {
     var body: some View {
         HStack(spacing: MacUI.space(8)) {
             Button(title) {
-                do { input = try MacImageAssets.select(title: "选择图片", cropTitle: cropTitle, label: label, circularPreview: circularPreview) }
+                do { input = try MacImageAssets.select(title: L10n.text("mac.imageAssets.body.9ad12a1ab4"), cropTitle: cropTitle, label: label, circularPreview: circularPreview) }
                 catch { self.error = error.localizedDescription }
             }.accessibilityIdentifier(identifier)
-            if !data.isEmpty { Button("移除") { data = Data() }.accessibilityIdentifier(identifier + "Remove") }
+            if !data.isEmpty { Button(L10n.text("mac.imageAssets.body.6135d4159e")) { data = Data() }.accessibilityIdentifier(identifier + "Remove") }
         }
         .sheet(item: $input, onDismiss: {
             input = nil
             if let preparedData { data = preparedData; self.preparedData = nil }
         }) { selected in MacImageCropView(input: selected) { preparedData = $0 } }
-        .alert("无法导入图片", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("好") { error = nil }
+        .alert(L10n.text("mac.imageAssets.body.9fcff430ef"), isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button(L10n.text("mac.imageAssets.body.f867f34178")) { error = nil }
         } message: { Text(error ?? "") }
     }
 }

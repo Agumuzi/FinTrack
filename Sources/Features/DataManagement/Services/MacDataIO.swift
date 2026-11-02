@@ -5,11 +5,11 @@ nonisolated enum MacDataIO {
     static func read(_ url: URL, limit: Int = MacBackupLimits.nativeBytes) throws -> Data {
         let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
         let properties=try url.resourceValues(forKeys:[.fileSizeKey,.isRegularFileKey])
-        guard limit>0,limit<Int.max,properties.isRegularFile == true,let size=properties.fileSize,size<=limit else{throw MacSettingsFailure.invalid("文件类型无效或超过允许的大小")}
+        guard limit>0,limit<Int.max,properties.isRegularFile == true,let size=properties.fileSize,size<=limit else{throw MacSettingsFailure.invalid(L10n.text("mac.dataIO.read.ce6a378ba0"))}
         let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
         var data=Data()
         while let chunk=try handle.read(upToCount:min(64*1024,limit-data.count+1)),!chunk.isEmpty {
-            guard chunk.count<=limit-data.count else{throw MacSettingsFailure.invalid("文件在读取时发生变化或超过大小限制")}
+            guard chunk.count<=limit-data.count else{throw MacSettingsFailure.invalid(L10n.text("mac.dataIO.read.c189de5028"))}
             data.append(chunk)
         }
         return data
@@ -18,7 +18,7 @@ nonisolated enum MacDataIO {
         let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
         try data.write(to:url,options:.atomic)
         let saved=try Data(contentsOf:url)
-        guard saved.count == data.count,MacNativeBackup.digest(saved)==MacNativeBackup.digest(data) else{throw MacSettingsFailure.invalid("文件写入校验失败")}
+        guard saved.count == data.count,MacNativeBackup.digest(saved)==MacNativeBackup.digest(data) else{throw MacSettingsFailure.invalid(L10n.text("mac.dataIO.write.c9d8598a95"))}
     }
 }
 

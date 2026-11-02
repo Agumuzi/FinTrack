@@ -6,6 +6,13 @@ import UniformTypeIdentifiers
 enum MacWorkspaceSection: String {
     case overview = "概览", records = "账目", deposits = "存款", recurring = "周期", loans = "贷款"
     case settings = "设置", insights = "进阶统计"
+    var storageID: String { String(describing: self) }
+    var title: String { L10n.text("workspace.\(storageID).title") }
+    init?(storedValue: String) {
+        guard let match = Self.allSections.first(where: { $0.rawValue == storedValue || $0.storageID == storedValue }) else { return nil }
+        self = match
+    }
+    static let allSections: [Self] = [.overview, .records, .deposits, .recurring, .loans, .settings, .insights]
     var icon: String {
         switch self {
         case .overview: "house"
@@ -25,7 +32,7 @@ final class MacWorkspaceSession: ObservableObject {
     init() {
         let d = MacPreferences.defaults
         if MacSettingsVisual.preview { section = .settings; return }
-        if d.object(forKey: "v2_resume_page") as? Bool != false, let name = d.string(forKey: "v2_last_page"), let saved = MacWorkspaceSection(rawValue: name) { section = saved }
+        if d.object(forKey: "v2_resume_page") as? Bool != false, let name = d.string(forKey: "v2_last_page"), let saved = MacWorkspaceSection(storedValue: name) { section = saved }
     }
     @Published var recordScope: MacOverviewScope?
     @Published var recordsNavigationState = MacRecordsNavigationState()
@@ -40,7 +47,7 @@ struct FinTrackMacRootView: View {
     @FocusState private var accountPanelFocused: Bool
     @EnvironmentObject private var workspace: MacWorkspaceSession
     @State private var previewCurrency = "RUB"
-    @AppStorage("app_language") private var language = "zh-Hans"
+    @ObservedObject private var localization = LocalizationController.shared
     @AppStorage("color_theme_mode") private var theme = "system"
     @AppStorage("v2_navigation_collapsed") private var navigationCollapsed = false
     @AppStorage("base_currency") private var preferredCurrency = "USD"
@@ -49,7 +56,7 @@ struct FinTrackMacRootView: View {
     @AppStorage("v2_avatar", store: MacPreferences.defaults) private var accountAvatar = Data()
     @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var bodyPoints = 16
     @AppStorage(MacCustomTypography.captionKey, store: MacPreferences.defaults) private var captionPoints = 12
-    @AppStorage("v2_display_name") private var displayName = "我的账本"
+    @AppStorage("v2_display_name") private var displayName = ""
     @State private var showsAccount = false
     @Environment(\.modelContext) private var context
     @AppStorage("fintrack_auto_posting") private var automaticPosting = false
@@ -125,9 +132,10 @@ struct FinTrackMacRootView: View {
                     .onExitCommand { showsAccount = false }
             }
         }
-        .environment(\.locale, Locale(identifier: MacPreferences.isTesting ? language : "zh-Hans"))
+        .environment(\.locale, localization.locale)
         .tint(MacAccent.color(interfaceAccent))
         .appFont(.body)
+        .labelStyle(MacCenteredLabelStyle())
         .environment(\.defaultMinListRowHeight, interfaceDensity == "compact" ? 25 : interfaceDensity == "spacious" ? 40 : 32)
         .environment(\.calendar, MacDisplayPreferences.calendar)
         .onChange(of: workspace.section) { _, section in MacPreferences.defaults.set(section.rawValue, forKey: "v2_last_page") }
@@ -137,14 +145,15 @@ struct FinTrackMacRootView: View {
         }
         .onExitCommand { showsAccount = false }
         .onAppear {
+            DispatchQueue.main.async { MacNativeMenuLocalization.shared.refresh() }
             if MacSettingsVisual.preview { NSApp.activate(ignoringOtherApps: true) }
         }
         .sheet(isPresented: $workspace.showsQuickRecord) {
             if let currency { MacTransactionEditor(bookCurrency: currency, existing: nil) }
             else {
                 VStack(spacing: MacUI.space(18)) {
-                    Text("账本包含不同本位币，请先在设置中核对。")
-                    Button("关闭") { workspace.showsQuickRecord = false }
+                    Text(L10n.text("mac.finTrackMacRootView.body.171b2e5d90"))
+                    Button(L10n.text("mac.finTrackMacRootView.body.3fd47edce4")) { workspace.showsQuickRecord = false }
                 }.appPadding(28)
             }
         }
@@ -163,12 +172,12 @@ struct FinTrackMacRootView: View {
                     .foregroundStyle(.secondary).frame(width: MacUI.space(30), height: MacUI.space(30))
                     .contentShape(RoundedRectangle(cornerRadius: 6))
             }.buttonStyle(MacInteractiveButtonStyle())
-                .appHelp(navigationCollapsed ? "展开导航" : "收起导航")
-                .accessibilityLabel("切换导航宽度").accessibilityIdentifier("toggleNavigation")
+                .appHelp(navigationCollapsed ? L10n.text("mac.finTrackMacRootView.chromeHeader.87fe6f6080") : L10n.text("mac.finTrackMacRootView.chromeHeader.95ddfcc990"))
+                .accessibilityLabel(L10n.text("mac.finTrackMacRootView.chromeHeader.dac0b88eae")).accessibilityIdentifier("toggleNavigation")
             if workspace.section == .overview || workspace.section == .records || workspace.section == .deposits || workspace.section == .recurring || workspace.section == .loans || workspace.section == .insights || (workspace.section == .settings && !compact) {
                 Color.clear.frame(width: titleGap, height: 1)
             }
-            Text(workspace.section.rawValue).appFont(.body, weight: .semibold, design: .default)
+            Text(workspace.section.title).appFont(.body, weight: .semibold, design: .default)
                 .appPadding(.horizontal, 14).appPadding(.vertical, 7)
                 .background(MacOverviewStyle.card.opacity(0.6), in: RoundedRectangle(cornerRadius: 9))
                 .accessibilityIdentifier("chromeSectionTitle")
@@ -179,21 +188,21 @@ struct FinTrackMacRootView: View {
 
     private var accountPanel: some View {
                     VStack(alignment: .leading, spacing: MacUI.space(14)) {
-                        Label("本地账本", systemImage: "externaldrive").appFont(.section, weight: .semibold)
-                        Text("本位币：\(currency ?? "待核对")").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                        Label(L10n.text("mac.finTrackMacRootView.accountPanel.a2174ac7a4"), systemImage: "externaldrive").appFont(.section, weight: .semibold)
+                        Text(L10n.format("mac.finTrackMacRootView.accountPanel.edc87244a8", "\(currency ?? L10n.text("mac.finTrackMacRootView.accountPanel.33df16b4af"))")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                         if let currency {
                             let range = Calendar.current.dateInterval(of: .month, for: Date())!
                             let rows = transactions.filter { $0.deletedAt == nil && $0.date >= range.start && $0.date < range.end }
                             let totals = MacTransactionCRUD.totals(transactions: rows, currency: currency)
-                            accountAmount("本月支出", value: totals.expense, currency: currency, color: MacOverviewStyle.expense)
-                            accountAmount("本月收入", value: totals.income, currency: currency, color: MacOverviewStyle.income)
+                            accountAmount(L10n.text("mac.finTrackMacRootView.accountAmount.b0bec87c9d"), value: totals.expense, currency: currency, color: MacOverviewStyle.expense, id: "accountMonthlyExpense")
+                            accountAmount(L10n.text("mac.finTrackMacRootView.accountAmount.b883460d62"), value: totals.income, currency: currency, color: MacOverviewStyle.income, id: "accountMonthlyIncome")
                         }
                         Divider()
-                        Button("设置", systemImage: "gearshape") { workspace.section = .settings; showsAccount = false }
+                        Button(L10n.text("mac.finTrackMacRootView.accountPanel.df3d58c7d8"), systemImage: "gearshape") { workspace.section = .settings; showsAccount = false }
                             .accessibilityIdentifier("navSettings")
-                        Button("进阶统计", systemImage: "chart.bar.xaxis") { workspace.section = .insights; showsAccount = false }
+                        Button(L10n.text("mac.finTrackMacRootView.accountPanel.291885fb63"), systemImage: "chart.bar.xaxis") { workspace.section = .insights; showsAccount = false }
                             .accessibilityIdentifier("navInsights")
-                        Text("FinTrack · 本机保存").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                        Text(L10n.text("mac.finTrackMacRootView.accountPanel.cd7bcbdad4")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     }.appPadding(16).frame(width: MacUI.space(236))
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.primary.opacity(0.08)))
@@ -202,17 +211,19 @@ struct FinTrackMacRootView: View {
             .onTapGesture { }
     }
 
-    private func accountAmount(_ title: String, value: Double, currency: String, color: Color) -> some View {
+    private func accountAmount(_ title: String, value: Double, currency: String, color: Color, id: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).appFont(.caption).foregroundStyle(.secondary)
             Text(MacOverviewStyle.money(value) + " " + MacSettingsVisual.symbol(currency))
                 .appFont(.body, weight: .semibold).monospacedDigit().foregroundStyle(color)
                 .lineLimit(1).minimumScaleFactor(0.55)
-        }.accessibilityElement(children: .combine).accessibilityIdentifier(title == "本月支出" ? "accountMonthlyExpense" : "accountMonthlyIncome")
+        }.accessibilityElement(children: .combine).accessibilityIdentifier(id)
     }
 
     private func navigation(compact: Bool) -> some View {
         VStack(alignment: compact ? .center : .leading, spacing: MacUI.space(8)) {
+            ScrollView(.vertical) {
+                VStack(alignment: compact ? .center : .leading, spacing: MacUI.space(8)) {
             HStack(spacing: MacUI.space(10)) {
                 MacBrandIcon(size: 30)
                 if !compact { Text("FinTrack").appFont(.section, weight: .semibold).lineLimit(1).minimumScaleFactor(0.75) }
@@ -222,7 +233,8 @@ struct FinTrackMacRootView: View {
             nav(.deposits, id: "navFinance", compact: compact)
             nav(.recurring, id: "navRecurring", compact: compact)
             nav(.loans, id: "navLoans", compact: compact)
-            Spacer()
+                }
+            }.scrollIndicators(.hidden).frame(maxHeight:.infinity)
             HStack { Button { showsAccount.toggle() } label: {
                 HStack(spacing: MacUI.space(10)) {
                     if let image = NSImage(data: accountAvatar) {
@@ -232,14 +244,14 @@ struct FinTrackMacRootView: View {
                     }
                     if !compact {
                         VStack(alignment: .leading, spacing: MacUI.space(3)) {
-                            Text(displayName).appFont(.body, weight: .medium, design: .default).lineLimit(1).minimumScaleFactor(0.65)
-                            Text(currency ?? "需要核对币种").appFont(.caption, weight: .regular).lineLimit(1).minimumScaleFactor(0.65).foregroundStyle(.secondary)
+                            Text(displayName.isEmpty ? L10n.text("legacy.builtIn.f3e5e8b09d45") : displayName).appFont(.body, weight: .medium, design: .default).lineLimit(1).minimumScaleFactor(0.65)
+                            Text(currency ?? L10n.text("mac.finTrackMacRootView.navigation.bd2bec8ee9")).appFont(.caption, weight: .regular).lineLimit(1).minimumScaleFactor(0.65).foregroundStyle(.secondary)
                         }
                         Spacer(); Image(systemName: "chevron.up").appFont(.caption, weight: .regular)
                     }
                 }.appPadding(12).frame(maxWidth: .infinity).contentShape(Rectangle())
-            }.buttonStyle(MacInteractiveButtonStyle()).appHelp("账本与设置").accessibilityLabel("账本与设置")
-                .accessibilityIdentifier("accountMenu").accessibilityValue(NSImage(data: accountAvatar) == nil ? "默认头像" : "自定义头像")
+            }.buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.text("mac.finTrackMacRootView.navigation.4e1108a914")).accessibilityLabel(L10n.text("mac.finTrackMacRootView.navigation.4e1108a914"))
+                .accessibilityIdentifier("accountMenu").accessibilityValue(NSImage(data: accountAvatar) == nil ? L10n.text("mac.finTrackMacRootView.navigation.70747c9ad7") : L10n.text("mac.finTrackMacRootView.navigation.1841af00f4"))
             }
 
         }
@@ -253,11 +265,11 @@ struct FinTrackMacRootView: View {
         } label: {
             HStack(spacing: MacUI.space(12)) {
                 Image(systemName: section.icon).appIconFont(18, weight: .regular, design: .default).frame(width: MacUI.space(24))
-                if !compact { Text(section.rawValue).appFont(.body, weight: workspace.section == section ? .semibold : .regular); Spacer() }
+                if !compact { Text(section.title).appFont(.body, weight: workspace.section == section ? .semibold : .regular).lineLimit(1).minimumScaleFactor(0.7); Spacer() }
             }.appPadding(.horizontal, 12).appMinHeight(43).frame(maxWidth: .infinity)
                 .foregroundStyle(workspace.section == section ? (section == .settings ? MacSettingsVisual.accent : MacOverviewStyle.accent) : .primary)
                 .background(workspace.section == section ? (section == .settings ? MacSettingsVisual.accent : MacOverviewStyle.accent).opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 10))
                 .contentShape(Rectangle())
-        }.buttonStyle(MacInteractiveButtonStyle()).appHelp(section.rawValue).accessibilityLabel(section.rawValue).accessibilityIdentifier(id)
+        }.buttonStyle(MacInteractiveButtonStyle()).appHelp(section.title).accessibilityLabel(section.title).accessibilityIdentifier(id)
     }
 }

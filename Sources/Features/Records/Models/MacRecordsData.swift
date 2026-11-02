@@ -21,7 +21,7 @@ struct MacRecordsNavigationState {
          currencyFilter: String = "All", categoryFilter: String = "All",
          recordSort: String = MacPreferences.defaults.string(forKey: "v2_sort") ?? "最新优先",
          displayLimit: Int = MacPreferences.defaults.object(forKey: "v2_page_size") as? Int ?? 50,
-         rangeTitle: String = "全部记录", expandedYears: Set<Int>? = nil, expandedMonths: Set<String>? = nil) {
+         rangeTitle: String = MacRecordRangeIdentity.all, expandedYears: Set<Int>? = nil, expandedMonths: Set<String>? = nil) {
         let now = Date()
         let year = Calendar.current.component(.year, from: now)
         let month = Calendar.current.component(.month, from: now)
@@ -32,7 +32,7 @@ struct MacRecordsNavigationState {
         self.dateThrough = dateThrough
         self.currencyFilter = currencyFilter
         self.categoryFilter = categoryFilter
-        self.recordSort = recordSort
+        self.recordSort = MacRecordSort.stored(recordSort).legacyValue
         self.displayLimit = displayLimit
         self.rangeTitle = rangeTitle
         self.expandedYears = expandedYears ?? [year]
@@ -108,5 +108,36 @@ struct MacRecordsTimelineIndex {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
         guard let year = components.year, let month = components.month, let day = components.day else { return 0 }
         return countsByDay[DayKey(year: year, month: month, day: day)] ?? 0
+    }
+}
+
+/// UI range identity is independent of translated labels. Dates remain authoritative.
+enum MacRecordRangeIdentity {
+    static let all = "all"
+    static let recent = "recent30"
+    static func year(_ year: Int) -> String { "year:\(year)" }
+    static func month(_ year: Int, _ month: Int) -> String { "month:\(year)-\(month)" }
+    static func resolve(from: Date, through: Date, enabled: Bool, now: Date = Date(), calendar: Calendar = .current) -> String {
+        guard enabled else { return all }
+        let range = MacRecordsFilter.inclusiveDays(from: from, through: through, calendar: calendar)
+        if calendar.isDate(from, inSameDayAs: through) { return "day" }
+        if range == calendar.dateInterval(of: .year, for: from) { return year(calendar.component(.year, from: from)) }
+        if range == calendar.dateInterval(of: .month, for: from) { return month(calendar.component(.year, from: from), calendar.component(.month, from: from)) }
+        if calendar.isDate(through, inSameDayAs: now), calendar.dateComponents([.day], from: range.start, to: range.end).day == 30 { return recent }
+        return "custom"
+    }
+    static func normalize(_ saved: String, from: Date, through: Date, enabled: Bool) -> String {
+        if saved == all || saved == recent || saved == "day" || saved == "custom" || saved.hasPrefix("year:") || saved.hasPrefix("month:") { return enabled ? saved : all }
+        // Old in-process navigation snapshots may contain Chinese or translated titles.
+        return resolve(from: from, through: through, enabled: enabled)
+    }
+    static func title(_ identity: String, from: Date, through: Date) -> String {
+        let calendar = Calendar.current
+        if identity == all { return L10n.text("mac.recordsView.rangeButton.e425792084") }
+        if identity == recent { return L10n.text("mac.recordsView.rangeButton.178393de56") }
+        if identity.hasPrefix("year:") { return L10n.format("mac.recordsView.updateRangeTitle.344415d04a", "\(calendar.component(.year, from: from))") }
+        if identity.hasPrefix("month:") { return L10n.format("mac.recordsView.updateRangeTitle.ab2a4fc454", "\(calendar.component(.year, from: from))", "\(calendar.component(.month, from: from))") }
+        if identity == "day" { return MacDateDisplay.string(from) }
+        return "\(MacDateDisplay.string(from)) – \(MacDateDisplay.string(through))"
     }
 }

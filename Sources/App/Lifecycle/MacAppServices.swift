@@ -30,22 +30,29 @@ final class MacAppServices: ObservableObject {
     func refreshLoginStatus() {
         guard !MacPreferences.isTesting else { loginEnabled = false; return }
         loginEnabled = SMAppService.mainApp.status == .enabled
-        loginMessage = SMAppService.mainApp.status == .requiresApproval ? "请在系统设置的登录项中允许 FinTrack。" : nil
+        loginMessage = SMAppService.mainApp.status == .requiresApproval ? L10n.text("mac.appServices.refreshLoginStatus.5c9e57780f") : nil
     }
     func setLoginEnabled(_ enabled: Bool) {
-        guard !MacPreferences.isTesting else { loginMessage = "测试副本不修改系统登录项。"; return }
+        guard !MacPreferences.isTesting else { loginMessage = L10n.text("mac.appServices.setLoginEnabled.af7557c1de"); return }
         if enabled, (try? Bundle.main.bundleURL.resourceValues(forKeys:[.volumeIsReadOnlyKey]).volumeIsReadOnly) == true {
-            loginMessage = "请先将 FinTrack 拖到应用程序文件夹，再开启登录启动。"; return
+            loginMessage = L10n.text("mac.appServices.setLoginEnabled.a932218945"); return
         }
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             refreshLoginStatus()
-        } catch { refreshLoginStatus(); loginMessage = "登录启动设置未完成：" + error.localizedDescription }
+        } catch { refreshLoginStatus(); loginMessage = L10n.text("mac.appServices.setLoginEnabled.97abbfd10c") + error.localizedDescription }
     }
     func start() {
         guard !started, !MacPreferences.isTesting else { return }; started = true
         MacNotificationDelegate.shared.install()
         refreshLoginStatus()
+        observers.append(NotificationCenter.default.publisher(for: LocalizationController.didChange).sink { _ in
+            Task { @MainActor in
+                guard !MacPreferences.isTesting, let context = MacLedgerAccess.shared.container?.mainContext else { return }
+                // Refresh pending text with the same occurrence IDs; never post money.
+                try? await MacNotifications.schedule(in: context)
+            }
+        })
         observers.append(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).debounce(for: .milliseconds(250), scheduler: RunLoop.main).sink { [weak self] _ in
             Task { @MainActor in self?.preferencesChanged() }
         })
@@ -86,6 +93,6 @@ final class MacAppServices: ObservableObject {
         guard let context = access.container?.mainContext else { return }
         let d = MacPreferences.defaults
         postingError = await MacAutomaticPosting.run(in: context, now: Self.eligibleThrough(Date()), includeRules: d.bool(forKey: "fintrack_auto_posting"), includeDeposits: d.object(forKey: "v13_auto_deposit_posting") as? Bool ?? true, estimateDeposits: true)
-        do { try await MacNotifications.schedule(in: context) } catch { postingError = "通知排程未完成：" + error.localizedDescription }
+        do { try await MacNotifications.schedule(in: context) } catch { postingError = L10n.text("mac.appServices.runDue.aff23af827") + error.localizedDescription }
     }
 }

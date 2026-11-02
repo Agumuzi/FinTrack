@@ -11,17 +11,17 @@ enum MacFinanceRecords {
         case futureOccurrence, noProgress, tooManyOccurrences, existingOccurrence
         var errorDescription: String? {
             switch self {
-            case .invalidName: "Enter a title or bank name."
-            case .invalidDateRange: "The end date must be later than the start date."
-            case .invalidRate: "Interest rate must be between 0 and 100 percent."
-            case .invalidTerm: "Loan term must be from 1 to 600 months."
-            case .invalidRecurrence: "Recurring interval must be positive and have a valid unit."
-            case .currencyMismatch: "Confirm the ledger currency and the original currency exchange rate."
-            case .legacyPostingDisabled: "Legacy recurring rules have no verified occurrence identity. Auto-posting is blocked."
-            case .futureOccurrence: "This occurrence is not due yet."
-            case .noProgress: "The next recurring date failed to advance. Nothing was committed."
-            case .tooManyOccurrences: "待补记超过24期，本次未入账。请先暂停自动入账并创建备份，再通过“核对历史”确认下一未入账日期。"
-            case .existingOccurrence: "An occurrence already exists. Nothing was committed."
+            case .invalidName: L10n.text("mac.financeRecords.errorDescription.23c77de9b8")
+            case .invalidDateRange: L10n.text("mac.financeRecords.errorDescription.3162d07f77")
+            case .invalidRate: L10n.text("mac.financeRecords.errorDescription.e670396589")
+            case .invalidTerm: L10n.text("mac.financeRecords.errorDescription.cc8a2c4647")
+            case .invalidRecurrence: L10n.text("mac.financeRecords.errorDescription.913ad9fa53")
+            case .currencyMismatch: L10n.text("mac.financeRecords.errorDescription.2aa3a08b83")
+            case .legacyPostingDisabled: L10n.text("mac.financeRecords.errorDescription.6855c3c181")
+            case .futureOccurrence: L10n.text("mac.financeRecords.errorDescription.80571efe65")
+            case .noProgress: L10n.text("mac.financeRecords.errorDescription.347ef1fae4")
+            case .tooManyOccurrences: L10n.text("mac.financeRecords.errorDescription.5261ffd1d4")
+            case .existingOccurrence: L10n.text("mac.financeRecords.errorDescription.c0b718c03d")
             }
         }
     }
@@ -167,7 +167,7 @@ enum MacFinanceRecords {
         goal.targetDatePrecisionRaw = deadline == nil ? nil : targetDatePrecision?.rawValue
         if let deadline, let targetDatePrecision {
             let raw = GoalTargetTime.capturedValue(deadline, precision: targetDatePrecision)
-            guard GoalTargetTime.components(raw, precision: targetDatePrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            guard GoalTargetTime.components(raw, precision: targetDatePrecision) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.financeRecords.addGoal.520803061b")) }
             goal.targetDateValueRaw = raw
         }
         context.insert(goal)

@@ -14,10 +14,10 @@ enum MacGoalTargetDate {
         label(goal.targetTime)
     }
     static func label(_ time: GoalTargetTime) -> String {
-        guard let date = time.resolvedDate() else { return "未设期望时间" }
+        guard let date = time.resolvedDate() else { return L10n.text("mac.goalPresentation.label.55c3304e24") }
         switch time.precision {
-        case .year: return "\(Calendar.current.component(.year, from: date)) 年"
-        case .month: return "\(Calendar.current.component(.year, from: date)) 年 \(Calendar.current.component(.month, from: date)) 月"
+        case .year: return date.formatted(.dateTime.year().locale(L10n.locale))
+        case .month: return date.formatted(.dateTime.year().month(.wide).locale(L10n.locale))
         case .day: return MacDateDisplay.string(date)
         }
     }

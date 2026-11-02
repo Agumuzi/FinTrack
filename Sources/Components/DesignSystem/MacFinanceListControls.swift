@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct MacFinanceListToolbar<Sort: Hashable>: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var columns: Int
     @Binding var sort: Sort
     var options: [(String, Sort)]
@@ -16,11 +17,11 @@ struct MacFinanceListToolbar<Sort: Hashable>: View {
         HStack(spacing: 2) {
             ForEach([1, 2], id: \.self) { count in
                 Button { columns = count } label: {
-                    Text(count == 1 ? "单列" : "双列").appFont(.caption, weight: .medium)
+                    Text(count == 1 ? L10n.text("mac.financeListControls.ForEach.1c80f0b259") : L10n.text("mac.financeListControls.ForEach.0a9a4724ab")).appFont(.caption, weight: .medium)
                         .padding(.horizontal, 8).frame(minHeight: 32)
                         .foregroundStyle(columns == count ? MacUI.accent : .secondary)
                         .background(columns == count ? MacUI.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 7)).contentShape(Rectangle())
-                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(prefix + "Columns-\(count)").accessibilityValue(columns == count ? "已选中" : "未选中")
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(prefix + "Columns-\(count)").accessibilityValue(columns == count ? L10n.text("mac.financeListControls.ForEach.a737fd72b0") : L10n.text("mac.financeListControls.ForEach.0e0c21de69"))
             }
         }.padding(3).background(.gray.opacity(0.05), in: RoundedRectangle(cornerRadius: 9)).fixedSize()
     }
@@ -31,6 +32,7 @@ struct MacFinanceListToolbar<Sort: Hashable>: View {
 }
 
 struct MacFinanceListDivider: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var width: Double
     var maximum: Double
     var commit: (Double) -> Void = { _ in }
@@ -45,7 +47,7 @@ struct MacFinanceListDivider: View {
             }.onEnded { value in
                 let final = fitted((initial ?? width) + value.translation.width / MacInterfaceZoom.factor)
                 width = final; commit(final); initial = nil
-            }).accessibilityLabel("调整列表宽度").accessibilityValue(String(Int(width)))
+            }).accessibilityLabel(L10n.text("mac.financeListControls.body.20b619041c")).accessibilityValue(String(Int(width)))
             .accessibilityAdjustableAction { direction in
                 let value = fitted(width + (direction == .increment ? 20 : -20)); width = value; commit(value)
             }

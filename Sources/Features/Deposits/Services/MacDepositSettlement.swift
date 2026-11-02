@@ -18,15 +18,15 @@ enum MacDepositSettlement {
 
         var errorDescription: String? {
             switch self {
-            case .legacyRecord: "Old deposits need manual reconciliation before cash posting."
-            case .unsafeRollover: "The renewal source or principal allocation could not be verified."
-            case .currencyMismatch: "Provide a dated exchange rate for every foreign-currency interest receipt."
-            case .notDue: "No bank interest payment is due on this date."
-            case .corruptedSchedule: "Original monthly payout dates do not match the saved schedule."
-            case .duplicateReceipt: "This deposit interest period already has a posted receipt."
-            case .tooManyPeriods: "待结息超过24期，本次未入账。请先创建备份，再通过“核对历史”按银行凭证确认下一未入账日期。"
-            case .noLongerActive: "This deposit is inactive or has already been settled."
-            case .possibleManualReceipt: "发现同日同金额的手动利息账目，请先核对历史，避免重复入账。"
+            case .legacyRecord: L10n.text("mac.depositSettlement.errorDescription.3221742b8c")
+            case .unsafeRollover: L10n.text("mac.depositSettlement.errorDescription.16e5a15d28")
+            case .currencyMismatch: L10n.text("mac.depositSettlement.errorDescription.bbc197b408")
+            case .notDue: L10n.text("mac.depositSettlement.errorDescription.92ad56cb7b")
+            case .corruptedSchedule: L10n.text("mac.depositSettlement.errorDescription.fc8711271d")
+            case .duplicateReceipt: L10n.text("mac.depositSettlement.errorDescription.4f8cb31896")
+            case .tooManyPeriods: L10n.text("mac.depositSettlement.errorDescription.f994bc4d43")
+            case .noLongerActive: L10n.text("mac.depositSettlement.errorDescription.73a116c12b")
+            case .possibleManualReceipt: L10n.text("mac.depositSettlement.errorDescription.eb9c887b7a")
             }
         }
     }

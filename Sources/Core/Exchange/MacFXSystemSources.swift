@@ -11,7 +11,7 @@ actor MacFXSystemSources {
     nonisolated static var moscow: Calendar { var c = MacFXDates.utc; c.timeZone = TimeZone(identifier:"Europe/Moscow")!; return c }
     nonisolated func providers() -> [MacFXProvider] {
         ["ecb","frankfurter","cbr","floatrates"].map { kind in
-            MacFXProvider(id:"system." + kind,revision:"system-" + kind + "-daily-v1",name:"系统数据源",supportsHistory:kind != "floatrates",dayCalendar:kind == "cbr" ? Self.moscow : MacFXDates.utc,rangeAvailable:kind != "floatrates", rangeFetch: { [weak self] pair, start, end in
+            MacFXProvider(id:"system." + kind,revision:"system-" + kind + "-daily-v1",name:L10n.text("mac.fXSystemSources.MacFXProvider.2ea759ff20"),supportsHistory:kind != "floatrates",dayCalendar:kind == "cbr" ? Self.moscow : MacFXDates.utc,rangeAvailable:kind != "floatrates", rangeFetch: { [weak self] pair, start, end in
                 guard let self else { throw MacFXContractFailure.unavailable }
                 return try await self.rangeClient.fetch(pair: pair, source: "system." + kind, start: start, end: end)
             }) { [weak self] pair,requested,purpose,cycle in
@@ -64,7 +64,7 @@ actor MacFXSystemSources {
     private func loadData(_ url:String,cycle:String) async throws -> Data {
         let key = cycle + "/" + url
         if let pending = batches[key] { return try await pending.value }
-        let task = Task { try await MacFXService.requestData(MacFXSource(name:"系统数据源",urlTemplate:url),from:"USD",to:"CNY",date:Date(),keyOverride:"") }
+        let task = Task { try await MacFXService.requestData(MacFXSource(name:L10n.text("mac.fXSystemSources.MacFXSource.2ea759ff20"),urlTemplate:url),from:"USD",to:"CNY",date:Date(),keyOverride:"") }
         batches[key] = task; order.append(key)
         while order.count > 128 { batches.removeValue(forKey:order.removeFirst()) }
         return try await task.value

@@ -291,8 +291,15 @@ struct CategoryUsageHelper {
     }
 
     static func isProtectedCategory(_ category: Category) -> Bool {
-        (category.type == "Expense" && category.name == loanCategoryName) ||
-        (category.type == "Income" && category.name == depositCategoryName)
+        let name = normalizedCategoryLookupName(category.name)
+        switch category.type {
+        case "Expense":
+            return MacLegacyCategoryIdentity.loanAliases.map(normalizedCategoryLookupName).contains(name)
+        case "Income":
+            return MacLegacyCategoryIdentity.depositAliases.map(normalizedCategoryLookupName).contains(name)
+        default:
+            return false
+        }
     }
 
     @discardableResult
@@ -344,16 +351,14 @@ struct CategoryUsageHelper {
 
         switch type {
         case "Expense":
-            let normalizedLoanNames = [
-                normalizedCategoryLookupName(loanCategoryName),
-                normalizedCategoryLookupName(localizedDisplayName(for: loanCategoryName))
-            ]
+            let normalizedLoanNames = (MacLegacyCategoryIdentity.loanAliases + [
+                localizedDisplayName(for: loanCategoryName)
+            ]).map(normalizedCategoryLookupName)
             return normalizedLoanNames.contains(normalizedCandidate) ? loanCategoryName : nil
         case "Income":
-            let normalizedDepositNames = [
-                normalizedCategoryLookupName(depositCategoryName),
-                normalizedCategoryLookupName(localizedDisplayName(for: depositCategoryName))
-            ]
+            let normalizedDepositNames = (MacLegacyCategoryIdentity.depositAliases + [
+                localizedDisplayName(for: depositCategoryName)
+            ]).map(normalizedCategoryLookupName)
             return normalizedDepositNames.contains(normalizedCandidate) ? depositCategoryName : nil
         default:
             return nil

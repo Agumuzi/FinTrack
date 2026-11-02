@@ -23,30 +23,30 @@ enum MacLoansData {
         var schedule: [LoanAmortizationEngine.Payment] = []
     }
     static func method(_ value: RepaymentMethod) -> String {
-        switch value { case .equalPayment: "等额本息"; case .equalPrincipal: "等额本金"; case .interestOnly: "先息后本" }
+        switch value { case .equalPayment: L10n.text("mac.loansData.method.3377559ece"); case .equalPrincipal: L10n.text("mac.loansData.method.8344df2ee1"); case .interestOnly: L10n.text("mac.loansData.method.a9d9c962cb") }
     }
     static func audit(_ loan: LoanRule, transactions: [Transaction], rules: [RecurringTransaction]) -> Audit {
         func unknown(_ warning: String) -> Audit {
             Audit(reliable: false, receipts: [], paid: [], next: nil, outstanding: nil, warning: warning)
         }
-        guard MacLoanSchedule.valid(loan) else { return unknown("贷款计划日期记录损坏，请先核对历史。") }
+        guard MacLoanSchedule.valid(loan) else { return unknown(L10n.text("mac.loansData.unknown.51489be39b")) }
         guard MacLoanRepayment.isManaged(loan) else {
-            return unknown("历史还款待核对，计划日期、关联规则和相似备注不能证明已经付款。")
+            return unknown(L10n.text("mac.loansData.unknown.76a27987d4"))
         }
         let prefix = "loan_generated:\(loan.id.uuidString):"
         guard !rules.contains(where: { ($0.projectIdentifier ?? "").hasPrefix(prefix) }) else {
-            return unknown("存在旧贷款关联规则，请先核对历史，避免重复入账。")
+            return unknown(L10n.text("mac.loansData.unknown.a9de1fb8a8"))
         }
         guard loan.principal.isFinite, loan.principal > 0, loan.annualRate.isFinite, (0...100).contains(loan.annualRate),
               (1...600).contains(loan.termMonths), RepaymentMethod(rawValue: loan.methodRawValue) != nil,
               loan.exchangeRateToBase.isFinite, loan.exchangeRateToBase > 0,
               loan.basePrincipal == FinancialPrecision.roundAmountForStorage(loan.principal * loan.exchangeRateToBase),
-              loan.currency != loan.baseCurrencyCode || loan.exchangeRateToBase == 1 else { return unknown("贷款参数或记账快照需要核对。") }
+              loan.currency != loan.baseCurrencyCode || loan.exchangeRateToBase == 1 else { return unknown(L10n.text("mac.loansData.unknown.b2f0956771")) }
         let schedule = MacLoanRepayment.resolvedSchedule(loan, transactions: transactions)
-        guard schedule.count == loan.termMonths, schedule.allSatisfy({ $0.total.isFinite && $0.total >= 0 }) else { return unknown("还款计划需要核对。") }
+        guard schedule.count == loan.termMonths, schedule.allSatisfy({ $0.total.isFinite && $0.total >= 0 }) else { return unknown(L10n.text("mac.loansData.unknown.cc2ba8a3f6")) }
         do {
             let paid = try MacLoanRepayment.verifiedPaidIndices(loan, schedule: schedule, transactions: transactions, book: loan.baseCurrencyCode)
-            guard paid == Set(schedule.filter { $0.total > 0 }.prefix(paid.count).map(\.index)) else { return unknown("还款记录不连续，请核对缺失期次。") }
+            guard paid == Set(schedule.filter { $0.total > 0 }.prefix(paid.count).map(\.index)) else { return unknown(L10n.text("mac.loansData.unknown.9fd70de509")) }
             let payments = schedule.filter { paid.contains($0.index) }
             let markers = Set(payments.map { MacLoanRepayment.marker(loanID: loan.id, payment: $0) })
             let receipts = transactions.filter { row in markers.contains(where: { (row.note ?? "").hasSuffix($0) }) }.sorted { $0.date > $1.date }
@@ -54,11 +54,11 @@ enum MacLoansData {
             let completed = paid.count == schedule.filter { $0.total > 0 }.count
             let mismatch = completed && abs(principal - loan.principal) >= 0.005
             let review = MacLoanSchedule.requiresReview(loan)
-            let warning = review ? "旧贷款未保存合同所在时区。已有收据保持不变；请核对并固定未来还款日期后继续记账。" : (mismatch ? "历史还款存在分币差额；已入账金额保持原值，请核对银行实际结清金额。" : nil)
+            let warning = review ? L10n.text("mac.loansData.warning.8fa5c64539") : (mismatch ? L10n.text("mac.loansData.warning.c4110d48ca") : nil)
             return Audit(reliable: true, receipts: receipts, paid: paid, next: review ? nil : schedule.first { $0.total > 0 && !paid.contains($0.index) },
                          outstanding: payments.last?.remainingBalance ?? loan.principal, warning: warning,
                          principalPaid: principal, interestPaid: FinancialPrecision.roundAmountForStorage(payments.reduce(0) { $0 + $1.interest }), schedule: schedule)
-        } catch { return unknown("关联收据损坏、重复、已删除或与计划不符；实际进度暂不展示，请到账目中核对。") }
+        } catch { return unknown(L10n.text("mac.loansData.unknown.e58ec8b88c")) }
     }
     static func status(_ audit: Audit, now: Date = Date(), calendar: Calendar = .current) -> Status {
         guard audit.reliable else { return .review }

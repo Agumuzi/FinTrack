@@ -29,7 +29,7 @@ enum MacLoanSchedule {
     }
     static func pin(_ loan: LoanRule, replacingExisting: Bool = false) throws {
         if loan.note.contains(prefix), !replacingExisting {
-            guard dates(loan) != nil else { throw MacSettingsFailure.invalid("贷款计划日期记录损坏，请先核对历史。") }
+            guard dates(loan) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.loanSchedule.pin.51489be39b")) }
             return
         }
         let schedule = LoanAmortizationEngine.legacySchedule(principal: loan.principal, annualRate: loan.annualRate,
@@ -39,7 +39,7 @@ enum MacLoanSchedule {
     private static func pin(_ loan: LoanRule, dates: [Date]) throws {
         guard dates.count == loan.termMonths, dates.first == loan.startDate,
               zip(dates, dates.dropFirst()).allSatisfy({ $0 < $1 }) else {
-            throw MacSettingsFailure.invalid("贷款计划日期无效，请核对首期日期和期数。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.loanSchedule.pin.cdd652ab6f"))
         }
         let bytes = try JSONEncoder().encode(Dates(version: 1, start: loan.startDate, count: loan.termMonths, dates: dates))
         let clean = loan.note.replacingOccurrences(of: #"\[FTLoan(?::Schedule|Schedule):[^\]]*\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -48,12 +48,12 @@ enum MacLoanSchedule {
     static func confirmLegacy(_ loan: LoanRule, calendar: Calendar, expectedDates: [Date], in context: ModelContext) throws {
         try MacRecoveryJournal.assertWritable(in: context)
         guard !MacAutomaticPosting.isRunning, !context.hasChanges, requiresReview(loan) else {
-            throw MacSettingsFailure.invalid("贷款状态已变化，请重新打开核对计划。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.loanSchedule.confirmLegacy.097aff5709"))
         }
         let rows = try context.fetch(FetchDescriptor<Transaction>())
         let schedule = MacLoanRepayment.resolvedSchedule(loan, transactions: rows, calendar: calendar)
         _ = try MacLoanRepayment.verifiedPaidIndices(loan, schedule: schedule, transactions: rows, book: loan.baseCurrencyCode)
-        guard expectedDates == schedule.map(\.date) else { throw MacSettingsFailure.invalid("贷款计划已变化，请重新核对。") }
+        guard expectedDates == schedule.map(\.date) else { throw MacSettingsFailure.invalid(L10n.text("mac.loanSchedule.confirmLegacy.ffa1c03244")) }
         try MacRecoveryJournal.perform(in: context) {
             try pin(loan, dates: expectedDates)
             try context.save()

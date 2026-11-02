@@ -124,9 +124,9 @@ nonisolated enum MacUpdateTransferError: LocalizedError {
     case invalidResponse, tooLarge, checksumMismatch
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "更新服务器响应无效，或下载链接不安全"
-        case .tooLarge: return "更新文件超过大小限制，已停止下载"
-        case .checksumMismatch: return "安装包校验不一致，已拒绝安装"
+        case .invalidResponse: return L10n.text("mac.updateArchiveDownload.errorDescription.f10acb4130")
+        case .tooLarge: return L10n.text("mac.updateArchiveDownload.errorDescription.3927dfba19")
+        case .checksumMismatch: return L10n.text("mac.updateArchiveDownload.errorDescription.d262778367")
         }
     }
 }

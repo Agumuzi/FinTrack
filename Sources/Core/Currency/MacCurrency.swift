@@ -37,12 +37,12 @@ enum MacCurrency {
         case invalidCurrency, invalidRate, invalidAmount, mixedBooks, missingRate, staleQuote
         var errorDescription: String? {
             switch self {
-            case .invalidCurrency: "Enter a three-letter currency code."
-            case .invalidRate: "Enter a positive finite exchange rate."
-            case .invalidAmount: "The converted amount is outside the supported range."
-            case .mixedBooks: "The ledger has different base currencies. Reconcile the base currency before posting."
-            case .missingRate: "A foreign-currency entry needs an explicit exchange rate."
-            case .staleQuote: "The rate provider did not return the requested date. Enter a verified rate manually."
+            case .invalidCurrency: L10n.text("mac.currency.errorDescription.c53b1b791b")
+            case .invalidRate: L10n.text("mac.currency.errorDescription.868618f04b")
+            case .invalidAmount: L10n.text("mac.currency.errorDescription.fe37fe104a")
+            case .mixedBooks: L10n.text("mac.currency.errorDescription.3f1d2e3c95")
+            case .missingRate: L10n.text("mac.currency.errorDescription.17cc926fe0")
+            case .staleQuote: L10n.text("mac.currency.errorDescription.11733bc62b")
             }
         }
     }

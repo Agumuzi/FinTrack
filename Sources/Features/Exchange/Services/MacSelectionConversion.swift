@@ -27,7 +27,7 @@ struct MacConversionHotkey: Codable, Equatable {
 @MainActor
 final class MacSelectionConversion: ObservableObject {
     static let shared = MacSelectionConversion()
-    @Published private(set) var status = "选中金额后按快捷键换算"
+    @Published private(set) var status = L10n.text("mac.selectionConversion.status.51a0b330e5")
     private var hotkey: EventHotKeyRef?
     private var handler: EventHandlerRef?
     private var mouseMonitor: Any?
@@ -64,14 +64,14 @@ final class MacSelectionConversion: ObservableObject {
         let master = d.object(forKey: "selection_conversion_enabled") as? Bool ?? true
         let enabled = master && (d.object(forKey: "v141_selection_shortcut") as? Bool ?? true)
         let automatic = master && d.bool(forKey: "v141_selection_auto")
-        if MacPreferences.isTesting { status = "隔离测试：不注册全局快捷键"; if !master { dismiss() }; return }
+        if MacPreferences.isTesting { status = L10n.text("mac.selectionConversion.configure.334352a74e"); if !master { dismiss() }; return }
         let next = "\(master):\(enabled):\(automatic):\(key.code):\(key.modifiers)"
         guard next != signature else { return }; signature = next
         if let hotkey { UnregisterEventHotKey(hotkey); self.hotkey = nil }
         if enabled {
             let result = RegisterEventHotKey(key.code, key.modifiers, EventHotKeyID(signature: 0x46544356, id: 1), GetApplicationEventTarget(), 0, &hotkey)
-            status = result == noErr ? "选中金额后按 \(key.label) 换算" : "快捷键已被占用，请重新设置"
-        } else { status = "快捷键换算已关闭" }
+            status = result == noErr ? L10n.format("mac.selectionConversion.configure.cc24fac575", "\(key.label)") : L10n.text("mac.selectionConversion.configure.2deaa9e89a")
+        } else { status = L10n.text("mac.selectionConversion.configure.194aac4f1f") }
         if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor); self.mouseMonitor = nil }
         selectionTask?.cancel()
         if !master { dismiss() }
@@ -102,7 +102,7 @@ final class MacSelectionConversion: ObservableObject {
     func requestAccessibility() {
         guard !MacPreferences.isTesting else { return }
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        if !AXIsProcessTrustedWithOptions(options) { status = "请在系统设置 → 隐私与安全性 → 辅助功能中允许 FinTrack。" }
+        if !AXIsProcessTrustedWithOptions(options) { status = L10n.text("mac.selectionConversion.requestAccessibility.7110ddf105") }
     }
     private func readSelection() -> String? {
         secureSelection = false
@@ -143,7 +143,7 @@ final class MacSelectionConversion: ObservableObject {
     func convertSelection(automatic: Bool) async {
         guard !busy, MacPreferences.defaults.object(forKey: "selection_conversion_enabled") as? Bool != false else { return }
         guard AXIsProcessTrusted() else {
-            if !automatic { status = "需要辅助功能权限才能读取选中金额。"; requestAccessibility() }
+            if !automatic { status = L10n.text("mac.selectionConversion.convertSelection.ecf90b02c5"); requestAccessibility() }
             return
         }
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
@@ -153,7 +153,7 @@ final class MacSelectionConversion: ObservableObject {
         if !automatic && (text?.isEmpty ?? true) { text = await copyFallback() }
         guard let text, !text.isEmpty, let parsed = MacSelectedAmountParser.parse(text) else {
             if automatic { dismiss() }
-            if !automatic { showMessage("未识别到金额", "请选择一个金额，例如 1234 USD、€299 或 599.99 土耳其里拉。") }
+            if !automatic { showMessage(L10n.text("mac.selectionConversion.showMessage.ccf107c93a"), L10n.text("mac.selectionConversion.showMessage.5a5fc77693")) }
             return
         }
         let signature = "\(NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0):\(text)"
@@ -173,7 +173,7 @@ final class MacSelectionConversion: ObservableObject {
         }
         session = value
         let panel = MacSelectionFloatingPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.title = "选区金额换算"; panel.isReleasedWhenClosed = false; panel.level = .floating
+        panel.title = L10n.text("mac.selectionConversion.present.03a46977ef"); panel.isReleasedWhenClosed = false; panel.level = .floating
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]; panel.hidesOnDeactivate = false
         panel.backgroundColor = .clear; panel.isOpaque = false; panel.hasShadow = true; panel.acceptsMouseMovedEvents = true
         panel.onEscape = { [weak self] in self?.dismiss() }

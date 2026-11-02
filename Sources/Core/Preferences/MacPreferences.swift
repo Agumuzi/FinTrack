@@ -49,6 +49,7 @@ enum MacPreferences {
     /// Preserve the implicit v1.0 currency directory for existing installations.
     /// Record the decision before onboarding so a new user remains empty afterward.
     static func prepareInitialState(in defaults: UserDefaults) {
+        LocalizationPolicy.prepare(in: defaults)
         if !defaults.bool(forKey: officialUpdateSourceKey) {
             let url = defaults.string(forKey: "v2_update_url") ?? ""
             let key = defaults.string(forKey: "v2_update_public_key") ?? ""
@@ -94,10 +95,7 @@ enum MacPreferences {
 
 enum MacLocalization {
     static func value(_ key: String) -> String {
-        let language = MacPreferences.isTesting ? (MacPreferences.defaults.string(forKey: "app_language") ?? "en") : "zh-Hans"
-        guard let path = Bundle.main.path(forResource: language, ofType: "lproj"),
-              let bundle = Bundle(path: path) else { return key }
-        return bundle.localizedString(forKey: key, value: key, table: nil)
+        L10n.text(key)
     }
     static func error(_ error: Error) -> String { value(error.localizedDescription) }
 }

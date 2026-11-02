@@ -518,7 +518,7 @@ enum MacNativeBackup {
         func validate() throws {
             guard MacUpdateService.validatedURL(url) != nil,
                   Data(base64Encoded: publicKey)?.count == 32 else {
-                throw MacSettingsFailure.invalid("备份中的更新源地址或 Ed25519 公钥无效，未应用更新源配置")
+                throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.9fa5053f93"))
             }
         }
 
@@ -590,7 +590,7 @@ enum MacNativeBackup {
         return values
     }
     static func capture(in context: ModelContext, logos: [String: Data] = [:], csvKind: MacCSVKind? = nil) throws -> Payload {
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.capture.22cd953483")) }
         let updateURL = MacPreferences.defaults.string(forKey: "v2_update_url") ?? ""
         let updateKey = MacPreferences.defaults.string(forKey: "v2_update_public_key") ?? ""
         let updateTrust = updateURL.isEmpty && updateKey.isEmpty ? nil : UpdateTrustConfiguration(url: updateURL, publicKey: updateKey)
@@ -611,7 +611,7 @@ enum MacNativeBackup {
 
     }
     nonisolated static func encode(_ payload: Payload) throws -> Data {
-        guard payload.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid("备份记录数量超出限制") }
+        guard payload.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.encode.ba9c476955")) }
         let bytes = try JSONEncoder().encode(payload)
         let data = try JSONEncoder().encode(Envelope(sha256: digest(bytes), payload: bytes))
         try MacBackupLimits.checkNativeSize(data.count)
@@ -627,7 +627,7 @@ enum MacNativeBackup {
     nonisolated private static func decode(_ data: Data) throws -> Payload {
         try MacBackupLimits.checkNativeSize(data.count)
         let envelope=try JSONDecoder().decode(Envelope.self,from:data)
-        guard envelope.format == "FinTrack.NativeBackup",envelope.version == 1,digest(envelope.payload) == envelope.sha256 else {throw MacSettingsFailure.invalid("备份格式、版本或完整性检查未通过")}
+        guard envelope.format == "FinTrack.NativeBackup",envelope.version == 1,digest(envelope.payload) == envelope.sha256 else {throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.decode.b6d7b75dc6"))}
         return try JSONDecoder().decode(Payload.self,from:envelope.payload)
     }
     static func previewAsync(_ data: Data) async throws -> Payload {
@@ -636,29 +636,29 @@ enum MacNativeBackup {
     }
     private static func validateFinancialPayload(_ p: Payload) throws {
         func amount(_ value: Double, signed: Bool = false) throws {
-            guard value.isFinite, abs(value) <= 1e12, signed || value >= 0 else { throw MacSettingsFailure.invalid("备份中的财务金额无效") }
+            guard value.isFinite, abs(value) <= 1e12, signed || value >= 0 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.amount.783c6a1819")) }
         }
         func snapshot(_ original: Double, _ actual: Double, _ source: String, _ book: String, _ rate: Double) throws {
             _ = try MacCurrency.code(source); _ = try MacCurrency.code(book)
             try MacBankSettlement.validateSavedSnapshot(amount: original, actual: actual, source: source, base: book, rate: rate, allowLegacyPrecision: true)
         }
         func dates(_ values: Date?...) throws {
-            guard values.compactMap({$0}).allSatisfy({$0.timeIntervalSince1970.isFinite && abs($0.timeIntervalSince1970)<253402300800}) else { throw MacSettingsFailure.invalid("备份中的日期超出可用范围") }
+            guard values.compactMap({$0}).allSatisfy({$0.timeIntervalSince1970.isFinite && abs($0.timeIntervalSince1970)<253402300800}) else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.dates.59c5b5de89")) }
         }
         func reminder(_ days: Int, _ hour: Int, _ minute: Int) throws {
-            guard (0...365).contains(days),(0...23).contains(hour),(0...59).contains(minute) else { throw MacSettingsFailure.invalid("备份中的提醒时间无效") }
+            guard (0...365).contains(days),(0...23).contains(hour),(0...59).contains(minute) else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.reminder.3b841126d8")) }
         }
         for row in p.transaction {
             try dates(row.date,row.createdAt,row.updatedAt,row.deletedAt)
-            guard TransactionType(rawValue: row.type) != nil else { throw MacSettingsFailure.invalid("备份账目类型无效") }
+            guard TransactionType(rawValue: row.type) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.27c9f87a76")) }
             try snapshot(row.originalAmount, row.baseAmount, row.originalCurrency, row.baseCurrencyCode, row.exchangeRateToBase)
         }
         for row in p.recurringTransaction {
             try dates(row.nextExecutionDate,row.lastExecutionDate,row.endDate,row.createdAt,row.updatedAt,row.deletedAt)
             try reminder(row.reminderDaysBefore,row.reminderHour,row.reminderMinute)
             try amount(row.amount); _ = try MacCurrency.code(row.currency)
-            guard row.amount == row.originalAmount,row.currency == row.originalCurrency else { throw MacSettingsFailure.invalid("备份周期金额与原币快照不一致") }
-            guard ["income", "expense"].contains(row.type.lowercased()), (1...365).contains(row.intervalValue), RecurringIntervalUnit(rawValue: row.intervalUnit) != nil else { throw MacSettingsFailure.invalid("备份周期计划无效") }
+            guard row.amount == row.originalAmount,row.currency == row.originalCurrency else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.b15e0cc6ed")) }
+            guard ["income", "expense"].contains(row.type.lowercased()), (1...365).contains(row.intervalValue), RecurringIntervalUnit(rawValue: row.intervalUnit) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.fbcb520bab")) }
             try snapshot(row.originalAmount, row.baseAmount, row.originalCurrency, row.baseCurrencyCode, row.exchangeRateToBase)
         }
         for row in p.depositRecord {
@@ -666,20 +666,20 @@ enum MacNativeBackup {
             try reminder(row.reminderDaysBefore,row.reminderHour,row.reminderMinute)
             try amount(row.rolloverBasePrincipalAmount ?? 0);try amount(row.rolloverBaseInterestAmount ?? 0)
             guard row.principal > 0,row.principal == row.originalPrincipal,row.currency == row.originalCurrency,
-                  row.maturityInterestHandling == nil || DepositMaturityInterestHandling(rawValue:row.maturityInterestHandling!) != nil else { throw MacSettingsFailure.invalid("备份存款本金或续存信息无效") }
-            guard row.startDate < row.maturityDate, (0...100).contains(row.annualInterestRate), DepositInterestSettlementMode(rawValue: row.interestSettlementMode) != nil else { throw MacSettingsFailure.invalid("备份存款计划无效") }
+                  row.maturityInterestHandling == nil || DepositMaturityInterestHandling(rawValue:row.maturityInterestHandling!) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.8e12fc2050")) }
+            guard row.startDate < row.maturityDate, (0...100).contains(row.annualInterestRate), DepositInterestSettlementMode(rawValue: row.interestSettlementMode) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.02660f13da")) }
             try snapshot(row.originalPrincipal, row.basePrincipal, row.originalCurrency, row.baseCurrencyCode, row.principalExchangeRateToBase)
             try snapshot(row.expectedInterest, row.baseExpectedInterest, row.originalCurrency, row.baseCurrencyCode, row.interestExchangeRateToBase)
         }
         for row in p.loanRule {
             try dates(row.startDate,row.createdAt,row.updatedAt,row.deletedAt)
             try amount(row.totalAmount);try amount(row.downPaymentAmount)
-            guard (0...100).contains(row.downPaymentPercent),abs(row.totalAmount-row.downPaymentAmount-row.principal)<0.005 else { throw MacSettingsFailure.invalid("备份贷款总额与首付不一致") }
-            guard row.principal > 0, (1...600).contains(row.termMonths), (0...100).contains(row.annualRate), RepaymentMethod(rawValue: row.methodRawValue) != nil else { throw MacSettingsFailure.invalid("备份贷款计划无效") }
-            guard MacLoanSchedule.valid(row.make()) else { throw MacSettingsFailure.invalid("备份贷款日期记录无效") }
+            guard (0...100).contains(row.downPaymentPercent),abs(row.totalAmount-row.downPaymentAmount-row.principal)<0.005 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.aef38edea1")) }
+            guard row.principal > 0, (1...600).contains(row.termMonths), (0...100).contains(row.annualRate), RepaymentMethod(rawValue: row.methodRawValue) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.e9e6c3037f")) }
+            guard MacLoanSchedule.valid(row.make()) else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.d780066298")) }
             try snapshot(row.principal, row.basePrincipal, row.currency, row.baseCurrencyCode, row.exchangeRateToBase)
         }
-        for row in p.goal { try dates(row.startDate,row.deadline,row.createdAt,row.updatedAt,row.deletedAt);guard row.targetAmount > 0 else { throw MacSettingsFailure.invalid("备份目标金额无效") }; try amount(row.targetAmount); try amount(row.creationNetWorth, signed: true) }
+        for row in p.goal { try dates(row.startDate,row.deadline,row.createdAt,row.updatedAt,row.deletedAt);guard row.targetAmount > 0 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.381b2e7b02")) }; try amount(row.targetAmount); try amount(row.creationNetWorth, signed: true) }
         for row in p.category { try dates(row.createdAt,row.updatedAt,row.deletedAt) }
         for row in p.financialProfile { try dates(row.createdAt,row.updatedAt,row.deletedAt);try amount(row.initialAssets); try amount(row.initialDebt, signed: true) }
         for row in p.account { try dates(row.createdAt);try amount(row.balance, signed: true); _ = try MacCurrency.code(row.currency) }
@@ -690,40 +690,40 @@ enum MacNativeBackup {
     private static func validate(_ p: Payload, validateFinancial: Bool) throws -> Payload {
         _ = try MacSettingsStore.validateSettings(p.settings)
         if validateFinancial { try validateFinancialPayload(p) }
-        guard p.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid("备份记录数量超出限制") }
+        guard p.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.ba9c476955")) }
         if let updateTrust = p.updateTrust {
             guard updateTrust.url.utf8.count <= 2048, updateTrust.publicKey.utf8.count <= 512 else {
-                throw MacSettingsFailure.invalid("备份中的更新源配置过长")
+                throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.cc1120f243"))
             }
         }
         if let backupHistory = p.backupHistory {
             guard backupHistory.count <= 100, Set(backupHistory.map(\.id)).count == backupHistory.count,
-                  backupHistory.allSatisfy(\.isValid) else { throw MacSettingsFailure.invalid("备份历史元数据无效") }
+                  backupHistory.allSatisfy(\.isValid) else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.362665c5c1")) }
         }
 
-        guard Set(p.transaction.map(\.id)).count == p.transaction.count else { throw MacSettingsFailure.invalid("Transaction 编号重复") }
-        guard Set(p.category.map(\.id)).count == p.category.count else { throw MacSettingsFailure.invalid("Category 编号重复") }
-        guard Set(p.goal.map(\.id)).count == p.goal.count else { throw MacSettingsFailure.invalid("Goal 编号重复") }
-        guard Set(p.financialProfile.map(\.id)).count == p.financialProfile.count else { throw MacSettingsFailure.invalid("FinancialProfile 编号重复") }
-        guard Set(p.recurringTransaction.map(\.id)).count == p.recurringTransaction.count else { throw MacSettingsFailure.invalid("RecurringTransaction 编号重复") }
-        guard Set(p.depositRecord.map(\.id)).count == p.depositRecord.count else { throw MacSettingsFailure.invalid("DepositRecord 编号重复") }
-        guard Set(p.loanRule.map(\.id)).count == p.loanRule.count else { throw MacSettingsFailure.invalid("LoanRule 编号重复") }
+        guard Set(p.transaction.map(\.id)).count == p.transaction.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.938299d6c7")) }
+        guard Set(p.category.map(\.id)).count == p.category.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.d4735bc1fa")) }
+        guard Set(p.goal.map(\.id)).count == p.goal.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.9b96c0cecc")) }
+        guard Set(p.financialProfile.map(\.id)).count == p.financialProfile.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.8bb0c0854a")) }
+        guard Set(p.recurringTransaction.map(\.id)).count == p.recurringTransaction.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.edb36a3ba4")) }
+        guard Set(p.depositRecord.map(\.id)).count == p.depositRecord.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.d8ef7a8cf6")) }
+        guard Set(p.loanRule.map(\.id)).count == p.loanRule.count else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.8d4f43eaf8")) }
 
         guard p.goal.allSatisfy({ $0.targetDatePrecisionRaw == nil || TargetDatePrecision(rawValue: $0.targetDatePrecisionRaw!) != nil })
-        else { throw MacSettingsFailure.invalid("目标期望时间精度无效") }
+        else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.b760b49653")) }
         guard p.goal.allSatisfy({ row in
             guard let raw = row.targetDateValueRaw else { return true }
             guard row.deadline != nil, let precision = row.targetDatePrecisionRaw.flatMap(TargetDatePrecision.init(rawValue:)) else { return false }
             return GoalTargetTime.components(raw, precision: precision) != nil
-        }) else { throw MacSettingsFailure.invalid("目标期望时间日历值无效") }
+        }) else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.03594bb79b")) }
         let rules = Set(p.recurringTransaction.map(\.id))
         for loan in p.loanRule {
             guard Set(loan.generatedRuleIDs).count == loan.generatedRuleIDs.count, Set(loan.generatedRuleIDs).isSubset(of: rules)
-            else { throw MacSettingsFailure.invalid("贷款与周期规则关联不完整") }
+            else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.bde74b7a97")) }
         }
         for (name, bytes) in p.bankLogos {
             guard name.range(of: #"^[a-f0-9]{64}\.png$"#, options: .regularExpression) != nil, bytes.count <= 512 * 1024,
-                  NSImage(data: bytes) != nil else { throw MacSettingsFailure.invalid("银行图标无效") }
+                  NSImage(data: bytes) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.75f42f3f1c")) }
         }
         return p
     }
@@ -737,11 +737,11 @@ enum MacNativeBackup {
     }
     private static func restoreContents(_ data: Data, in context: ModelContext, restoreUpdateTrust: Bool,
                                         save: ((ModelContext) throws -> Void)?) throws {
-        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再恢复账本") }
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.restoreContents.361acc9653")) }
         let p = try preview(data, validateFinancial: !MacRecoveryJournal.isRecovering), settings = try MacSettingsStore.validateSettings(p.settings)
         let updateTrustToRestore: UpdateTrustConfiguration?
         if restoreUpdateTrust {
-            guard let updateTrust = p.updateTrust else { throw MacSettingsFailure.invalid("此备份不包含更新源信任配置") }
+            guard let updateTrust = p.updateTrust else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.restoreContents.d1a9409409")) }
             try updateTrust.validate()
             updateTrustToRestore = updateTrust
         } else { updateTrustToRestore = nil }
@@ -758,7 +758,7 @@ enum MacNativeBackup {
             for item in backupHistory where seen.insert(item.id).inserted { merged.append(item.localRecord) }
             restoredHistoryData = try JSONEncoder().encode(Array(MacBackupHistory.normalized(merged).prefix(100)))
         } else { restoredHistoryData = nil }
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消正在编辑的内容") }
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.restoreContents.22cd953483")) }
         let fm = FileManager.default, target = MacBankLogos.directory()
         let staging = target.deletingLastPathComponent().appendingPathComponent("Restore-" + UUID().uuidString)
         let previous = target.deletingLastPathComponent().appendingPathComponent("Previous-" + UUID().uuidString)

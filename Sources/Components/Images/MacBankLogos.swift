@@ -38,8 +38,8 @@ enum MacBankLogos {
         case invalid, missingBank
         var errorDescription: String? {
             switch self {
-            case .invalid: "请选择有效的 PNG、JPEG 或 HEIC 图片（文件不超过 100 MB）。"
-            case .missingBank: "请先输入银行名称，再选择对应的图标。"
+            case .invalid: L10n.text("mac.bankLogos.errorDescription.83294b5fe4")
+            case .missingBank: L10n.text("mac.bankLogos.errorDescription.0d4ea2f7ec")
             }
         }
     }
@@ -80,7 +80,7 @@ enum MacBankLogos {
     @MainActor
     static func select(for bank: String) throws -> CropInput? {
         guard !bank.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw Failure.missingBank }
-        guard let input = try MacImageAssets.select(title: "选择银行图标", cropTitle: "裁切银行图标", label: bank) else { return nil }
+        guard let input = try MacImageAssets.select(title: L10n.text("mac.bankLogos.select.98f3306a45"), cropTitle: L10n.text("mac.bankLogos.select.b032aad2cc"), label: bank) else { return nil }
         return CropInput(bank: bank, image: input.image)
     }
     static func reset(_ bank: String) throws {

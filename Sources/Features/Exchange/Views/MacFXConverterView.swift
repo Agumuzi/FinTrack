@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct MacFXConverterView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject var service: MacFXMonitor
     @ObservedObject var query: MacFXQuerySession
     var showsTools = true
@@ -16,9 +17,9 @@ struct MacFXConverterView: View {
         VStack(alignment: .leading, spacing: 10) {
             if showsTools {
             HStack {
-                Text("点击币种卡片输入金额").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                Text(L10n.text("mac.fXConverterView.body.554e0b452c")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                 Spacer(minLength: 4)
-                Button(service.busy ? "更新中…" : "更新", systemImage: "arrow.clockwise") { Task { await service.refresh(reason: .manual) } }
+                Button(service.busy ? L10n.text("mac.fXConverterView.body.a0bacec44f") : L10n.text("mac.fXConverterView.body.3055a035f0"), systemImage: "arrow.clockwise") { Task { await service.refresh(reason: .manual) } }
                     .buttonStyle(MacSettingsButtonStyle(height: 40)).disabled(service.busy).accessibilityIdentifier("fxConverterUpdate")
             }
             }
@@ -37,7 +38,7 @@ struct MacFXConverterView: View {
                     }
                 }.scrollTargetLayout().padding(.bottom, 8)
                 if codes.isEmpty {
-                    ContentUnavailableView {Label("尚未选择换算币种",systemImage:"arrow.left.arrow.right")} description:{Text("选择需要换算的货币。")} actions:{Button("添加换算币种") {addingCurrency=true}.accessibilityIdentifier("fxEmptyAddCurrency")}
+                    ContentUnavailableView {Label(L10n.text("mac.fXConverterView.ContentUnavailableView.2a35760d4d"),systemImage:"arrow.left.arrow.right")} description:{Text(L10n.text("mac.fXConverterView.ContentUnavailableView.0c74d1bcad"))} actions:{Button(L10n.text("mac.fXConverterView.ContentUnavailableView.300cf004a6")) {addingCurrency=true}.accessibilityIdentifier("fxEmptyAddCurrency")}
                 }
             }.scrollPosition(id: $query.converterScrollCode, anchor: .top).accessibilityIdentifier("fxConverterScroll")
             MacFXLastUpdatedView(service:service)
@@ -52,12 +53,12 @@ struct MacFXConverterView: View {
     }
     private func annotation(_ code: String) -> String? {
         guard code != query.inputCurrency, let conversion = MacFXMath.resolve(from: query.inputCurrency, to: code, quotes: service.quotes) else { return nil }
-        return conversion.isEstimate ? "参考估算 · 日级或混合来源／时间" : nil
+        return conversion.isEstimate ? L10n.text("mac.fXConverterView.annotation.2cc7b4e9d5") : nil
     }
     private func evidence(_ code: String) -> String {
-        guard let route = MacFXMath.resolve(from: query.inputCurrency, to: code, quotes: service.quotes) else { return code + "：缺少报价" }
+        guard let route = MacFXMath.resolve(from: query.inputCurrency, to: code, quotes: service.quotes) else { return code + L10n.text("mac.fXConverterView.evidence.f6d2b7ab19") }
         return code + "：" + route.legs.map { leg in
-            let name = service.providerList().first { $0.id == leg.sourceID }?.name ?? "缓存源"
+            let name = service.providerList().first { $0.id == leg.sourceID }?.name ?? L10n.text("mac.fXConverterView.name.480f7e3c0e")
             return leg.pair.key + " · " + name + " · " + MacFXDates.label(leg.quoteTime)
         }.joined(separator: "\n")
     }
@@ -65,6 +66,7 @@ struct MacFXConverterView: View {
 
 /// One editable currency; other cards contain calculated text, never another draft.
 private struct MacFXCurrencyAmountCard: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let code: String
     let active: Bool
     @Binding var input: String
@@ -88,26 +90,26 @@ private struct MacFXCurrencyAmountCard: View {
                         }
                     }.contentShape(Rectangle())
                 }.buttonStyle(MacInteractiveButtonStyle()).fixedSize(horizontal: true, vertical: false)
-                    .accessibilityIdentifier("fxSelect-" + code).accessibilityValue(active ? "输入币种" : "换算结果")
+                    .accessibilityIdentifier("fxSelect-" + code).accessibilityValue(active ? L10n.text("mac.fXConverterView.body.cee4b6835f") : L10n.text("mac.fXConverterView.body.741f5551ea"))
                 Spacer(minLength: 4)
                 if active {
-                    TextField("输入金额", text: $input, prompt: Text(""))
+                    TextField(L10n.text("mac.fXConverterView.body.ad727176fc"), text: $input, prompt: Text(""))
                         .textFieldStyle(.plain).appFont(.amount, weight: .semibold)
                         .multilineTextAlignment(.trailing).focused($focused).frame(minWidth: 90, maxWidth: 190, minHeight: 44)
                         .overlay(alignment: .trailing) {
                             if input.isEmpty { Text(String(units)).appFont(.amount, weight: .semibold).foregroundStyle(.secondary).allowsHitTesting(false).accessibilityHidden(true) }
                         }
-                        .accessibilityHint("空输入按\(units)单位试算")
-                        .accessibilityLabel(code + " 输入金额").accessibilityIdentifier("fxConverterInput")
+                        .accessibilityHint(L10n.format("mac.fXConverterView.body.7a4ad86768", "\(units)"))
+                        .accessibilityLabel(code + L10n.text("mac.fXConverterView.body.1e4111ab37")).accessibilityIdentifier("fxConverterInput")
                 } else {
                     MacFXValueDisplay(value:result,placeholder:missingText,identifier:"fxResult-" + code)
                         .frame(maxWidth: 190)
                         .contentShape(Rectangle()).onTapGesture { activate() }
                         .accessibilityAddTraits(.isButton).accessibilityAction { activate() }
-                        .accessibilityHint("点击后以" + code + "输入")
+                        .accessibilityHint(L10n.text("mac.fXConverterView.body.2495467ae7") + code + L10n.text("mac.fXConverterView.body.2087c777c0"))
                     Button { if let result { MacFXCopy.text(result) } } label: {
                         Image(systemName: "doc.on.doc").frame(width: 32, height: 40).contentShape(Rectangle())
-                    }.buttonStyle(MacInteractiveButtonStyle()).disabled(result == nil).accessibilityLabel("复制" + code + "结果").accessibilityIdentifier("fxCopy-" + code)
+                    }.buttonStyle(MacInteractiveButtonStyle()).disabled(result == nil).accessibilityLabel(L10n.text("mac.fXConverterView.body.63d90d9773") + code + L10n.text("mac.fXConverterView.body.bb7ef73495")).accessibilityIdentifier("fxCopy-" + code)
                 }
             }
             if active, let message = MacFXInputMessage.text(status) {
@@ -147,6 +149,7 @@ struct MacFXValueDisplay: View {
 }
 
 struct MacFXScrollableNumber: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var text: String
     var identifier: String
     var role: MacUI.TextRole = .amount
@@ -155,7 +158,7 @@ struct MacFXScrollableNumber: View {
         ViewThatFits(in:.horizontal) {
             number
             ScrollView(.horizontal,showsIndicators:true) { number }
-                .defaultScrollAnchor(.trailing).id(text).appHelp(text + " · 金额较长，可横向滚动查看完整数值")
+                .defaultScrollAnchor(.trailing).id(text).appHelp(text + L10n.text("mac.fXConverterView.ViewThatFits.43ac9d74d8"))
         }.frame(minWidth:80,maxWidth:.infinity,minHeight:40,maxHeight:40,alignment:.trailing)
             .layoutPriority(1)
             .accessibilityElement(children:.ignore).accessibilityLabel(text).accessibilityValue(text).accessibilityIdentifier(identifier)
@@ -165,9 +168,9 @@ struct MacFXScrollableNumber: View {
 enum MacFXInputMessage {
     static func text(_ status: MacFXConverterState.InputStatus) -> String? {
         switch status {
-        case .editing: "继续输入金额"
-        case .invalid: "请输入有效的非负金额"
-        case .overflow: "金额超出可换算范围"
+        case .editing: L10n.text("mac.fXConverterView.text.0650671763")
+        case .invalid: L10n.text("mac.fXConverterView.text.7f410d5399")
+        case .overflow: L10n.text("mac.fXConverterView.text.38e12a5eb3")
         case .valid, .empty: nil
         }
     }

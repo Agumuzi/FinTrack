@@ -11,7 +11,7 @@ enum MacCurrencyRebase {
     }
     enum Failure: LocalizedError {
         case changed
-        var errorDescription: String? { "The ledger changed while conversion was being prepared. Prepare the conversion again. Nothing was saved." }
+        var errorDescription: String? { L10n.text("mac.currencyRebase.errorDescription.5d77816acf") }
     }
     private static func signature(_ context: ModelContext) throws -> String {
         var parts: [String] = []
@@ -88,7 +88,7 @@ enum MacCurrencyRebase {
         return Plan(currency: book, count: changes.count + budgets.count, signature: initial, apply: { changes.forEach { $0() } }, budgets: budgetData)
     }
     static func commit(_ plan: Plan, in context: ModelContext) throws {
-        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再变更本位币") }
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("mac.currencyRebase.commit.2c2d84c691")) }
         guard !context.hasChanges, plan.signature == (try signature(context)) else { throw Failure.changed }
         let backup = try MacNativeBackup.create(in: context)
         let folder: URL

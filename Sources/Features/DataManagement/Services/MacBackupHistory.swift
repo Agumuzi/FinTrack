@@ -28,7 +28,7 @@ enum MacBackupHistory {
     struct PartialRemoval: LocalizedError {
         let history: [MacBackupRecord]
         let underlying: Error
-        var errorDescription: String? { "部分备份未能移除，历史已保留未删除的项目：" + underlying.localizedDescription }
+        var errorDescription: String? { L10n.text("mac.backupHistory.errorDescription.5aa0ec70d9") + underlying.localizedDescription }
     }
 
     static func removing(_ selected: Set<UUID>, from history: [MacBackupRecord],
@@ -44,10 +44,10 @@ enum MacBackupHistory {
             guard FileManager.default.fileExists(atPath: path) else { continue }
             let url = URL(fileURLWithPath: path)
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-            guard let size, size <= MacBackupLimits.nativeBytes else { throw MacSettingsFailure.invalid("备份文件已变化，本次未删除。请重新核对文件。") }
+            guard let size, size <= MacBackupLimits.nativeBytes else { throw MacSettingsFailure.invalid(L10n.text("mac.backupHistory.removing.bb722a3ce9")) }
             let data = try MacDataIO.read(url)
             guard data.count == row.size, MacNativeBackup.digest(data) == row.sha256 else {
-                throw MacSettingsFailure.invalid("备份文件已被覆盖或替换，本次未删除。请重新核对文件。")
+                throw MacSettingsFailure.invalid(L10n.text("mac.backupHistory.removing.0fb1c312fa"))
             }
             files.append(url)
         }

@@ -61,7 +61,7 @@ final class MacSelectionSession: ObservableObject {
         return code.count == 3 ? MacSelectionCurrencySearch.matches(code, candidates: candidates).first : nil
     }
     var suggested: [String] { monitor.configuration.converterCurrencies.filter { candidates.contains($0) && monitor.currencyCodes().contains($0) } }
-    var amountText: String { amountIndex.map { NSDecimalNumber(decimal: parsed.amounts[$0]).stringValue } ?? "请选择金额解释" }
+    var amountText: String { amountIndex.map { NSDecimalNumber(decimal: parsed.amounts[$0]).stringValue } ?? L10n.text("mac.selectionPopover.amountText.ba71b1aa8e") }
     func selectCurrency(_ code: String) { guard candidates.contains(code) else { return }; source = code; begin() }
     func chooseAmount(_ index: Int) { guard parsed.amounts.indices.contains(index) else { return }; amountIndex = index; begin() }
     func continueChoice() { if let code = typedCurrency { source = code }; begin() }
@@ -77,23 +77,24 @@ final class MacSelectionSession: ObservableObject {
             let route = await monitor.loadSelectionRoute(from: source, to: target)
             guard !Task.isCancelled, !ended, generation == expected else { return }
             if let route { finish(route, source: source, index: index, generation: expected, cached: false) }
-            else { set(.failure("没有可用汇率，请检查网络或数据源。")) }
+            else { set(.failure(L10n.text("mac.selectionPopover.set.8a4b12eedd"))) }
         }
     }
     private func finish(_ route: MacFXMath.Conversion, source: String, index: Int, generation expected: Int, cached: Bool) {
         guard !ended, generation == expected else { return }
         let value = NSDecimalNumber(decimal: parsed.amounts[index]).multiplying(by: NSDecimalNumber(value: route.unitRate))
-        guard value != .notANumber, value.doubleValue.isFinite else { set(.failure("金额超出可换算范围")); return }
+        guard value != .notANumber, value.doubleValue.isFinite else { set(.failure(L10n.text("mac.selectionPopover.set.38e12a5eb3"))); return }
         let text = MacFXMath.formatted(value.doubleValue, digits: monitor.configuration.rateDigits, grouping: false) + " " + target
-        let detail = route.legs.isEmpty ? "同币种 · 1:1" : route.legs.map { leg in (monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? leg.sourceID) + " · " + MacFXDates.label(leg.quoteTime) }.joined(separator: " · ")
+        let detail = route.legs.isEmpty ? L10n.text("mac.selectionPopover.detail.2b2ee43d6e") : route.legs.map { leg in (monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? leg.sourceID) + " · " + MacFXDates.label(leg.quoteTime) }.joined(separator: " · ")
         let fallback = !["free", "auto"].contains(monitor.configuration.sourcePolicy) && route.legs.contains { MacFXSourceScope.isSystem($0.sourceID) }
-        let label = fallback ? "系统备用" : route.legs.first.map { leg in monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? "已保存来源" } ?? "同币种"
+        let label = fallback ? L10n.text("mac.selectionPopover.label.c9f7c9f38d") : route.legs.first.map { leg in monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? L10n.text("mac.selectionPopover.label.f6e259d4f0") } ?? L10n.text("mac.selectionPopover.label.7659fc6ccf")
         let copied = copy(text)
         set(.result(Output(result: text, original: amountText + " " + source, evidence: detail, copied: copied, cached: cached, sourceLabel: label)))
     }
 }
 
 struct MacSelectionPopoverView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject var session: MacSelectionSession
     let dismiss: () -> Void
     @FocusState private var editing: Bool
@@ -102,14 +103,14 @@ struct MacSelectionPopoverView: View {
             switch session.phase {
             case .choose: choice
             case .loading:
-                HStack(spacing: 16) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 7) { Text("正在获取汇率").font(.headline); Text(session.amountText + " → " + session.target).foregroundStyle(.secondary) }; Spacer() }.padding(22)
+                HStack(spacing: 16) { ProgressView().controlSize(.small); VStack(alignment: .leading, spacing: 7) { Text(L10n.text("mac.selectionPopover.body.70d27aaf1d")).font(.headline); Text(session.amountText + " → " + session.target).foregroundStyle(.secondary) }; Spacer() }.padding(22)
             case .failure(let message):
                 HStack(spacing: 14) { Image(systemName: "exclamationmark.circle").font(.title2).foregroundStyle(.orange); Text(message).font(.body).fixedSize(horizontal: false, vertical: true) }.padding(22)
             case .result(let output):
                 HStack(spacing: 16) {
                     Image(systemName: "arrow.left.arrow.right").font(.system(size: 23, weight: .semibold)).foregroundStyle(MacUI.accent).frame(width: 48, height: 48).background(MacUI.accent.opacity(0.14), in: Circle())
                     VStack(alignment: .leading, spacing: 6) {
-                        Text((output.copied ? "换算结果 · 已复制" : "换算结果 · 未复制") + (output.cached ? " · 缓存" : "")).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
+                        Text((output.copied ? L10n.text("mac.selectionPopover.body.4c3b68baac") : L10n.text("mac.selectionPopover.body.71128038f7")) + (output.cached ? L10n.text("mac.selectionPopover.body.a6c349f419") : "")).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
                         Text(output.result).font(.system(size: 27, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5).accessibilityIdentifier("selectionConversionResult")
                         Text(output.original + " · " + output.sourceLabel).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
                     }
@@ -120,12 +121,12 @@ struct MacSelectionPopoverView: View {
     }
     private var choice: some View {
         VStack(alignment: .leading, spacing: 13) {
-            Text("检测到金额：" + session.amountText).font(.system(size: 19, weight: .semibold))
+            Text(L10n.text("mac.selectionPopover.choice.ffc3538ef9") + session.amountText).font(.system(size: 19, weight: .semibold))
             if session.parsed.amounts.count > 1 {
                 HStack { ForEach(session.parsed.amounts.indices, id: \.self) { index in Button(NSDecimalNumber(decimal: session.parsed.amounts[index]).stringValue) { session.chooseAmount(index) }.buttonStyle(.bordered).tint(session.amountIndex == index ? MacUI.accent : .secondary) } }
             }
-            Text(session.parsed.currencies.isEmpty ? "输入原始货币代码，结果将换算为 " + session.target : "输入原始货币代码，结果将换算为 " + session.target).font(.system(size: 13)).foregroundStyle(.secondary)
-            TextField("三位货币代码", text: $session.query).textFieldStyle(.roundedBorder).focused($editing).onSubmit { session.continueChoice() }.accessibilityIdentifier("selectionCurrencyInput")
+            Text(session.parsed.currencies.isEmpty ? L10n.text("mac.selectionPopover.choice.ac481ec433") + session.target : L10n.text("mac.selectionPopover.choice.ac481ec433") + session.target).font(.system(size: 13)).foregroundStyle(.secondary)
+            TextField(L10n.text("mac.selectionPopover.choice.9c93a343d0"), text: $session.query).textFieldStyle(.roundedBorder).focused($editing).onSubmit { session.continueChoice() }.accessibilityIdentifier("selectionCurrencyInput")
             if !session.suggested.isEmpty {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 58), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -135,7 +136,7 @@ struct MacSelectionPopoverView: View {
                     }
                 }.frame(height: min(120, CGFloat((session.suggested.count + 5) / 6) * 34))
             }
-            HStack { Button("取消", action: dismiss).keyboardShortcut(.cancelAction); Spacer(); Button("继续") { session.continueChoice() }.buttonStyle(.borderedProminent).tint(MacUI.accent).disabled(session.amountIndex == nil || (session.source == nil && session.typedCurrency == nil)).accessibilityIdentifier("selectionCurrencyContinue") }
+            HStack { Button(L10n.text("mac.selectionPopover.choice.2cd0f3be87"), action: dismiss).keyboardShortcut(.cancelAction); Spacer(); Button(L10n.text("mac.selectionPopover.choice.7c9691192f")) { session.continueChoice() }.buttonStyle(.borderedProminent).tint(MacUI.accent).disabled(session.amountIndex == nil || (session.source == nil && session.typedCurrency == nil)).accessibilityIdentifier("selectionCurrencyContinue") }
         }.padding(20).onAppear { editing = true }
     }
 }

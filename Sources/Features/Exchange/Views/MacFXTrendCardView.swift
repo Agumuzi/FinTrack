@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MacFXTrendCardView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let pair: MacFXPair
     let range: MacFXHistoryRange
     @ObservedObject var service: MacFXMonitor
@@ -20,31 +21,31 @@ struct MacFXTrendCardView: View {
             Group {
                 if points.count >= 2 {
                     MacFXHistoryCanvas(plot: plot, multiplier: multiplier, digits: service.configuration.rateDigits)
-                    .accessibilityElement(children: .ignore).accessibilityLabel(pair.key + "历史汇率，" + summary)
+                    .accessibilityElement(children: .ignore).accessibilityLabel(pair.key + L10n.text("mac.fXTrendCardView.body.91b1fb43d7") + summary)
                     .accessibilityIdentifier("fxHistoryChart-" + pair.key)
                 } else {
                     VStack(spacing: 8) {
-                        if let request, history.loading.contains(request) { ProgressView().controlSize(.small); Text("正在加载历史报价") }
-                        else { Text(request == nil ? "此来源不支持历史图" : result?.error ?? "历史数据不足") }
+                        if let request, history.loading.contains(request) { ProgressView().controlSize(.small); Text(L10n.text("mac.fXTrendCardView.body.82277f16df")) }
+                        else { Text(request == nil ? L10n.text("mac.fXTrendCardView.body.82f85878ce") : result?.error ?? L10n.text("mac.fXTrendCardView.body.28a5f8bc96")) }
                     }.appFont(.caption, weight: .regular).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }.frame(height: 136).padding(8).background(MacOverviewStyle.canvas, in: RoundedRectangle(cornerRadius: 12))
             if let result {
                 Text(summary).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8).appHelp(summary).accessibilityIdentifier("fxHistorySummary-" + pair.key)
-                if let error = result.error { Text("部分历史日期未取得报价：" + error).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(error) }
+                if let error = result.error { Text(L10n.text("mac.fXTrendCardView.body.956542b726") + error).appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(error) }
             }
         }.task(id: request) { if let request { await history.load(request, monitor: service) } }
     }
     private var summary: String {
         guard let result else { return "" }
         let rangeQuery = request.map { service.supportsRange($0) } ?? false
-        var text = result.completedDays < result.totalDays ? (rangeQuery ? MacLocalization.value("正在加载历史报价") : "加载 \(result.completedDays)/\(result.totalDays)") + " · " : ""
-        text += MacLocalization.value(result.sourceName) + (result.points.count > points.count ? " · 采样" : "") + (result.fromCache ? " · 缓存" : "")
+        var text = result.completedDays < result.totalDays ? (rangeQuery ? MacLocalization.value(L10n.text("mac.fXTrendCardView.text.82277f16df")) : L10n.format("mac.fXTrendCardView.text.44f0909a2f", "\(result.completedDays)", "\(result.totalDays)")) + " · " : ""
+        text += MacLocalization.value(result.sourceName) + (result.points.count > points.count ? L10n.text("mac.fXTrendCardView.summary.a9ead44943") : "") + (result.fromCache ? L10n.text("mac.fXTrendCardView.summary.a6c349f419") : "")
         if let first = points.first, let last = points.last {
             text += " · " + first.day + "～" + last.day.suffix(5)
-            if points.count >= 2 { text += String(format: " · 区间变化 %+.2f%%", (last.unitRate / first.unitRate - 1) * 100) }
+            if points.count >= 2 { text += String(format: L10n.text("mac.fXTrendCardView.summary.894d02ab00"), (last.unitRate / first.unitRate - 1) * 100) }
         }
-        if result.failedDays > 0 { text += rangeQuery ? " · " + MacLocalization.value("历史更新未完成") : " · 缺\(result.failedDays)个日期" }
+        if result.failedDays > 0 { text += rangeQuery ? " · " + MacLocalization.value(L10n.text("mac.fXTrendCardView.summary.367727a6be")) : L10n.format("mac.fXTrendCardView.summary.16851be077", "\(result.failedDays)") }
         return text
     }
 }

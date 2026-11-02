@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MacFXRateCard: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let pair: MacFXPair
     @ObservedObject var service: MacFXMonitor
     @ObservedObject var query: MacFXQuerySession
@@ -21,7 +22,7 @@ struct MacFXRateCard: View {
         guard let change = comparison.change else { return "" }
         if !service.configuration.automatic, let current = quote,
            case .day(let end, _) = current.quoteTime, case .day(let start, _) = change.baseline.quoteTime {
-            return String(format: MacLocalization.value("较上一可用公布日（%@ → %@）"), start, end)
+            return String(format: MacLocalization.value(L10n.text("mac.fXRateCard.comparisonCaption.3c78cbef27")), start, end)
         }
         return MacLocalization.value(change.caption)
     }
@@ -30,7 +31,7 @@ struct MacFXRateCard: View {
         VStack(alignment: .leading, spacing: 10) {
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 6) { title; Spacer(minLength: 4); value.fixedSize(horizontal: true, vertical: false) }
-                VStack(alignment: .leading, spacing: 2) { title; MacFXValueDisplay(value:quote == nil ? nil : valueText,placeholder:"暂无报价",identifier:"fxRate-" + pair.key) }
+                VStack(alignment: .leading, spacing: 2) { title; MacFXValueDisplay(value:quote == nil ? nil : valueText,placeholder:L10n.text("mac.fXRateCard.MacFXValueDisplay.87fdce8be2"),identifier:"fxRate-" + pair.key) }
             }
             HStack(alignment: .top, spacing: 6) {
                 Text(MacSettingsVisual.currencyName(pair.base) + " / " + MacSettingsVisual.currencyName(pair.quote) + " · \(units)\(MacSettingsVisual.symbol(pair.base)) → \(MacSettingsVisual.symbol(pair.quote))")
@@ -47,7 +48,7 @@ struct MacFXRateCard: View {
                             Button { query.cardRanges[pair.key] = item } label: {
                                 Text(LocalizedStringKey(item.title)).appFont(.caption, weight: .medium).frame(maxWidth: .infinity, minHeight: 40).contentShape(Rectangle())
                                     .background(range == item ? MacUI.accent.opacity(0.15) : .clear, in: Capsule())
-                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxRange-\(item.rawValue)-" + pair.key).accessibilityValue(range == item ? "已选中" : "未选中")
+                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxRange-\(item.rawValue)-" + pair.key).accessibilityValue(range == item ? L10n.text("mac.fXRateCard.ForEach.a737fd72b0") : L10n.text("mac.fXRateCard.ForEach.0e0c21de69"))
                         }
                     }
                 } else {
@@ -71,16 +72,16 @@ struct MacFXRateCard: View {
                 HStack(spacing: 4) { MacCurrencyFlag(code: pair.base, width: 18); Text(pair.base); Text("/").foregroundStyle(.secondary); MacCurrencyFlag(code: pair.quote, width: 18); Text(pair.quote) }.appFont(.section, weight: .semibold).fixedSize()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down").appFont(.caption, weight: .semibold).frame(width: 26, height: 40)
             }.contentShape(Rectangle())
-        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(pair.key + (expanded ? "收起详情" : "展开详情"))
-            .accessibilityIdentifier("fxToggle-" + pair.key).accessibilityValue(expanded ? "已展开" : "已收起")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(pair.key + (expanded ? L10n.text("mac.fXRateCard.title.0ae7312510") : L10n.text("mac.fXRateCard.title.4bf0fb2140")))
+            .accessibilityIdentifier("fxToggle-" + pair.key).accessibilityValue(expanded ? L10n.text("mac.fXRateCard.title.df647b73b9") : L10n.text("mac.fXRateCard.title.e64447db76"))
     }
     @ViewBuilder private var value: some View {
         if quote != nil {
             Text(valueText).appFont(.amount,weight:.bold).monospacedDigit().lineLimit(1)
                 .accessibilityIdentifier("fxRate-" + pair.key).accessibilityValue(valueText + " " + pair.quote)
         } else {
-            Text("暂无报价").appFont(.body,weight:.regular).foregroundStyle(.secondary)
-                .accessibilityIdentifier("fxRate-" + pair.key).accessibilityValue("暂无报价")
+            Text(L10n.text("mac.fXRateCard.value.87fdce8be2")).appFont(.body,weight:.regular).foregroundStyle(.secondary)
+                .accessibilityIdentifier("fxRate-" + pair.key).accessibilityValue(L10n.text("mac.fXRateCard.value.87fdce8be2"))
         }
     }
     @ViewBuilder private var changeChip: some View {
@@ -93,13 +94,13 @@ struct MacFXRateCard: View {
                 .accessibilityLabel(comparisonCaption + String(format: " · %+.2f%%", change.percent))
                 .appFont(.caption, weight: .semibold).fixedSize()
         } else {
-            Text("暂无可比数据").appFont(.caption, weight: .regular).foregroundStyle(.secondary).appHelp(MacLocalization.value(comparison.reason)).fixedSize()
+            Text(L10n.text("mac.fXRateCard.changeChip.580011fdb4")).appFont(.caption, weight: .regular).foregroundStyle(.secondary).appHelp(MacLocalization.value(comparison.reason)).fixedSize()
         }
     }
     private var modes: some View {
         HStack(spacing: 4) {
-            modeButton(.history, title: "历史", symbol: "chart.line.uptrend.xyaxis")
-            modeButton(.converter, title: "换算", symbol: "arrow.left.arrow.right")
+            modeButton(.history, title: L10n.text("mac.fXRateCard.modeButton.b0385cfe4b"), symbol: "chart.line.uptrend.xyaxis")
+            modeButton(.converter, title: L10n.text("mac.fXRateCard.modeButton.d9c792dfca"), symbol: "arrow.left.arrow.right")
         }.padding(3).background(MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 10))
     }
     private func modeButton(_ item: MacFXCardMode, title: String, symbol: String) -> some View {
@@ -109,7 +110,7 @@ struct MacFXRateCard: View {
         } label: {
             Label(title, systemImage: symbol).appFont(.label, weight: .medium).frame(maxWidth: .infinity, minHeight: 34).contentShape(Rectangle())
                 .background(mode == item ? MacOverviewStyle.card : .clear, in: RoundedRectangle(cornerRadius: 8))
-        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxCardMode-" + item.rawValue + "-" + pair.key).accessibilityValue(mode == item ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxCardMode-" + item.rawValue + "-" + pair.key).accessibilityValue(mode == item ? L10n.text("mac.fXRateCard.modeButton.a737fd72b0") : L10n.text("mac.fXRateCard.modeButton.0e0c21de69"))
     }
     private func amountField(_ code: String) -> some View {
         let active = input.activeCode == code
@@ -121,14 +122,14 @@ struct MacFXRateCard: View {
                     .appFont(.caption, weight: .medium).foregroundStyle(.secondary).frame(minHeight: 26).contentShape(Rectangle())
             }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxCardSelect-" + code + "-" + pair.key)
             if active {
-                TextField("输入金额", text: Binding(get: { input.inputText }, set: { query.editCard($0, pair: pair) }), prompt: Text(""))
+                TextField(L10n.text("mac.fXRateCard.amountField.ad727176fc"), text: Binding(get: { input.inputText }, set: { query.editCard($0, pair: pair) }), prompt: Text(""))
                     .textFieldStyle(.plain).appFont(.section, weight: .semibold).multilineTextAlignment(.trailing)
                     .focused($focusedCode, equals: code).frame(minHeight: 40)
                     .overlay(alignment: .trailing) {
                         if input.inputText.isEmpty { Text(String(units)).appFont(.section, weight: .semibold).foregroundStyle(.secondary).allowsHitTesting(false).accessibilityHidden(true) }
                     }
-                    .accessibilityHint("空输入按\(units)单位试算")
-                    .accessibilityLabel(code + " 输入金额").accessibilityIdentifier("fxCardInput-" + code + "-" + pair.key)
+                    .accessibilityHint(L10n.format("mac.fXRateCard.amountField.7a4ad86768", "\(units)"))
+                    .accessibilityLabel(code + L10n.text("mac.fXRateCard.amountField.1e4111ab37")).accessibilityIdentifier("fxCardInput-" + code + "-" + pair.key)
             } else {
                 MacFXValueDisplay(value:result,placeholder:missing,identifier:"fxCardResult-" + code + "-" + pair.key,role:.section)
                     .contentShape(Rectangle()).onTapGesture { activate(code) }
@@ -144,26 +145,26 @@ struct MacFXRateCard: View {
     private func toggle() { query.expandedPair = expanded ? nil : pair.key }
     private var footer: some View {
         HStack(alignment: .center, spacing: 4) {
-            Text(quote.map { MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? " · 缓存" : "") } ?? "暂无报价")
-                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(quote.map { "报价：" + MacFXDates.label($0.quoteTime) + "\n获取：" + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? "暂无报价")
+            Text(quote.map { MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? L10n.text("mac.fXRateCard.footer.a6c349f419") : "") } ?? L10n.text("mac.fXRateCard.footer.87fdce8be2"))
+                .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(quote.map { L10n.text("mac.fXRateCard.footer.dfa4eed218") + MacFXDates.label($0.quoteTime) + L10n.text("mac.fXRateCard.footer.dfdd6c7340") + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? L10n.text("mac.fXRateCard.footer.87fdce8be2"))
             Spacer(minLength: 0)
             Menu {
-                Button("复制汇率") { MacFXCopy.text(pair.key + " " + valueText) }.disabled(quote == nil)
-                Button("上移") { move(-1) }; Button("下移") { move(1) }
-                Button("移除关注", role: .destructive) { MacFXApplication.shared.update { $0.watchedPairs.removeAll { $0 == pair } } }
+                Button(L10n.text("mac.fXRateCard.Menu.66239df899")) { MacFXCopy.text(pair.key + " " + valueText) }.disabled(quote == nil)
+                Button(L10n.text("mac.fXRateCard.Menu.f853a70b12")) { move(-1) }; Button(L10n.text("mac.fXRateCard.Menu.e75e8b4e5c")) { move(1) }
+                Button(L10n.text("mac.fXRateCard.Menu.975ce213c6"), role: .destructive) { MacFXApplication.shared.update { $0.watchedPairs.removeAll { $0 == pair } } }
             } label: { Image(systemName: "ellipsis").frame(width: 32, height: 40).contentShape(Rectangle()) }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityLabel(pair.key + "更多")
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().accessibilityLabel(pair.key + L10n.text("mac.fXRateCard.footer.38844b135c"))
         }
     }
     private var evidence: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let quote {
-                Text("每1单位：" + String(quote.unitRate)).textSelection(.enabled)
-                Text("来源：" + service.sourceName(quote))
+                Text(L10n.text("mac.fXRateCard.evidence.609b04b18b") + String(quote.unitRate)).textSelection(.enabled)
+                Text(L10n.text("mac.fXRateCard.evidence.6181ed6f97") + service.sourceName(quote))
                 Text(MacFXDates.label(quote.quoteTime))
-                Text("获取时间：" + MacDisplayPreferences.time(quote.retrievedAt))
+                Text(L10n.text("mac.fXRateCard.evidence.c00d2378a0") + MacDisplayPreferences.time(quote.retrievedAt))
                 if let change = comparison.change {
-                    Text(comparisonCaption + String(format: " · %+.2f%%", change.percent)); Text("基准：" + MacFXDates.label(change.baseline.quoteTime))
+                    Text(comparisonCaption + String(format: " · %+.2f%%", change.percent)); Text(L10n.text("mac.fXRateCard.evidence.486893f002") + MacFXDates.label(change.baseline.quoteTime))
                 } else { Text(comparison.reason) }
                 ForEach(Array(quote.legs.enumerated()), id: \.offset) { _, leg in Text(leg.pair.key + " · " + MacFXDates.label(leg.quoteTime)) }
             }

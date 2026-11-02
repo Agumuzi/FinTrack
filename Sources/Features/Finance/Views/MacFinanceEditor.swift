@@ -4,6 +4,7 @@ import SwiftData
 /// Minimal input adapter: validates finance values before one SwiftData save.
 /// Existing records remain readable but editing legacy FX is not attempted.
 struct MacFinanceEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query private var savedDeposits: [DepositRecord]
@@ -51,7 +52,7 @@ struct MacFinanceEditor: View {
     @State private var termUnit = "month"
     @State private var manualMaturity = false
     @State private var advancedTime = false
-    private var title: String { (existing == nil ? "新建" : "编辑") + [MacFinancePanel.deposits: "存款", .loans: "贷款", .recurring: "周期", .goals: "目标"][panel, default: "记录"] }
+    private var title: String { (existing == nil ? L10n.text("mac.financeEditor.title.50ef2f4cf6") : L10n.text("mac.financeEditor.title.0518365699")) + [MacFinancePanel.deposits: L10n.text("mac.financeEditor.title.759472586f"), .loans: L10n.text("mac.financeEditor.title.f87e87c10a"), .recurring: L10n.text("mac.financeEditor.title.e9bf2c2fea"), .goals: L10n.text("mac.financeEditor.title.57060c88a3")][panel, default: L10n.text("mac.financeEditor.title.9fad24e2c3")] }
     private var currencyCodes: [String] { MacSettingsStore.load("v2_currencies", fallback: [String]()) }
     private func updateMaturity() {
         guard panel == .deposits, !manualMaturity else { return }
@@ -67,13 +68,13 @@ struct MacFinanceEditor: View {
         }
     }
 
-    var body: some View {
+    private var editorForm: some View {
         MacFormShell(width: 560) {
             VStack(alignment: .leading, spacing: MacUI.space(8)) {
             HStack {
                 Text(title).appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("financeEditorTitle")
                 Spacer()
-                Text("本位币：" + currency).appFont(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("mac.financeEditor.MacFormShell.a46fe86e1c") + currency).appFont(.caption).foregroundStyle(.secondary)
             }
             if panel == .recurring {
                 MacEntryTypeSwitcher(type: Binding(get: { recurrenceType == .income ? .income : .expense }, set: { recurrenceType = $0 == .income ? .income : .expense }), prefix: "financeRecurring")
@@ -81,30 +82,30 @@ struct MacFinanceEditor: View {
             }
         } fields: {
             VStack(alignment: .leading, spacing: MacUI.space(12)) {
-                MacFormTextField(panel == .deposits ? LocalizedStringKey("银行名称") : LocalizedStringKey("名称"), text: $name)
+                MacFormTextField(panel == .deposits ? LocalizedStringKey(L10n.text("mac.financeEditor.LocalizedStringKey.641a9c1dbd")) : LocalizedStringKey(L10n.text("mac.financeEditor.LocalizedStringKey.d44e9b3d3b")), text: $name)
                     .accessibilityIdentifier("financeEntryName")
                 if panel == .deposits {
                     HStack(spacing: MacUI.space(12)) {
                         MacBankIcon(bank: name, revision: logoRevision)
-                            .accessibilityHidden(false).accessibilityLabel(MacBankLogos.image(name) == nil ? "通用银行图标" : "已绑定银行图标")
+                            .accessibilityHidden(false).accessibilityLabel(MacBankLogos.image(name) == nil ? L10n.text("mac.financeEditor.MacFormShell.2e5033edcf") : L10n.text("mac.financeEditor.MacFormShell.7c6fb09845"))
                             .accessibilityIdentifier("depositEditorLogo")
-                        Button("选择银行图标…") {
+                        Button(L10n.text("mac.financeEditor.MacFormShell.0481d5ba76")) {
                             do { cropInput = try MacBankLogos.select(for: name); errorMessage = nil }
                             catch { errorMessage = error.localizedDescription }
                         }.accessibilityIdentifier("depositEditorChooseLogo").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         VStack(alignment: .leading, spacing: MacUI.space(3)) {
-                            Text(MacBankLogos.image(name) == nil ? "通用银行图标" : "已绑定银行图标").accessibilityIdentifier("depositEditorLogoStatus")
-                            Text("同名银行自动使用此图标")
+                            Text(MacBankLogos.image(name) == nil ? L10n.text("mac.financeEditor.MacFormShell.2e5033edcf") : L10n.text("mac.financeEditor.MacFormShell.7c6fb09845")).accessibilityIdentifier("depositEditorLogoStatus")
+                            Text(L10n.text("mac.financeEditor.MacFormShell.e36ade2601"))
                         }.appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     }
                     if !reusableLogos.isEmpty {
                         ScrollView(.horizontal) {
                             HStack(spacing: 8) {
-                                Text("已有图标").appFont(.caption).foregroundStyle(.secondary)
+                                Text(L10n.text("mac.financeEditor.ScrollView.16e874f805")).appFont(.caption).foregroundStyle(.secondary)
                                 ForEach(Array(reusableLogos.enumerated()), id: \.element.id) { index, asset in
                                     Button {
                                         do { try MacBankLogos.save(asset.data, bank: name); logoRevision += 1 } catch { errorMessage = MacLocalization.error(error) }
-                                    } label: { if let image = asset.image { Image(nsImage: image).resizable().scaledToFit().frame(width: 32, height: 32) } }.buttonStyle(MacInteractiveButtonStyle()).appHelp("使用已有银行图标 \(index + 1)").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    } label: { if let image = asset.image { Image(nsImage: image).resizable().scaledToFit().frame(width: 32, height: 32) } }.buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.format("mac.financeEditor.ForEach.113ede8ba7", "\(index + 1)")).disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
                             }
                         }.frame(height: 36)
@@ -118,73 +119,73 @@ struct MacFinanceEditor: View {
                     }
                 }
                 if panel != .goals, originalCurrency.uppercased() != currency {
-                    MacFinanceNumberField(title: "兑本位币汇率", text: $principalFx, identifier: "financeEntryFX")
-                    if panel == .deposits { MacFinanceNumberField(title: "预期利息汇率", text: $interestFx, identifier: "financeInterestFX") }
+                    MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.1c77c0bc7d"), text: $principalFx, identifier: "financeEntryFX", digits: 6)
+                    if panel == .deposits { MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.7e6f35d893"), text: $interestFx, identifier: "financeInterestFX", digits: 6) }
                 }
                 if panel == .loans {
                     HStack(alignment: .top) {
-                        MacFinanceNumberField(title: "首付金额", text: $downPaymentText, identifier: "loanDownPayment")
+                        MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.09166c29bd"), text: $downPaymentText, identifier: "loanDownPayment")
                         MacFinanceCategoryField(category: $recurrenceCategory, type: "Expense", identifier: "loanEditorCategory")
                     }
                 }
                 if panel == .loans {
-                    MacFinanceNumberField(title: "年利率 %", text: $rateText, rate: true, identifier: "financeEntryRate")
+                    MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.0d085dfcb5"), text: $rateText, rate: true, identifier: "financeEntryRate")
                 }
                 if panel == .deposits {
                     HStack(alignment: .top, spacing: 14) {
-                        MacFinanceNumberField(title: "年利率 %", text: $rateText, rate: true, identifier: "financeEntryRate")
-                        MacEntryField(title: "结息方式") { MacSettingsMenu(selection: $depositMode, options: DepositInterestSettlementMode.allCases.map { (MacLocalization.value($0.rawValue), $0) }) }
+                        MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.0d085dfcb5"), text: $rateText, rate: true, identifier: "financeEntryRate")
+                        MacEntryField(title: L10n.text("mac.financeEditor.MacEntryField.3f194d4874")) { MacSettingsMenu(selection: $depositMode, options: DepositInterestSettlementMode.allCases.map { (MacLocalization.value($0.rawValue), $0) }) }
                     }
                     HStack(alignment: .center, spacing: 14) {
-                        Toggle("手动设置预期利息", isOn: $overridesInterest).fixedSize()
-                        if overridesInterest { MacFinanceNumberField(title: "预期利息", text: $expectedInterestText, identifier: "financeExpectedInterest") }
+                        Toggle(L10n.text("mac.financeEditor.MacFormShell.d0be385678"), isOn: $overridesInterest).fixedSize()
+                        if overridesInterest { MacFinanceNumberField(title: L10n.text("mac.financeEditor.MacFinanceNumberField.0a28602bf4"), text: $expectedInterestText, identifier: "financeExpectedInterest") }
                         else { Spacer(minLength: 0) }
                     }
                     if existing == nil {
-                        MacEntryField(title: "续存来源") { MacSettingsMenu(selection: $renewalSource, options: [("无", UUID?.none)] + savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }.map { ($0.bankName, Optional($0.id)) }) }
+                        MacEntryField(title: L10n.text("mac.financeEditor.MacEntryField.af08715054")) { MacSettingsMenu(selection: $renewalSource, options: [(L10n.text("mac.financeEditor.MacSettingsMenu.484d556139"), UUID?.none)] + savedDeposits.filter { $0.deletedAt == nil && !$0.isActive && $0.hasCreditedInterest && $0.typedInterestSettlementMode != .monthly }.map { ($0.bankName, Optional($0.id)) }) }
                     }
                     HStack(alignment: .top, spacing: 14) {
-                        MacDateTimeField(title: "开始日期", date: $start, identifier: "financeStartDate")
-                        if manualMaturity { MacDateTimeField(title: "到期日期", date: $maturity, identifier: "financeMaturityDate") }
+                        MacDateTimeField(title: L10n.text("mac.financeEditor.MacDateTimeField.760506491e"), date: $start, identifier: "financeStartDate")
+                        if manualMaturity { MacDateTimeField(title: L10n.text("mac.financeEditor.MacDateTimeField.7589d263a3"), date: $maturity, identifier: "financeMaturityDate") }
                     }
                     HStack {
-                        Toggle("直接设置到期日", isOn: $manualMaturity)
+                        Toggle(L10n.text("mac.financeEditor.MacFormShell.1fcdd2920b"), isOn: $manualMaturity)
                         Spacer()
                         if !manualMaturity {
-                            Stepper("期限 \(termValue)", value: $termValue, in: 1...99).fixedSize()
+                            Stepper(L10n.format("mac.financeEditor.Stepper.b3e2dc8e87", "\(termValue)"), value: $termValue, in: 1...99).fixedSize()
                             MacSettingsMenu(selection: $termUnit, options: [("日", "day"), ("月", "month"), ("年", "year")]).frame(width: 90)
                         }
                     }
-                    if !manualMaturity { Text("到期：" + MacDateDisplay.string(maturity)).appFont(.caption).foregroundStyle(.secondary) }
+                    if !manualMaturity { Text(L10n.text("mac.financeEditor.MacFormShell.cd41276bc8") + MacDateDisplay.string(maturity)).appFont(.caption).foregroundStyle(.secondary) }
                 } else if panel == .loans {
                     HStack {
-                        Stepper("还款期数：\(months) 个月", value: $months, in: 1...600).fixedSize()
+                        Stepper(L10n.format("mac.financeEditor.Stepper.b7cc7e2f4a", "\(months)"), value: $months, in: 1...600).fixedSize()
                         Spacer(minLength: 16)
                         MacSettingsMenu(selection: $loanMethod, options: RepaymentMethod.allCases.map { (MacLocalization.value($0.rawValue), $0) }).frame(width: 160)
                     }
-                    MacDateTimeField(title: "首次还款日期", date: $start, identifier: "financeFirstPayment")
+                    MacDateTimeField(title: L10n.text("mac.financeEditor.MacDateTimeField.8d07202f41"), date: $start, identifier: "financeFirstPayment")
                 } else if panel == .recurring {
                     MacFinanceCategoryField(category: $recurrenceCategory, type: recurrenceType == .income ? "Income" : "Expense", identifier: "recurringEditorCategory")
                     HStack {
-                        Stepper("每 \(recurrenceInterval)", value: $recurrenceInterval, in: 1...365).accessibilityIdentifier("recurringEditorIntervalValue").fixedSize()
+                        Stepper(L10n.format("mac.financeEditor.Stepper.fd1458c192", "\(recurrenceInterval)"), value: $recurrenceInterval, in: 1...365).accessibilityIdentifier("recurringEditorIntervalValue").fixedSize()
                         Spacer(minLength: 16)
                         MacSettingsMenu(selection: $recurrenceUnit, options: RecurringIntervalUnit.allCases.map { (MacLocalization.value($0.rawValue), $0) }).frame(width: 160)
                     }
-                    MacDateTimeField(title: "下次执行", date: $start, includesTime: advancedTime, identifier: "financeNextDueDate")
+                    MacDateTimeField(title: L10n.text("mac.financeEditor.MacDateTimeField.b8e094966d"), date: $start, includesTime: advancedTime, identifier: "financeNextDueDate")
                         .accessibilityIdentifier("financeNextDue")
-                    Toggle("自定义执行时间", isOn: $advancedTime)
-                    if !advancedTime { Text("按系统时区 09:00 执行；未运行时在下次打开后补记。").appFont(.caption).foregroundStyle(.secondary) }
-                    Toggle("设置结束时间", isOn: $hasDeadline)
-                    if hasDeadline { MacDateTimeField(title: "结束时间", date: $maturity, includesTime: true, identifier: "financeEndDate") }
+                    Toggle(L10n.text("mac.financeEditor.MacFormShell.b7a15ad137"), isOn: $advancedTime)
+                    if !advancedTime { Text(L10n.text("mac.financeEditor.MacFormShell.768d1795fb")).appFont(.caption).foregroundStyle(.secondary) }
+                    Toggle(L10n.text("mac.financeEditor.MacFormShell.62f458be19"), isOn: $hasDeadline)
+                    if hasDeadline { MacDateTimeField(title: L10n.text("mac.financeEditor.MacDateTimeField.f502764499"), date: $maturity, includesTime: true, identifier: "financeEndDate") }
                 } else {
                     MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $goalPrecision, date: $maturity, identifier: "financeGoal", includesAssets: $includesAssets)
-                    if existing != nil { Toggle("暂停", isOn: $goalPaused).accessibilityIdentifier("financeGoalPaused") }
+                    if existing != nil { Toggle(L10n.text("mac.financeEditor.MacFormShell.8d12fc0d4e"), isOn: $goalPaused).accessibilityIdentifier("financeGoalPaused") }
                     MacGoalIconPicker(presentation: $goalPresentation, identifierPrefix: "financeGoalIconOption")
                 }
-                if panel != .goals { MacFormTextField("备注", text: $notes).accessibilityIdentifier("financeEntryNote") }
+                if panel != .goals { MacFormTextField(L10n.text("mac.financeEditor.MacFormTextField.daede98817"), text: $notes).accessibilityIdentifier("financeEntryNote") }
                 if panel == .deposits || panel == .recurring {
                     if panel == .recurring {
-                        HStack { Toggle("启用", isOn: $recurrenceActive).accessibilityIdentifier("recurringEditorActive"); Spacer(); Toggle("提醒", isOn: $reminders) }
+                        HStack { Toggle(L10n.text("mac.financeEditor.MacFormShell.f4f0ead111"), isOn: $recurrenceActive).accessibilityIdentifier("recurringEditorActive"); Spacer(); Toggle(L10n.text("mac.financeEditor.MacFormShell.8f29b3132c"), isOn: $reminders) }
                     }
                     MacReminderEditor(enabled: $reminders, days: $reminderDays, time: $reminderTime, showsToggle: panel != .recurring)
                 }
@@ -197,12 +198,16 @@ struct MacFinanceEditor: View {
         } footer: {
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }.buttonStyle(MacStandardButtonStyle()).keyboardShortcut(.cancelAction)
-                Button("保存") { save() }.buttonStyle(MacStandardButtonStyle(primary: true))
+                Button(L10n.text("mac.financeEditor.MacFormShell.2cd0f3be87")) { dismiss() }.buttonStyle(MacStandardButtonStyle()).keyboardShortcut(.cancelAction)
+                Button(L10n.text("mac.financeEditor.MacFormShell.a3030bf8f1")) { save() }.buttonStyle(MacStandardButtonStyle(primary: true))
                     .accessibilityIdentifier("financeSave")
                     .keyboardShortcut(.defaultAction)
             }
         }
+    }
+
+    var body: some View {
+        editorForm
         .sheet(item: $cropInput) { input in
             MacBankLogoCropView(input: input) { logoRevision += 1; reusableLogos = MacBankLogos.savedLogos(); cropInput = nil }
         }
@@ -230,10 +235,10 @@ struct MacFinanceEditor: View {
     }
 
     private var amountField:some View {
-        MacFinanceNumberField(title:panel == .goals ? "目标金额":panel == .loans ? "总金额":"本金 / 金额",text:$amountText,identifier:"financeEntryAmount")
+        MacFinanceNumberField(title:panel == .goals ? L10n.text("mac.financeEditor.MacFinanceNumberField.83ea3be5cc"):panel == .loans ? L10n.text("mac.financeEditor.MacFinanceNumberField.89ba454870"):L10n.text("mac.financeEditor.MacFinanceNumberField.b8939c57a2"),text:$amountText,identifier:"financeEntryAmount")
     }
     private var currencyField:some View {
-        MacEntryField(title:"货币") {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyCodes,identifier:"financeCurrencyMenu",textIdentifier:"financeEntryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
+        MacEntryField(title:L10n.text("mac.financeEditor.MacEntryField.04ee13cd1d")) {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyCodes,identifier:"financeCurrencyMenu",textIdentifier:"financeEntryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
     }
 
     private func save() {
