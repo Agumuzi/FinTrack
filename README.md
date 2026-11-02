@@ -12,7 +12,7 @@
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="https://ko-fi.com/agumuzi">Support development</a>
 </p>
-<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">Simplified Chinese</a></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/overview-dark.png">
