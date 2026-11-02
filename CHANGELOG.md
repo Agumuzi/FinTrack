@@ -4,7 +4,7 @@
 
 ## v1.5.1 — 2026-11-02
 
-- Refine the upcoming financial schedule and deposit interest summary layouts.
+- Refine the upcoming financial schedule and deposit interest summary layouts, with currency symbols, green received amounts, primary-color outstanding amounts, and a received-share ring on wide windows.
 - Place currency preferences beside scheduled posting settings on wide windows.
 - Keep exchange-rate history filters and automatic update controls on one row on wide layouts.
 - Prevent custom exchange-rate source timestamps from splitting date digits across lines.
