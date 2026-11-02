@@ -1,11 +1,13 @@
-# 界面截图
+# Screenshots
 
-产品网站及 README 使用实际签名 FinTrack v1.5 / Build 15 的英文 macOS 窗口截图，拍摄于 Apple Silicon Mac，提供浅色和深色版本。所有财务金额均为 USD，账目、名称、资产及计划均为专门准备的虚构示例，与真实用户账本无关。
+The product website and README display English-language screenshots from the actual, signed FinTrack v1.5 / Build 15 macOS app running on an Apple Silicon Mac, in both light and dark appearance. All amounts are in USD. Transactions, names, assets, and plans use specially prepared fictional sample data; no real user's ledger was used.
 
-- `overview.png`：概览。
-- `records.png`：收支账目。
-- `finance.png`：存款及财务计划。
-- `exchange.png`：货币与汇率。
-- `settings.png`：备份与导出。
+- `overview.png`: Overview.
+- `records.png`: Income and expenses.
+- `finance.png`: Deposits and financial plans.
+- `exchange.png`: Currencies and exchange rates.
+- `settings.png`: Backup and export.
 
-示例中的白底黑字“Logo”图片用于说明自定义银行图片功能。用户上传的图片会与银行名称关联保存，再次输入相同名称即可自动匹配，也可复用已有图片。示例图片与这些记录不随应用交付。截图用于产品说明，未对软件界面进行重绘，也不表示素材被另行授予自由再分发许可。
+The example image containing black `Logo` text on a white background demonstrates custom bank images. Uploaded images are associated with bank names, reused when the same name is entered again, and can also be selected from saved images. Neither the example image nor any of the sample records is included with the application.
+
+Screenshots are provided to document the product. The app UI was not redrawn for these images, and their publication does not grant a separate right to freely redistribute the artwork.
