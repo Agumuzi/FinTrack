@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   const dictionary = {
+  "Compact summaries, more room for your records": "紧凑概览，为账目腾出更多空间",
+  "Deposit interest cards start collapsed and expand from the info control with less empty space. Financial schedule entries use two lines and stay within the neighboring goal card height. Transaction summary cards no longer repeat the book currency beneath each amount.": "存款收益卡默认收起，点击信息按钮展开，减少多余留白。财务日程每条最多两行，卡片与旁边的财务目标保持等高。账目汇总卡不再在金额下重复显示本位币。",
   "Clearer financial summaries and settings": "更清晰的财务概览与设置",
   "Deposit interest summaries now use currency symbols, green received amounts, and a received-share ring on wide windows. Financial schedule dates, exchange-rate history filters, source timestamps, account settings, and automatic-update controls have clearer layouts.": "存款收益概览改用货币符号，已到账金额显示绿色，宽窗显示到账比例环。优化财务日程日期、汇率历史筛选、数据源时间戳、账户设置和自动更新控件的布局。",
   "November 1, 2026": "2026 年 11 月 1 日",
@@ -40,7 +42,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.5.1 is available": "FinTrack v1.5.1 现已发布",
+  "FinTrack v1.5.2 is available": "FinTrack v1.5.2 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -172,6 +174,8 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Compact summaries, more room for your records": "Компактные сводки — больше места для записей",
+  "Deposit interest cards start collapsed and expand from the info control with less empty space. Financial schedule entries use two lines and stay within the neighboring goal card height. Transaction summary cards no longer repeat the book currency beneath each amount.": "Карточки процентов по вкладам изначально свёрнуты и раскрываются кнопкой информации, занимая меньше места. События финансового календаря занимают две строки; высота карточки совпадает с соседней целью. Валюта учёта больше не повторяется под каждой суммой в сводке операций.",
   "Clearer financial summaries and settings": "Более понятные финансовые сводки и настройки",
   "Deposit interest summaries now use currency symbols, green received amounts, and a received-share ring on wide windows. Financial schedule dates, exchange-rate history filters, source timestamps, account settings, and automatic-update controls have clearer layouts.": "Сводки процентов используют символы валют, зелёные суммы полученных процентов и индикатор доли поступлений в широком окне. Улучшено отображение дат финансового календаря, фильтров истории курсов, времени источников, настроек счёта и автоматических обновлений.",
   "November 1, 2026": "1 ноября 2026 г.",
@@ -209,7 +213,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.5.1 is available": "Вышла версия FinTrack v1.5.1",
+  "FinTrack v1.5.2 is available": "Вышла версия FinTrack v1.5.2",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
