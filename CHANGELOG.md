@@ -2,6 +2,12 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.3 — 2026-11-02
+
+- Include today's recorded income and expenses in current assets even when their saved time is later today; future calendar days remain excluded. Existing receipt timestamps and amounts are preserved.
+- Size all three deposit interest cards to their content at one shared height, with no internal scrolling. Enlarge the outstanding total and show its planned-year distribution on wide layouts.
+- Use a single symbol to expand or collapse the interest overview.
+
 ## v1.5.2 — 2026-11-02
 
 - Collapse deposit interest summaries by default; use the info control to show or hide more compact cards.

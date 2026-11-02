@@ -39,8 +39,9 @@ import Foundation
         let outstanding: [CurrencyTotal]
         let current: [CurrencyTotal]
         let future: [YearTotal]
+        let outstandingYears: [YearTotal]
         let excludedDeposits: Int
-        static let empty = Snapshot(year: 0, outstanding: [], current: [], future: [], excludedDeposits: 0)
+        static let empty = Snapshot(year: 0, outstanding: [], current: [], future: [], outstandingYears: [], excludedDeposits: 0)
     }
     static func amount(_ value: Double) -> Decimal? {
         guard value.isFinite, value >= 0,
@@ -114,10 +115,10 @@ import Foundation
             }
         }
         func ordered(_ values: [String: CurrencyTotal]) -> [CurrencyTotal] { values.values.sorted { $0.currency < $1.currency } }
-        let future = byYear.keys.filter { $0 > year }.sorted().compactMap { key -> YearTotal? in
+        let outstandingYears = byYear.keys.sorted().compactMap { key -> YearTotal? in
             let rows = ordered(byYear[key] ?? [:]).filter { $0.outstanding > 0 }
             return rows.isEmpty ? nil : YearTotal(year: key, currencies: rows)
         }
-        return Snapshot(year: year, outstanding: ordered(remaining), current: ordered(byYear[year] ?? [:]), future: future, excludedDeposits: excluded)
+        return Snapshot(year: year, outstanding: ordered(remaining), current: ordered(byYear[year] ?? [:]), future: outstandingYears.filter { $0.year > year }, outstandingYears: outstandingYears, excludedDeposits: excluded)
     }
 }
