@@ -425,17 +425,20 @@ struct MacOverviewView: View {
                 else {
                     VStack(spacing: MacUI.space(0)) { ForEach(schedule.prefix(4)) { row in
                         Button { workspace.section = row.section } label: {
-                            HStack(alignment: .center, spacing: MacUI.space(10)) {
-                                Text(row.date, format: .dateTime.month(.abbreviated).day().locale(L10n.locale)).appFont(.caption, weight: .regular, design: .default).frame(width: MacUI.space(49), alignment: .leading)
+                            HStack(alignment: .top, spacing: MacUI.space(10)) {
                                 Image(systemName: row.icon).foregroundStyle(row.color).frame(width: MacUI.space(29), height: MacUI.space(29)).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                                 VStack(alignment: .leading, spacing: MacUI.space(6)) {
-                                    Text(row.title).appFont(.caption, weight: .medium, design: .default)
-                                    Text(row.name).appFont(.caption).foregroundStyle(.secondary)
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(row.title).appFont(.caption, weight: .medium)
+                                        Spacer(minLength: 8)
+                                        Text(row.date, format: .dateTime.month(.abbreviated).day().locale(L10n.locale)).appFont(.caption).foregroundStyle(.secondary).fixedSize()
+                                    }
+                                    Text(row.name).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                                     ViewThatFits(in: .horizontal) {
                                         HStack(spacing: MacUI.space(10)) { scheduleStatus(row); Spacer(minLength: 0); scheduleAmount(row) }
                                         VStack(alignment: .leading, spacing: MacUI.space(5)) { scheduleStatus(row); scheduleAmount(row) }
                                     }
-                                }.fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+                                }.frame(maxWidth: .infinity, alignment: .leading)
                             }.appPadding(.vertical, 8).contentShape(Rectangle())
                         }.buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.format("mac.overviewView.ForEach.349cbc9439", "\(row.name)")).accessibilityIdentifier("overviewSchedule-" + row.id)
                         if row.id != schedule.prefix(4).last?.id { Divider() }

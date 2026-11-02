@@ -228,20 +228,14 @@ struct MacSettingsView: View {
             } else {
                 VStack(spacing: MacUI.space(16)) { accountLanguageCard; accountAppearanceCard }
             }
-            MacSettingsCard(title: L10n.text("mac.settingsView.account.5c3b324f5b"), icon: "banknote", headerColor: .blue, compactHeader: true) {
-                if wide {
-                    HStack(alignment: .top, spacing: MacUI.space(20)) {
-                        bookCurrencyRow(wide: true).frame(maxWidth: .infinity)
-                        quickSourceRow.frame(maxWidth: .infinity)
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: MacUI.space(12)) { bookCurrencyRow(wide: false); quickSourceRow; HStack { Spacer(); quickRefreshButton } }
+            if wide {
+                HStack(alignment: .top, spacing: MacUI.space(16)) {
+                    accountCurrencyCard
+                    accountPostingCard
                 }
-                if wide { HStack { Spacer(); quickRefreshButton } }
-                ViewThatFits(in: .horizontal) {
-                    HStack { manageCurrencyButton; Spacer(); editProfileButton }
-                    VStack(alignment: .leading, spacing: MacUI.space(10)) { manageCurrencyButton; editProfileButton }
-                }.appFont(.caption)
+            } else {
+                accountCurrencyCard
+                accountPostingCard
             }
             MacSettingsCard(title: L10n.text("mac.settingsView.account.adc826dfd9"), icon: "externaldrive", headerColor: .blue, compactHeader: true) {
                 LazyVGrid(columns: wide ? Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4) : [GridItem(.adaptive(minimum: 230), spacing: 12, alignment: .top)], alignment: .leading, spacing: 12) {
@@ -251,12 +245,25 @@ struct MacSettingsView: View {
                     dataAction(L10n.text("mac.settingsView.dataAction.b1e4cb77c8"), detail: L10n.text("mac.settingsView.dataAction.98a832c8bc"), icon: "trash", dangerous: true, button: L10n.text("mac.settingsView.dataAction.fa650a299a")) { beginClear() }
                 }
             }
+        }
+    }
+    private var accountCurrencyCard: some View {
+        MacSettingsCard(title: L10n.text("mac.settingsView.account.5c3b324f5b"), icon: "banknote", headerColor: .blue, compactHeader: true) {
+            bookCurrencyRow(wide: false)
+            quickSourceRow
+            HStack { Spacer(); quickRefreshButton }
+            ViewThatFits(in: .horizontal) {
+                HStack { manageCurrencyButton; Spacer(); editProfileButton }
+                VStack(alignment: .leading, spacing: MacUI.space(10)) { manageCurrencyButton; editProfileButton }
+            }.appFont(.caption)
+        }.frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+    private var accountPostingCard: some View {
             MacSettingsCard(title: L10n.text("mac.settingsView.account.68562b217e"), icon: "calendar.badge.clock", compactHeader: true) {
                 MacSettingsToggleRow(title: L10n.text("mac.settingsView.account.608607a7e4"), subtitle: L10n.text("mac.settingsView.account.58c1a52beb"), value: $automaticDeposits)
                 MacSettingsToggleRow(title: L10n.text("mac.settingsView.account.ffc8e17b68"), subtitle: L10n.text("mac.settingsView.account.79a0f4bfb4"), value: $automaticPosting).accessibilityIdentifier("automaticPostingToggle")
                 Text(L10n.text("mac.settingsView.account.0bda56a369")).appFont(.caption).foregroundStyle(.secondary)
             }
-        }
     }
     private func bookCurrencyRow(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(8)) {

@@ -233,7 +233,7 @@ struct MacCurrencySettingsView: View {
 HStack(spacing: MacUI.space(8)) {
                         MacFXSourceImage(source: source, size: 29)
                         Button { editingSource = source } label: { VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(source.name).appFont(.body, weight: .semibold, design: .default).lineLimit(1); Text(index < 2 && MacSettingsVisual.preview ? L10n.text("mac.currencySettingsView.sourceRow.57e316acb2") : L10n.text("mac.currencySettingsView.sourceRow.cadf64cf74")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()) }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsFXSource-" + source.name)
-                        Text(monitor.quotes.filter { $0.identity.sourceID == source.id.uuidString }.max { $0.retrievedAt < $1.retrievedAt }.map { MacDateDisplay.string($0.retrievedAt) + "\n" + MacDisplayPreferences.time($0.retrievedAt) } ?? L10n.text("mac.currencySettingsView.sourceRow.bee4c96edd")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(70))
+                        Text(monitor.quotes.filter { $0.identity.sourceID == source.id.uuidString }.max { $0.retrievedAt < $1.retrievedAt }.map { MacDateDisplay.string($0.retrievedAt) + "\n" + MacDisplayPreferences.time($0.retrievedAt) } ?? L10n.text("mac.currencySettingsView.sourceRow.bee4c96edd")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(2).fixedSize(horizontal: true, vertical: true).multilineTextAlignment(.trailing)
                         Text(source.enabled ? L10n.text("mac.currencySettingsView.sourceRow.f4f0ead111") : L10n.text("mac.currencySettingsView.sourceRow.4e6fd0e28c")).appFont(.caption, weight: .medium, design: .default).foregroundStyle(source.enabled ? Color.green : Color.secondary).appPadding(5).background(source.enabled ? Color.green.opacity(0.09) : .gray.opacity(0.05), in: Capsule())
                         Toggle(L10n.text("mac.currencySettingsView.sourceRow.f4f0ead111") + source.name, isOn: Binding(get: { source.enabled }, set: { toggle(source, enabled: $0) })).labelsHidden().toggleStyle(.switch).controlSize(.small).tint(.blue).accessibilityIdentifier("fxEnable-" + source.name)
                         Menu { Button(L10n.text("mac.currencySettingsView.Menu.0518365699")) { editingSource = source }; Button(L10n.text("mac.currencySettingsView.Menu.2f9daa8289"), role: .destructive) { removingSource = source } } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
@@ -241,22 +241,15 @@ HStack(spacing: MacUI.space(8)) {
     }
     private var historyCard: some View {
         MacSettingsCard(title:L10n.text("mac.currencySettingsView.historyCard.c6bbc7044e"),icon:"chart.xyaxis.line",subtitle:L10n.text("mac.currencySettingsView.historyCard.7f18453b63")) {
-            VStack(alignment:.leading,spacing:12) {
+            let controls = wide ? AnyLayout(HStackLayout(alignment: .center, spacing: MacUI.space(12))) : AnyLayout(VStackLayout(alignment: .leading, spacing: MacUI.space(12)))
+            controls {
                 HStack {
                     Text(L10n.text("mac.currencySettingsView.historyCard.42c9eb8c53")).appFont(.caption).foregroundStyle(.secondary)
                     MacCurrencyMenu(selection:$quoteBase,codes:codes,identifier:"currencyHistoryBaseMenu")
-                    Spacer()
-                }
-                if wide {
-                    HStack {
-                        MacCurrencyMenu(selection:$selected,codes:codes.filter { $0 != quoteBase },identifier:"currencyHistoryCodeMenu")
-                        Spacer(minLength:16)
-                        MacSettingsSegments(selection:$historyRange,options:["1个月","3个月","6个月","1年","全部"],minimumOptionWidth:46).frame(maxWidth:420)
-                    }
-                } else {
-                    MacCurrencyMenu(selection:$selected,codes:codes.filter { $0 != quoteBase },identifier:"currencyHistoryCodeMenu")
-                    MacSettingsSegments(selection:$historyRange,options:["1个月","3个月","6个月","1年","全部"],minimumOptionWidth:46)
-                }
+                }.fixedSize()
+                MacCurrencyMenu(selection:$selected,codes:codes.filter { $0 != quoteBase },identifier:"currencyHistoryCodeMenu")
+                if wide { Spacer(minLength: 0) }
+                MacSettingsSegments(selection:$historyRange,options:["1个月","3个月","6个月","1年","全部"],minimumOptionWidth:46).frame(maxWidth:420)
             }
             if history.isEmpty {
                 VStack(spacing:10) {

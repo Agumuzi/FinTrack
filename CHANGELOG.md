@@ -2,6 +2,13 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.1 — 2026-11-02
+
+- Refine the upcoming financial schedule and deposit interest summary layouts.
+- Place currency preferences beside scheduled posting settings on wide windows.
+- Keep exchange-rate history filters and automatic update controls on one row on wide layouts.
+- Prevent custom exchange-rate source timestamps from splitting date digits across lines.
+
 ## v1.5 — 2026-11-02
 
 - Introduced an English-first localization module with full support for English, Simplified Chinese, Follow System, and in-app language switching. Existing Russian resources are retained but are not yet selectable.
