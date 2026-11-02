@@ -241,7 +241,7 @@ HStack(spacing: MacUI.space(8)) {
     }
     private var historyCard: some View {
         MacSettingsCard(title:L10n.text("mac.currencySettingsView.historyCard.c6bbc7044e"),icon:"chart.xyaxis.line",subtitle:L10n.text("mac.currencySettingsView.historyCard.7f18453b63")) {
-            let controls = AnyLayout(wide ? HStackLayout(alignment: .center, spacing: MacUI.space(12)) : VStackLayout(alignment: .leading, spacing: MacUI.space(12)))
+            let controls = wide ? AnyLayout(HStackLayout(alignment: .center, spacing: MacUI.space(12))) : AnyLayout(VStackLayout(alignment: .leading, spacing: MacUI.space(12)))
             controls {
                 HStack {
                     Text(L10n.text("mac.currencySettingsView.historyCard.42c9eb8c53")).appFont(.caption).foregroundStyle(.secondary)
