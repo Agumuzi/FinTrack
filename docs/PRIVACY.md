@@ -1,39 +1,45 @@
-# 数据与隐私
+# Data & Privacy
 
-## 本地账本
+## Local ledger
 
-FinTrack 的财务账本由应用管理，保存在当前用户的 macOS Application Support 目录中。
+FinTrack manages its financial ledger inside the current user's macOS Application Support directory.
 
-SQLite 可能同时使用 `-wal` 和 `-shm` 文件。账本、用户图片和偏好与应用文件、源码目录分开。应用通过 SwiftData 管理数据，没有将账本上传到 FinTrack 服务器的功能。当前 macOS 构建不启用 CloudKit 账本同步。
+SQLite may also use `-wal` and `-shm` files. The ledger, uploaded images, and preferences are separate from the app bundle and source directory. SwiftData manages the local records. FinTrack does not provide a feature for uploading the ledger to a FinTrack server, and this macOS build does not enable CloudKit ledger synchronization.
 
-应用不预装示例账本。账户、收支、财务计划及自定义图片由用户自行添加。网站的示例账本只用于展示。
+The app ships with no preloaded sample ledger. Users enter their own accounts, transactions, plans, and custom images. The fictional ledger shown on the website is for demonstration only.
 
-## 网络访问
+## Network access
 
-汇率查询连接用户选择的外部提供方；提供方会收到完成查询所需的网络请求，例如 IP 地址、币种和日期。使用自定义 API 时，密钥存储在本机钥匙串中。API 密钥不随完整账本备份迁移，恢复后需要重新配置。
+Exchange-rate queries contact the provider selected by the user. That provider may receive network-request information needed for the query, such as an IP address, currencies, and dates. Custom API keys are stored in the local Keychain. They are not transferred with full ledger backups and must be reconfigured after restoration.
 
-软件更新固定使用 FinTrack 官方签名清单和 GitHub Releases。GitHub 下载、Issues 和产品网站也适用 GitHub 的服务条款和隐私政策。网站没有加入分析脚本、广告或第三方字体；外观选择仅保存在浏览器本地。
+Software updates use FinTrack's official signed manifest and GitHub Releases. GitHub downloads, Issues, and the product site are also subject to GitHub's terms and privacy policies. The site includes no analytics scripts, advertisements, or third-party fonts; its appearance preference is stored only in the browser.
 
-## 备份与恢复
+## Backups and restoration
 
-使用应用内的原生完整备份保存账本与支持的偏好、用户图片。恢复前须确认操作并保存当前账本的安全副本；恢复会替换当前数据。CSV 用于数据交换，不能代替完整备份。带稳定 ID 的原生 CSV 重新导入会跳过已有记录；没有稳定 ID 的旧式 CSV 每次导入都会新增记录，请先核对，应用不会按同日同额自动合并。
+Use the native full-backup feature to preserve the ledger, supported preferences, and uploaded images. Restoration requires confirmation and a safe copy of the current ledger because it replaces existing data. CSV files are for data interchange, **not a substitute for full backups**.
 
-分类重命名、本位币换算和完整恢复在修改前建立本地恢复记录。若操作被中断，下次打开账本会恢复操作前的状态并暂停自动入账，核对后可重新开启。恢复记录也包含财务数据，与账本一同保存在本机，不包含 API Key；操作完成后删除。恢复记录损坏时停止写入并保留原文件，不以空白账本替代。
+Reimporting native CSV records with stable IDs skips records already present. Legacy CSV files without stable IDs create new records on every import: verify them first, because FinTrack does not automatically merge entries merely because their dates and amounts match.
 
-备份、CSV 和数据库可能包含完整财务信息，当前不提供应用层加密。请使用受保护的存储位置，并按需要使用 macOS 的磁盘加密及系统备份。不要把财务文件或含个人信息的截图上传到公开仓库。
+Category renaming, base-currency conversion, and full restoration create local recovery journals before making changes. If interrupted, FinTrack restores the pre-operation state when the ledger next opens and suspends automatic posting until the user has checked the result. Journals also contain financial data, remain locally alongside the ledger, and exclude API keys; they are removed after successful completion. Corrupted journals stop further writes and preserve the original files rather than substituting an empty ledger.
 
-## 反馈时保护个人信息
+Backup archives, CSVs, and databases may contain complete financial information. FinTrack does **not** provide application-level encryption. Use protected storage and consider macOS disk encryption and system backups. Never upload financial files or screenshots containing personal data to a public repository.
 
-复现问题优先使用虚构数据。截图请移除姓名、账号、真实金额及路径；不要提交密钥、原生账本或完整备份。涉及安全问题时，使用仓库的私密漏洞报告入口。
+## Protecting personal information when reporting issues
 
-## 选区换算与系统权限
+Prefer fictional values when reproducing bugs. Remove names, account numbers, real balances, and personal paths from screenshots. Do not submit API keys, native ledgers, or full backups. For security-related bugs, use the repository's private vulnerability reporting channel.
 
-选区金额换算仅在用户启用后使用。全局快捷键与可选的划取自动显示通过 macOS 辅助功能读取选中文本；快捷键读取失败时，可尝试复制并恢复原剪贴板。自动读取不模拟复制；换算成功后，会在剪贴板未被其他操作改变的前提下复制结果。密码框不读取，部分应用不支持选区访问。选中文本不写入日志或上传服务器；汇率请求只包含需要的币种。可以在设置中关闭选区换算。
+## Selected-amount conversion and system permissions
 
-系统通知需用户允许，登录启动可在应用或 macOS 登录项设置中管理。仅使用 Dock 时，关闭窗口会保留应用运行，点击 Dock 可重新打开；⌘Q 始终正常退出。其他入口组合由“关闭窗口后继续后台运行”控制关窗行为。每日计划入账按系统本地时间09:00执行，错过的计划在唤醒或下次启动时补记。单次自动补记最多24期，超过时整批停止；请先备份，再通过“核对历史”按实际凭证确认下一未入账日期。
+Selected-amount conversion runs only when enabled by the user. Its global shortcut and optional selection-triggered display access selected text through macOS Accessibility. If shortcut-based reading fails, FinTrack may attempt a copy operation and restore the prior clipboard. Automatic selection reading does not simulate copying. After a successful conversion, the app copies the result only if no other operation changed the clipboard in the meantime.
 
-## 启动权限引导
+Password fields are not read. Some applications do not support selected-text access. Selected text is not logged or uploaded; exchange-rate requests contain only the required currencies. The feature can be disabled in Settings.
 
-首次主窗口直接使用空白账本，无需手动创建。统一引导展示系统通知、后台运行、登录启动和辅助功能选区读取；可以选择稍后设置，并从通用设置重新进入。通知授权由全软件共用，记账提醒和软件更新提醒使用同一系统通知中心；自动检查更新发现新版本时发送通知，点击后打开应用内更新弹窗。
+macOS authorization is required for notifications. Login launch can be managed either in FinTrack or macOS Login Items. In Dock-only mode, closing the window leaves the app running and clicking its Dock icon reopens it; ⌘Q always quits. With other icon arrangements, the **Keep Running After Closing Window** preference controls the behavior.
 
-后台运行是应用行为开关，基本记账不依赖这些可选权限。系统授权记录不会作为账本设置备份转移到其他设备。应用不会因首次启动而请求访问整个文稿文件夹；文件导入或备份只在用户主动选择路径时进行。
+Scheduled daily posting occurs at 09:00 system local time. Missed items are caught up after wake or the next launch. A single automatic catch-up processes no more than 24 installments; beyond that, the batch stops entirely. Back up first, then use the history-review feature to confirm the next unpaid date against actual records.
+
+## First-launch permissions guide
+
+The first main window opens an empty ledger without manual creation. A unified guide explains notifications, background operation, login launch, and Accessibility access for selected text. You can defer it and reopen it from General settings. Notifications share one system authorization for financial and software-update reminders; when automatic checks find a new version, clicking the notification opens the in-app update prompt.
+
+Background operation is an app preference; basic bookkeeping does not depend on these optional permissions. System authorizations are not included in ledger backups and are not transferred to other devices. First launch does not request access to the entire Documents folder; importing and backup operations select file locations only when the user initiates them.
