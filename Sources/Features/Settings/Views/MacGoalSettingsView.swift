@@ -3,6 +3,7 @@ import SwiftData
 import Charts
 
 struct MacGoalSettingsView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var wide: Bool
     @Environment(\.modelContext) private var context
     @Query(sort: \Goal.createdAt) private var goals: [Goal]
@@ -31,16 +32,16 @@ struct MacGoalSettingsView: View {
     private func progress(_ row: Goal) -> Double { currency == nil ? 0 : row.clampedProgressValue(currentNetWorth: netWorth, baselineNetWorth: baseline) }
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
-            HStack { Spacer(); Button("新建目标", systemImage: "plus") { adding = true }.disabled(currency == nil).accessibilityIdentifier("settingsGoalAdd") }.padding(.top, MacUI.space(wide ? -64 : 0)).padding(.bottom, MacUI.space(wide ? 12 : 0))
+            HStack { Spacer(); Button(L10n.text("mac.goalSettingsView.body.da6caff0fb"), systemImage: "plus") { adding = true }.disabled(currency == nil).accessibilityIdentifier("settingsGoalAdd") }.padding(.top, MacUI.space(wide ? -64 : 0)).padding(.bottom, MacUI.space(wide ? 12 : 0))
             MacSettingsColumns(wide: wide) {
                 MacSettingsCard(title: "", icon: "") {
                     VStack(spacing: MacUI.space(7)) {
                         HStack(spacing: MacUI.space(2)) {
                             ForEach(["全部目标", "进行中", "已完成", "已暂停"], id: \.self) { title in
-                                Button { filter = title } label: { Text(title + " (" + String(title == "全部目标" ? activeGoals.count : activeGoals.filter { status($0) == title }.count) + ")").appFont(.caption, weight: .semibold, design: .default).lineLimit(1).frame(maxWidth: .infinity).appMinHeight(36).foregroundStyle(filter == title ? MacSettingsVisual.accent : .secondary).background(filter == title ? MacSettingsVisual.accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(MacInteractiveButtonStyle())
+                                Button { filter = title } label: { Text(L10n.builtIn(title) + " (" + String(title == "全部目标" ? activeGoals.count : activeGoals.filter { status($0) == title }.count) + ")").appFont(.caption, weight: .semibold, design: .default).lineLimit(1).frame(maxWidth: .infinity).appMinHeight(36).foregroundStyle(filter == title ? MacSettingsVisual.accent : .secondary).background(filter == title ? MacSettingsVisual.accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7)) }.buttonStyle(MacInteractiveButtonStyle())
                             }
                         }.appPadding(3).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 8)).accessibilityIdentifier("settingsGoalFilter")
-                        if rows.isEmpty { ContentUnavailableView("暂无符合条件的目标", systemImage: "target") }
+                        if rows.isEmpty { ContentUnavailableView(L10n.text("mac.goalSettingsView.ContentUnavailableView.3dbe9f0f1f"), systemImage: "target") }
                         ForEach(rows, id: \.id) { row in
                             Button { selectedID = row.id } label: {
                                 HStack(alignment: .top, spacing: MacUI.space(13)) {
@@ -54,10 +55,10 @@ struct MacGoalSettingsView: View {
                                         }
                                         HStack { Text(meta(row).note).lineLimit(1); Spacer(); Text(String(format: "%.1f%%", progress(row) * 100)).fontWeight(.medium) }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                         MacSettingsProgress(value: progress(row), color: .green, height: 8)
-                                        HStack { Text(MacSettingsVisual.money(row.targetAmount * progress(row)) + " / " + MacSettingsVisual.money(row.targetAmount) + " " + MacSettingsVisual.symbol(currency ?? "")); Spacer(); if status(row) != "进行中" { Text(status(row)).foregroundStyle(row.isPaused ? .orange : .green).appPadding(.horizontal, 6).appPadding(.vertical, 2).background((row.isPaused ? Color.orange : .green).opacity(0.1), in: Capsule()) }; Text(MacGoalTargetDate.label(row)) }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
+                                        HStack { Text(MacSettingsVisual.money(row.targetAmount * progress(row)) + " / " + MacSettingsVisual.money(row.targetAmount) + " " + MacSettingsVisual.symbol(currency ?? "")); Spacer(); if status(row) != "进行中" { Text(L10n.builtIn(status(row))).foregroundStyle(row.isPaused ? .orange : .green).appPadding(.horizontal, 6).appPadding(.vertical, 2).background((row.isPaused ? Color.orange : .green).opacity(0.1), in: Capsule()) }; Text(MacGoalTargetDate.label(row)) }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                                     }
                                 }.appPadding(.horizontal, 10).appPadding(.vertical, 8).background(selected?.id == row.id ? .gray.opacity(0.045) : .clear, in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle())
-                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityRepresentation { Button(row.title + " " + status(row)) { selectedID = row.id }.accessibilityIdentifier("settingsGoalRow-" + row.title) }
+                            }.buttonStyle(MacInteractiveButtonStyle()).accessibilityRepresentation { Button(row.title + " " + L10n.builtIn(status(row))) { selectedID = row.id }.accessibilityIdentifier("settingsGoalRow-" + row.title) }
                             if row.id != rows.last?.id { Divider() }
                         }
                     }
@@ -66,16 +67,16 @@ struct MacGoalSettingsView: View {
                 if let goal = selected {
                     VStack(spacing: MacUI.space(14)) {
                         MacGoalInlineEditor(goal: goal, currency: currency, netWorth: netWorth, baseline: baseline).id(goal.id)
-                        MacSettingsCard(title: "目标趋势", icon: "chart.bar", headerColor: .blue, action: MacSettingsVisual.preview ? AnyView(MacSettingsSegments(selection: $range, options: ["6个月", "1年", "全部"]).frame(width: MacUI.space(190))) : nil) {
+                        MacSettingsCard(title: L10n.text("mac.goalSettingsView.MacSettingsColumns.22c2037c96"), icon: "chart.bar", headerColor: .blue, action: MacSettingsVisual.preview ? AnyView(MacSettingsSegments(selection: $range, options: ["6个月", "1年", "全部"]).frame(width: MacUI.space(190))) : nil) {
                             if MacSettingsVisual.preview {
                                 let count = range == "6个月" ? 6 : 12
                                 Chart(0..<count, id: \.self) { index in
-                                    BarMark(x: .value("月份", Calendar.current.date(byAdding: .month, value: index - count + 1, to: Date())!, unit: .month), y: .value("演示进展", max(0, netWorth * (0.25 + Double(index) / Double(count) * 0.75)))).foregroundStyle(.blue.opacity(0.35)).cornerRadius(2)
+                                    BarMark(x: .value(L10n.text("mac.goalSettingsView.BarMark.a27822d135"), Calendar.current.date(byAdding: .month, value: index - count + 1, to: Date())!, unit: .month), y: .value(L10n.text("mac.goalSettingsView.BarMark.db86cb3952"), max(0, netWorth * (0.25 + Double(index) / Double(count) * 0.75)))).foregroundStyle(.blue.opacity(0.35)).cornerRadius(2)
                                 }.chartXAxis { AxisMarks(values: .stride(by: .month)) { _ in AxisValueLabel(format: .dateTime.month()) } }.frame(height: MacUI.space(145))
-                            } else { ContentUnavailableView("暂无历史记录", systemImage: "chart.bar", description: Text("已有净资产进度显示在上方。 ")).frame(height: MacUI.space(145)) }
+                            } else { ContentUnavailableView(L10n.text("mac.goalSettingsView.ContentUnavailableView.88f60ba89c"), systemImage: "chart.bar", description: Text(L10n.text("mac.goalSettingsView.ContentUnavailableView.38c218d18e"))).frame(height: MacUI.space(145)) }
                         }
                     }
-                } else { MacSettingsCard(title: "目标详情", icon: "target") { Text("选择或创建财务目标。").foregroundStyle(.secondary) } }
+                } else { MacSettingsCard(title: L10n.text("mac.goalSettingsView.MacSettingsColumns.10886293c5"), icon: "target") { Text(L10n.text("mac.goalSettingsView.MacSettingsColumns.70cb43cf01")).foregroundStyle(.secondary) } }
             }
             if let error { Text(error).foregroundStyle(.red) }
         }
@@ -84,6 +85,7 @@ struct MacGoalSettingsView: View {
 }
 
 struct MacGoalInlineEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var goal: Goal
     var currency: String?
     var netWorth: Double
@@ -126,29 +128,29 @@ struct MacGoalInlineEditor: View {
     }
     private var progress: Double { goal.clampedProgressValue(currentNetWorth: netWorth, baselineNetWorth: baseline) }
     private var gap: Double { max(0, (goal.includesCurrentAssets ? goal.targetAmount : goal.creationNetWorth + goal.targetAmount) - netWorth) }
-    private var status: String { goal.isPaused ? "已暂停" : goal.isAccomplished || goal.isCompleted(currentNetWorth: netWorth, baselineNetWorth: baseline) ? "已完成" : "进行中" }
+    private var status: String { L10n.builtIn(goal.isPaused ? "已暂停" : goal.isAccomplished || goal.isCompleted(currentNetWorth: netWorth, baselineNetWorth: baseline) ? "已完成" : "进行中") }
     private var months: Int? { goal.targetTime.remainingMonths(from: Date()) }
     var body: some View {
-        MacSettingsCard(title: goal.title, icon: presentation.icon, subtitle: presentation.note, headerColor: MacAccent.color(presentation.color), action: AnyView(Toggle("目标启用状态", isOn: Binding(get: { !goal.isPaused }, set: { active in goal.isPaused = !active; goal.updatedAt = Date(); do { try context.save(); loadedRevision = goal.updatedAt } catch { context.rollback(); self.error = error.localizedDescription } })).labelsHidden().toggleStyle(.switch).tint(.blue).accessibilityIdentifier("settingsGoalPause")), heading: AnyView(TextField("目标名称", text: $title).textFieldStyle(.plain).appFont(.section, weight: .semibold, design: .default).accessibilityIdentifier("goalInlineTitle"))) {
-            MacSettingsRow(label: "目标金额", labelWidth: 90) { HStack { MacNumericInput(text: $amount, identifier: "goalInlineAmount").frame(minHeight: 24).appFormControl(); Text(MacSettingsVisual.symbol(currency ?? "")).foregroundStyle(.secondary) } }
-            MacSettingsRow(label: "当前净资产", labelWidth: 90) { Text(MacSettingsVisual.money(netWorth) + " " + MacSettingsVisual.symbol(currency ?? "")).appFont(.body, weight: .medium, design: .default).frame(maxWidth: .infinity, alignment: .leading).appPadding(.horizontal, 12).appMinHeight(36).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 8)) }
-            MacSettingsRow(label: "期望时间", labelWidth: 90) { MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $timePrecision, date: $deadline, identifier: "settingsGoalTime") }
-            MacSettingsRow(label: "优先级", labelWidth: 90) { MacSettingsMenu(selection: $presentation.priority, options: [("高","高"), ("普通","普通"), ("低","低")]).accessibilityIdentifier("goalPriorityMenu") }
+        MacSettingsCard(title: goal.title, icon: presentation.icon, subtitle: presentation.note, headerColor: MacAccent.color(presentation.color), action: AnyView(Toggle(L10n.text("mac.goalSettingsView.AnyView.d0c0721383"), isOn: Binding(get: { !goal.isPaused }, set: { active in goal.isPaused = !active; goal.updatedAt = Date(); do { try context.save(); loadedRevision = goal.updatedAt } catch { context.rollback(); self.error = error.localizedDescription } })).labelsHidden().toggleStyle(.switch).tint(.blue).accessibilityIdentifier("settingsGoalPause")), heading: AnyView(TextField(L10n.text("mac.goalSettingsView.AnyView.cb9877f3a9"), text: $title).textFieldStyle(.plain).appFont(.section, weight: .semibold, design: .default).accessibilityIdentifier("goalInlineTitle"))) {
+            MacSettingsRow(label: L10n.text("mac.goalSettingsView.body.83ea3be5cc"), labelWidth: 90) { HStack { MacNumericInput(text: $amount, identifier: "goalInlineAmount").frame(minHeight: 24).appFormControl(); Text(MacSettingsVisual.symbol(currency ?? "")).foregroundStyle(.secondary) } }
+            MacSettingsRow(label: L10n.text("mac.goalSettingsView.body.8d1288c011"), labelWidth: 90) { Text(MacSettingsVisual.money(netWorth) + " " + MacSettingsVisual.symbol(currency ?? "")).appFont(.body, weight: .medium, design: .default).frame(maxWidth: .infinity, alignment: .leading).appPadding(.horizontal, 12).appMinHeight(36).background(.gray.opacity(0.04), in: RoundedRectangle(cornerRadius: 8)) }
+            MacSettingsRow(label: L10n.text("mac.goalSettingsView.body.bf2cb28701"), labelWidth: 90) { MacGoalTargetTimeField(hasDate: $hasDeadline, precision: $timePrecision, date: $deadline, identifier: "settingsGoalTime") }
+            MacSettingsRow(label: L10n.text("mac.goalSettingsView.body.565d64601d"), labelWidth: 90) { MacSettingsMenu(selection: $presentation.priority, options: [(L10n.text("mac.goalSettingsView.MacSettingsMenu.b1c27820fe"),"高"), (L10n.text("mac.goalSettingsView.MacSettingsMenu.de907d10df"),"普通"), (L10n.text("mac.goalSettingsView.MacSettingsMenu.aa9e366f68"),"低")]).accessibilityIdentifier("goalPriorityMenu") }
             MacGoalIconPicker(presentation: $presentation, identifierPrefix: "settingsGoalIconOption")
-            VStack(alignment: .leading, spacing: MacUI.space(7)) { Text("备注（可选）").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary); MacSettingsNoteField(placeholder: "为这个目标添加备注…", text: $presentation.note).accessibilityIdentifier("goalInlineNote") }
-            HStack { Text("目标进度").appFont(.body, weight: .semibold, design: .default); Spacer(); Text(String(format: "%.1f%%", progress * 100)).appFont(.dialogTitle, weight: .bold, design: .default).accessibilityIdentifier("settingsGoalProgress") }
+            VStack(alignment: .leading, spacing: MacUI.space(7)) { Text(L10n.text("mac.goalSettingsView.body.b405227c7e")).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary); MacSettingsNoteField(placeholder: L10n.text("mac.goalSettingsView.MacSettingsNoteField.62ec9ceb3b"), text: $presentation.note).accessibilityIdentifier("goalInlineNote") }
+            HStack { Text(L10n.text("mac.goalSettingsView.body.b0763fd1e5")).appFont(.body, weight: .semibold, design: .default); Spacer(); Text(String(format: "%.1f%%", progress * 100)).appFont(.dialogTitle, weight: .bold, design: .default).accessibilityIdentifier("settingsGoalProgress") }
             MacSettingsProgress(value: progress, color: .green, height: 10)
-            HStack { Text(goal.includesCurrentAssets ? "净资产目标" : "新增净资产目标"); Spacer(); Text(status).accessibilityIdentifier("settingsGoalStatus") }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).accessibilityRepresentation { Text(status).accessibilityIdentifier("settingsGoalStatus") }
+            HStack { Text(goal.includesCurrentAssets ? L10n.text("mac.goalSettingsView.body.8b61957eea") : L10n.text("mac.goalSettingsView.body.c552c0838c")); Spacer(); Text(status).accessibilityIdentifier("settingsGoalStatus") }.appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).accessibilityRepresentation { Text(status).accessibilityIdentifier("settingsGoalStatus") }
             MacAdaptiveEqualCardLayout(spacing: MacUI.space(8), minimumCardWidth: 0) {
-                stat(MacSettingsVisual.money(gap) + " " + MacSettingsVisual.symbol(currency ?? ""), "距目标差额", identifier: "goalGapAmount")
-                stat(months.map { $0 > 0 ? "约 \($0) 个月" : "已到期望时间" } ?? "未设置", "规划时间", identifier: "goalPlanningTime")
-                stat(months.flatMap { $0 > 0 ? MacSettingsVisual.money(gap / Double($0)) : nil } ?? "—", "参考每月增长（估算）", identifier: "goalMonthlyGrowth")
+                stat(MacSettingsVisual.money(gap) + " " + MacSettingsVisual.symbol(currency ?? ""), L10n.text("mac.goalSettingsView.stat.c7e9ef171c"), identifier: "goalGapAmount")
+                stat(months.map { $0 > 0 ? L10n.format("mac.goalSettingsView.stat.f6f52074ad", "\($0)") : L10n.text("mac.goalSettingsView.stat.f21192d465") } ?? L10n.text("mac.goalSettingsView.stat.2f5f1d6fbf"), L10n.text("mac.goalSettingsView.stat.7d708f9ab3"), identifier: "goalPlanningTime")
+                stat(months.flatMap { $0 > 0 ? MacSettingsVisual.money(gap / Double($0)) : nil } ?? "—", L10n.text("mac.goalSettingsView.stat.213647e1f3"), identifier: "goalMonthlyGrowth")
             }
-            HStack { Text(dirty ? "有未保存修改；切页后可继续编辑" : saved ? "已保存" : "进度按净资产自动计算").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button("保存修改") { save() }.disabled(currency == nil).accessibilityIdentifier("settingsGoalSave") }
-            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red); Button("放弃草稿并重新载入") { discardDraft = true } }
+            HStack { Text(dirty ? L10n.text("mac.goalSettingsView.body.58937dd581") : saved ? L10n.text("mac.goalSettingsView.body.1bd91a7d0c") : L10n.text("mac.goalSettingsView.body.a66d2e029f")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary); Spacer(); Button(L10n.text("mac.goalSettingsView.body.991bb7cfe5")) { save() }.disabled(currency == nil).accessibilityIdentifier("settingsGoalSave") }
+            if let error { Text(error).appFont(.caption, weight: .regular).foregroundStyle(.red); Button(L10n.text("mac.goalSettingsView.body.f057369770")) { discardDraft = true } }
         }.onAppear { loadDraft() }.onDisappear { keepDraft() }
-        .confirmationDialog("放弃未保存修改？", isPresented: $discardDraft) {
-            Button("放弃并重新载入", role: .destructive) { loadDraft(discard: true); error = nil }
+        .confirmationDialog(L10n.text("mac.goalSettingsView.body.46c8da8a29"), isPresented: $discardDraft) {
+            Button(L10n.text("mac.goalSettingsView.body.ab0eba1876"), role: .destructive) { loadDraft(discard: true); error = nil }
         }
 
     }
@@ -162,13 +164,13 @@ struct MacGoalInlineEditor: View {
     }
     private func save() {
         do {
-            guard loadedRevision == goal.updatedAt, loadedCurrency == currency, loadedGeneration == MacEditorDraftStore.shared.generation else { throw MacSettingsFailure.invalid("账本或目标已变化，草稿仍保留。请核对后重新载入。") }
+            guard loadedRevision == goal.updatedAt, loadedCurrency == currency, loadedGeneration == MacEditorDraftStore.shared.generation else { throw MacSettingsFailure.invalid(L10n.text("mac.goalSettingsView.save.4ec1589fe2")) }
             let title = try MacTransactionCRUD.validatedCategory(title), amount = try MacTransactionCRUD.editedAmount(amount, original: goal.targetAmount)
-            guard presentation.note.count <= 200 else { throw MacSettingsFailure.invalid("备注请保持在200字以内") }
+            guard presentation.note.count <= 200 else { throw MacSettingsFailure.invalid(L10n.text("mac.goalSettingsView.save.57a2385b39")) }
             var all: [String: MacGoalPresentation] = MacSettingsStore.load("v2_goal_presentation", fallback: [:]); all[goal.id.uuidString] = presentation
             let bytes = try JSONEncoder().encode(all)
             let timeValue = hasDeadline ? GoalTargetTime.capturedValue(deadline, precision: timePrecision) : nil
-            guard timeValue == nil || GoalTargetTime.components(timeValue!, precision: timePrecision) != nil else { throw MacSettingsFailure.invalid("期望时间超出支持范围") }
+            guard timeValue == nil || GoalTargetTime.components(timeValue!, precision: timePrecision) != nil else { throw MacSettingsFailure.invalid(L10n.text("mac.goalSettingsView.save.520803061b")) }
             try MacRecoveryJournal.perform(in: context) {
             goal.title = title; goal.targetAmount = amount; goal.deadline = hasDeadline ? deadline : nil; goal.targetDatePrecisionRaw = hasDeadline ? timePrecision.rawValue : nil; goal.targetDateValueRaw = timeValue; goal.updatedAt = Date()
             try context.save(); MacPreferences.defaults.set(bytes, forKey: "v2_goal_presentation"); loadedRevision = goal.updatedAt; MacEditorDraftStore.shared.remove(draftKey); saved = true; error = nil

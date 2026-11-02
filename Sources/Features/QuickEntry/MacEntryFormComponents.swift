@@ -20,12 +20,13 @@ struct MacEntryFieldBorder: ViewModifier {
 }
 
 struct MacEntryTypeSwitcher: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var type: TransactionType
     var prefix: String
     var body: some View {
         HStack(spacing:0) {
-            option(.expense,title:"支出",icon:"arrow.up.right",color:.red)
-            option(.income,title:"收入",icon:"arrow.down",color:.green)
+            option(.expense,title:L10n.text("mac.entryFormComponents.option.e679096865"),icon:"arrow.up.right",color:.red)
+            option(.income,title:L10n.text("mac.entryFormComponents.option.117d8f914d"),icon:"arrow.down",color:.green)
         }.background(MacOverviewStyle.filters,in:RoundedRectangle(cornerRadius:12))
     }
     private func option(_ value: TransactionType,title:String,icon:String,color:Color) -> some View {
@@ -37,12 +38,13 @@ struct MacEntryTypeSwitcher: View {
                 .background(color.opacity(type == value ? 0.07 : 0.035),in:RoundedRectangle(cornerRadius:11))
                 .overlay(RoundedRectangle(cornerRadius:11).strokeBorder(type == value ? color.opacity(0.15) : .clear))
                 .contentShape(Rectangle())
-        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(title).accessibilityValue(type == value ? "已选中" : "未选中")
+        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(title).accessibilityValue(type == value ? L10n.text("mac.entryFormComponents.option.a737fd72b0") : L10n.text("mac.entryFormComponents.option.0e0c21de69"))
             .accessibilityIdentifier(prefix + (value == .expense ? "TypeExpense" : "TypeIncome"))
     }
 }
 
 struct MacEntryExchangeCard<Content: View>: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var expanded: Bool
     var source: String
     var base: String
@@ -54,8 +56,8 @@ struct MacEntryExchangeCard<Content: View>: View {
                 HStack(spacing:MacUI.space(11)) {
                     Image(systemName:"info.circle").appIconFont(22)
                     VStack(alignment:.leading,spacing:MacUI.space(4)) {
-                        Text("记账金额与汇率（可选）").appFont(.body,weight:.semibold)
-                        Text(source.uppercased() + " → " + base + (source.uppercased() == base ? " · 同币种，无需换算" : " · 核对交易日汇率后保存"))
+                        Text(L10n.text("mac.entryFormComponents.body.3bcac30912")).appFont(.body,weight:.semibold)
+                        Text(source.uppercased() + " → " + base + (source.uppercased() == base ? L10n.text("mac.entryFormComponents.body.1ed672beb0") : L10n.text("mac.entryFormComponents.body.af4bb9cd4c")))
                             .appFont(.caption,weight:.regular).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                     }
                     Spacer(minLength:4)
@@ -69,7 +71,7 @@ struct MacEntryExchangeCard<Content: View>: View {
 
 enum MacEntryDateDisplay {
     static func string(_ date: Date) -> String {
-        let formatter = DateFormatter(); formatter.locale = Locale(identifier:"zh_CN"); formatter.dateFormat = "yyyy-MM-dd（EEE）"
+        let formatter = DateFormatter(); formatter.locale = L10n.locale; formatter.dateFormat = "yyyy-MM-dd（EEE）"
         return formatter.string(from:date)
     }
 }

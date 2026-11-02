@@ -11,9 +11,9 @@ final class MacLedgerLease {
         var errorDescription: String? {
             switch self {
             case .alreadyOpen:
-                "This ledger is already open in another FinTrack process. Close that copy, then reopen FinTrack."
+                L10n.text("mac.ledgerLease.errorDescription.e1445a046d")
             case .unavailable(let code):
-                "The ledger could not be opened safely (error \(code)). No financial data was changed."
+                L10n.format("mac.ledgerLease.errorDescription.39a562b0e4", "\(code)")
             }
         }
     }

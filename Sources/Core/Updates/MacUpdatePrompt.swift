@@ -49,10 +49,11 @@ struct MacUpdateSheetPresenter: ViewModifier {
 }
 
 private struct MacUpdatePromptView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var stage: MacUpdatePrompt.Stage
     @ObservedObject private var updater = MacUpdateService.shared
     @State private var error: String?
-    private var title: String { stage == .ready ? (updater.installing ? "正在安装更新" : "更新已就绪") : stage == .downloading ? "正在准备更新" : "发现新版本" }
+    private var title: String { stage == .ready ? (updater.installing ? L10n.text("mac.updatePrompt.title.2539cf900d") : L10n.text("mac.updatePrompt.title.f9c4b68bf6")) : stage == .downloading ? L10n.text("mac.updatePrompt.title.e700661456") : L10n.text("mac.updatePrompt.title.ac217e4d1c") }
     var body: some View {
         MacFormShell(width:560) {
             HStack(spacing:12) {
@@ -68,13 +69,13 @@ private struct MacUpdatePromptView: View {
                 if stage == .offer {
                     Text(updater.release?.notes ?? "").appFont(.body).textSelection(.enabled)
                         .padding(14).frame(maxWidth:.infinity,alignment:.leading).background(MacOverviewStyle.filters,in:RoundedRectangle(cornerRadius:10))
-                    Text("下载并校验后，再由您确认安装。当前账本和设置将保留。").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("mac.updatePrompt.MacFormShell.b5fffdcf9c")).appFont(.caption).foregroundStyle(.secondary)
                 } else if stage == .downloading {
                     if updater.busy { ProgressView().controlSize(.small).tint(MacUI.accent) }
                     Text(updater.status).appFont(.body).accessibilityIdentifier("updateDownloadStatus")
                 } else {
-                    Label(updater.installing ? "正在准备替换应用，请勿重复操作" : "安装包已下载并校验",systemImage:"checkmark.shield").appFont(.body,weight:.medium).foregroundStyle(.green)
-                    Text("安装后会重新启动 FinTrack。您也可以稍后再安装，账本与设置会保留。").appFont(.body)
+                    Label(updater.installing ? L10n.text("mac.updatePrompt.MacFormShell.cf2598bc4e") : L10n.text("mac.updatePrompt.MacFormShell.c7ea1be04c"),systemImage:"checkmark.shield").appFont(.body,weight:.medium).foregroundStyle(.green)
+                    Text(L10n.text("mac.updatePrompt.MacFormShell.fd16e05185")).appFont(.body)
                     if updater.busy { ProgressView(); Text(updater.status).appFont(.caption).foregroundStyle(.secondary) }
                     if let message = updater.installError ?? error { Text(message).appFont(.caption).foregroundStyle(.red) }
                 }
@@ -82,17 +83,17 @@ private struct MacUpdatePromptView: View {
         } footer: {
             HStack {
                 if stage == .offer {
-                    Button("取消",role:.cancel) { MacUpdatePrompt.shared.dismiss() }.keyboardShortcut(.cancelAction)
+                    Button(L10n.text("mac.updatePrompt.MacFormShell.2cd0f3be87"),role:.cancel) { MacUpdatePrompt.shared.dismiss() }.keyboardShortcut(.cancelAction)
                     Spacer()
-                    Button("下载并安装") { MacUpdatePrompt.shared.download() }.buttonStyle(MacStandardButtonStyle(primary:true)).keyboardShortcut(.defaultAction).accessibilityIdentifier("downloadOfferedUpdate")
+                    Button(L10n.text("mac.updatePrompt.MacFormShell.ac69f68b70")) { MacUpdatePrompt.shared.download() }.buttonStyle(MacStandardButtonStyle(primary:true)).keyboardShortcut(.defaultAction).accessibilityIdentifier("downloadOfferedUpdate")
                 } else if stage == .downloading {
-                    Button(updater.busy ? "取消下载" : "关闭") { MacUpdatePrompt.shared.cancelDownload() }.keyboardShortcut(.cancelAction)
+                    Button(updater.busy ? L10n.text("mac.updatePrompt.MacFormShell.14d1e349b1") : L10n.text("mac.updatePrompt.MacFormShell.3fd47edce4")) { MacUpdatePrompt.shared.cancelDownload() }.keyboardShortcut(.cancelAction)
                     Spacer()
-                    if !updater.busy && updater.archive == nil { Button("重试下载") { MacUpdatePrompt.shared.download() }.buttonStyle(MacStandardButtonStyle(primary:true)) }
+                    if !updater.busy && updater.archive == nil { Button(L10n.text("mac.updatePrompt.MacFormShell.87dd9db338")) { MacUpdatePrompt.shared.download() }.buttonStyle(MacStandardButtonStyle(primary:true)) }
                 } else {
-                    Button("稍后",role:.cancel) { MacUpdatePrompt.shared.dismiss() }.keyboardShortcut(.cancelAction).disabled(updater.busy)
+                    Button(L10n.text("mac.updatePrompt.MacFormShell.9d2ca26128"),role:.cancel) { MacUpdatePrompt.shared.dismiss() }.keyboardShortcut(.cancelAction).disabled(updater.busy)
                     Spacer()
-                    Button("安装并重新启动") { Task { do { try await updater.installAndRelaunch() } catch { self.error = error.localizedDescription } } }
+                    Button(L10n.text("mac.updatePrompt.MacFormShell.96c760c3c7")) { Task { do { try await updater.installAndRelaunch() } catch { self.error = error.localizedDescription } } }
                         .buttonStyle(MacStandardButtonStyle(primary:true)).keyboardShortcut(.defaultAction).accessibilityIdentifier("confirmInstallUpdate").disabled(updater.busy)
                 }
             }

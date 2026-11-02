@@ -30,6 +30,7 @@ enum MacNumberInput {
 }
 
 struct MacNumericInput: NSViewRepresentable {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var text: String
     var rate = false
     var identifier: String
@@ -170,7 +171,7 @@ struct MacNumericInput: NSViewRepresentable {
         }
         field.font = MacInterfaceFonts.font(size: MacUI.fontSize(large ? .amount : .body, tier: MacFontSizeTier(rawValue: tier) ?? .standard), monospacedDigits: true)
         field.textColor = .labelColor; field.isEnabled = enabled
-        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(accessibilityTitle ?? (rate ? "利率" : "金额"))
+        field.setAccessibilityIdentifier(identifier); field.setAccessibilityLabel(accessibilityTitle ?? (rate ? L10n.text("mac.financeFormControls.updateNSView.84c2f9831a") : L10n.text("mac.financeFormControls.updateNSView.ffc624300d")))
         if focus?.wrappedValue == true && !context.coordinator.editing {
             DispatchQueue.main.async { if self.focus?.wrappedValue == true, let window = field.window { window.makeFirstResponder(field) } }
         }
@@ -182,14 +183,16 @@ struct MacFinanceNumberField: View {
     @Binding var text: String
     var rate = false
     var identifier: String
+    var digits: Int? = nil
     var body: some View {
         MacEntryField(title: title) {
-            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: title.contains("汇率") ? 6 : nil, accessibilityTitle: title).frame(minHeight: 24).appFormControl()
+            MacNumericInput(text: $text, rate: rate, identifier: identifier, digits: digits, accessibilityTitle: title).frame(minHeight: 24).appFormControl()
         }
     }
 }
 
 struct MacFinanceCategoryField: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Environment(\.modelContext) private var context
     @Binding var category: String
     var type: String
@@ -202,12 +205,12 @@ struct MacFinanceCategoryField: View {
         let styles: [String: MacCategoryStyle] = MacSettingsStore.load("v2_category_styles", fallback: [:])
         let rows = usage.sorted(categories.filter { $0.deletedAt == nil && $0.type == type })
         let names = rows.map(\.name) + (category.isEmpty || rows.contains { $0.name == category } ? [] : [category])
-        MacEntryField(title: "分类") {
+        MacEntryField(title: L10n.text("mac.financeFormControls.MacEntryField.515559957f")) {
             MacIconMenu(selection: $category, options: names.map { name in
                 let style = MacCategoryCatalog.style(name: name, type: type, in: styles)
                 return MacIconMenuOption(title: MacOverviewStyle.category(name), value: name, image: MacCategoryCatalog.menuImage(style: style, name: name))
-            }, identifier: identifier, accessibilityTitle: "分类", width: 250)
-            if names.isEmpty { Text("请先在分类管理中添加分类").appFont(.caption).foregroundStyle(.secondary) }
+            }, identifier: identifier, accessibilityTitle: L10n.text("mac.financeFormControls.MacIconMenu.515559957f"), width: 250)
+            if names.isEmpty { Text(L10n.text("mac.financeFormControls.MacEntryField.ef3e768e61")).appFont(.caption).foregroundStyle(.secondary) }
         }
         .onAppear { usage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init() }
         .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in usage = (try? MacCategoryUsageSnapshot.load(in: context)) ?? .init() }
@@ -215,13 +218,14 @@ struct MacFinanceCategoryField: View {
 }
 
 struct MacReminderEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var enabled: Bool
     @Binding var days: Int
     @Binding var time: Date
     var showsToggle = true
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if showsToggle { Toggle("提醒", isOn: $enabled) }
+            if showsToggle { Toggle(L10n.text("mac.financeFormControls.body.8f29b3132c"), isOn: $enabled) }
             if enabled {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 16) { daysField; Spacer(minLength: 16); timeField }
@@ -230,8 +234,8 @@ struct MacReminderEditor: View {
             }
         }
     }
-    private var daysField: some View { Stepper("提前 \(days) 天", value: $days, in: 0...365).fixedSize() }
-    private var timeField: some View { HStack(spacing: 10) { Text("提醒时间").appFont(.caption).foregroundStyle(.secondary); MacTimeMenu(date: $time, identifier: "financeReminderTime").frame(width: 140) } }
+    private var daysField: some View { Stepper(L10n.format("mac.financeFormControls.Stepper.3b7449b21e", "\(days)"), value: $days, in: 0...365).fixedSize() }
+    private var timeField: some View { HStack(spacing: 10) { Text(L10n.text("mac.financeFormControls.timeField.98b552661a")).appFont(.caption).foregroundStyle(.secondary); MacTimeMenu(date: $time, identifier: "financeReminderTime").frame(width: 140) } }
 }
 
 /// Format before any native text replacement captures its selection range.

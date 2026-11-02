@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MacFinanceReviewView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let record: MacFinanceRecord
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -11,25 +12,25 @@ struct MacFinanceReviewView: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(16)) {
-            Text("核对已有计划").appFont(.dialogTitle, weight: .semibold)
-            Text("请对照账本，选择首个尚未记账的期次。日期、金额和备注不作为历史收付款的证明。")
+            Text(L10n.text("mac.financeReviewView.body.0e4d25c8c9")).appFont(.dialogTitle, weight: .semibold)
+            Text(L10n.text("mac.financeReviewView.body.068bbcf4b6"))
             switch record {
             case .loan(let loan):
-                Stepper("首个未记账期次：\(index)", value: $index, in: 1...max(loan.termMonths, 1))
-                Text("原还款计划会生成周期记账支出，不会发起银行转账。")
+                Stepper(L10n.format("mac.financeReviewView.Stepper.c9dd72bf4b", "\(index)"), value: $index, in: 1...max(loan.termMonths, 1))
+                Text(L10n.text("mac.financeReviewView.body.dbaf7313d4"))
             case .recurring:
-                MacDateTimeField(title: "下次执行", date: $date, includesTime: true)
+                MacDateTimeField(title: L10n.text("mac.financeReviewView.MacDateTimeField.b8e094966d"), date: $date, includesTime: true)
             case .deposit(let deposit):
-                if deposit.typedInterestSettlementMode == .monthly { MacDateTimeField(title: "首个未记账结息日期", date: $date) }
-                Text("已结清存款保持原状态，不推测或补造历史利息收据。")
+                if deposit.typedInterestSettlementMode == .monthly { MacDateTimeField(title: L10n.text("mac.financeReviewView.MacDateTimeField.7a24ec7b45"), date: $date) }
+                Text(L10n.text("mac.financeReviewView.body.1b5e4aee7b"))
             case .goal: EmptyView()
             }
-            Toggle("我已对照账本核对首个未记账日期", isOn: $confirmed)
+            Toggle(L10n.text("mac.financeReviewView.body.aaae3b2ba0"), isOn: $confirmed)
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }
-                Button("使用已核对计划") {
+                Button(L10n.text("mac.financeReviewView.body.2cd0f3be87")) { dismiss() }
+                Button(L10n.text("mac.financeReviewView.body.cb208bc418")) {
                     do {
                         switch record {
                         case .loan(let r): try MacFinanceReview.loan(r, firstUnrecordedIndex: index, confirmed: confirmed, in: context)
@@ -53,6 +54,7 @@ struct MacFinanceReviewView: View {
 }
 
 struct MacLoanScheduleView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let loan: LoanRule
     @Environment(\.dismiss) private var dismiss
     private struct Row: Identifiable {
@@ -62,17 +64,17 @@ struct MacLoanScheduleView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(12)) {
             Text(loan.title).appFont(.dialogTitle, weight: .semibold)
-            Text("贷款计划").appFont(.section, weight: .semibold)
+            Text(L10n.text("mac.financeReviewView.body.60fe565c4c")).appFont(.section, weight: .semibold)
             Text("\(loan.currency) · \(loan.method.rawValue)")
             Table(loan.amortizationSchedule.map { Row(payment: $0) }) {
-                TableColumn("期次") { Text(String($0.payment.index)) }
-                TableColumn("日期") { Text(MacDateDisplay.string($0.payment.date)) }
-                TableColumn("本金") { Text($0.payment.principal.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("利息") { Text($0.payment.interest.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("合计") { Text($0.payment.total.formatted(.number.precision(.fractionLength(2)))) }
-                TableColumn("剩余本金") { Text($0.payment.remainingBalance.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.4a703a03f5")) { Text(String($0.payment.index)) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.70d0c1b336")) { Text(MacDateDisplay.string($0.payment.date)) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.2fa66a53e4")) { Text($0.payment.principal.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.3dd1b22caa")) { Text($0.payment.interest.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.e009c148d1")) { Text($0.payment.total.formatted(.number.precision(.fractionLength(2)))) }
+                TableColumn(L10n.text("mac.financeReviewView.TableColumn.42a94e5205")) { Text($0.payment.remainingBalance.formatted(.number.precision(.fractionLength(2)))) }
             }.frame(height: MacUI.space(380)).accessibilityIdentifier("loanScheduleTable")
-            HStack { Spacer(); Button("关闭") { dismiss() } }
+            HStack { Spacer(); Button(L10n.text("mac.financeReviewView.body.3fd47edce4")) { dismiss() } }
         }.appPadding(24).appDialog(width: 780)
     }
 }

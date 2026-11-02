@@ -256,7 +256,8 @@ enum ComparisonAnalyticsCore {
 
     private static func dayLabel(_ day: Int, locale: Locale) -> String {
         if locale.identifier.hasPrefix("zh") {
-            return "\(day)日"
+            let formatter = NumberFormatter(); formatter.locale = locale
+            return (formatter.string(from: NSNumber(value: day)) ?? String(day)) + "日"
         }
         return String(day)
     }

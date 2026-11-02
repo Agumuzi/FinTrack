@@ -17,7 +17,7 @@ final class MacFXProviderAdapter {
             let revision = self.revision(source)
             var calendar = MacFXDates.utc
             if let tz = source.dateTimeZoneID.flatMap(TimeZone.init(identifier:)) { calendar.timeZone = tz }
-            return MacFXProvider(id: source.id.uuidString, revision: revision, name: "自定义 · " + source.name + (mock ? " · 隔离演示" : ""),
+            return MacFXProvider(id: source.id.uuidString, revision: revision, name: L10n.text("mac.fXProviderAdapter.MacFXProvider.ab18f1b3de") + source.name + (mock ? L10n.text("mac.fXProviderAdapter.MacFXProvider.1040f87e73") : ""),
                                  supportsHistory: source.provider == "openExchangeRates" || (source.urlTemplate.contains("{date}") && !source.datePath.isEmpty),
                                  dayCalendar: calendar) { [weak self] pair, requested, purpose, cycle in
                 guard let self else { throw MacFXNetworkFailure.unavailable }
@@ -26,14 +26,14 @@ final class MacFXProviderAdapter {
                 return try await self.fetch(source: source, revision: revision, pair: pair, requested: requested, purpose: purpose, cycle: cycle)
             }
         }
-        let free = MacFXProvider(id: "free", revision: "currency-api-v1-utc-publication-day", name: mock ? "系统数据源 · 隔离演示" : "系统数据源", supportsHistory: true, dayCalendar: MacFXDates.utc) { [weak self] pair, requested, purpose, cycle in
+        let free = MacFXProvider(id: "free", revision: "currency-api-v1-utc-publication-day", name: mock ? L10n.text("mac.fXProviderAdapter.MacFXProvider.4f242effae") : L10n.text("mac.fXProviderAdapter.MacFXProvider.2ea759ff20"), supportsHistory: true, dayCalendar: MacFXDates.utc) { [weak self] pair, requested, purpose, cycle in
             guard let self else { throw MacFXNetworkFailure.unavailable }
             guard purpose != .accountingDay else { throw MacFXContractFailure.invalidEvidence }
             if self.mock { return self.mockQuote(pair: pair, sourceID: "free", revision: "currency-api-v1-utc-publication-day", requested: requested, purpose: purpose) }
             return try await self.fetchFree(pair: pair, requested: requested, purpose: purpose, cycle: cycle)
         }
         let alternatives = system.providers().map { original in
-            MacFXProvider(id:original.id,revision:original.revision,name:mock ? "系统数据源 · 隔离演示" : "系统数据源",supportsHistory:original.supportsHistory,dayCalendar:original.dayCalendar,rangeAvailable:!mock && original.rangeAvailable,rangeFetch:mock ? nil : original.rangeFetch) { [weak self] pair,requested,purpose,cycle in
+            MacFXProvider(id:original.id,revision:original.revision,name:mock ? L10n.text("mac.fXProviderAdapter.MacFXProvider.4f242effae") : L10n.text("mac.fXProviderAdapter.MacFXProvider.2ea759ff20"),supportsHistory:original.supportsHistory,dayCalendar:original.dayCalendar,rangeAvailable:!mock && original.rangeAvailable,rangeFetch:mock ? nil : original.rangeFetch) { [weak self] pair,requested,purpose,cycle in
                 guard let self, purpose != .accountingDay else { throw MacFXContractFailure.invalidEvidence }
                 if self.mock { return self.mockQuote(pair:pair,sourceID:original.id,revision:original.revision,requested:requested,purpose:purpose) }
                 return try await original.fetch(pair,requested,purpose,cycle)
@@ -110,7 +110,7 @@ final class MacFXProviderAdapter {
             for template in day == "latest" ? [pages, cdn] : [cdn, pages] {
                 try Task.checkCancellation()
                 do {
-                    let value = try await MacFXService.requestData(MacFXSource(name:"系统数据源",urlTemplate:template),from:pair.base,to:pair.quote,date:Date(),keyOverride:"",dateTagOverride:day)
+                    let value = try await MacFXService.requestData(MacFXSource(name:L10n.text("mac.fXProviderAdapter.MacFXSource.2ea759ff20"),urlTemplate:template),from:pair.base,to:pair.quote,date:Date(),keyOverride:"",dateTagOverride:day)
                     let (_, actual) = try await Task.detached(priority: .utility) {
                         try Self.freeDocument(value, base: base, quote: quote, requested: day)
                     }.value
@@ -164,7 +164,7 @@ final class MacFXProviderAdapter {
                 return result
             } catch { continue }
         }
-        throw MacSettingsFailure.invalid("暂未取得该交易日的有效参考汇率，请稍后重试或手动核对输入")
+        throw MacSettingsFailure.invalid(L10n.text("mac.fXProviderAdapter.accountingQuote.44f3959f3c"))
     }
     func systemQuote(pair:MacFXPair) async throws -> MacFXEvidenceQuote {
         let cycle = "system-check/" + UUID().uuidString

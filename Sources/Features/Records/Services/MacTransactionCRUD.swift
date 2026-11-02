@@ -16,13 +16,13 @@ enum MacTransactionCRUD {
 
         var errorDescription: String? {
             switch self {
-            case .amountRequired: "Enter a positive amount with at most one decimal separator."
-            case .amountOutsideSafeRange: "Amount is invalid, too small after rounding, or larger than 1 trillion."
-            case .categoryRequired: "Enter a category."
-            case .mixedBaseCurrencies: "Existing records use multiple base currencies. Convert the ledger in Settings before editing."
-            case .foreignCurrencyEdit: "Enter the original currency and a valid exchange rate before editing this foreign-currency record."
-            case .invalidBookCurrency: "Choose an explicit three-letter bookkeeping currency."
-            case .generatedPostingProtected: "Generated bank or recurring receipts must be reconciled in Finance; direct changes could corrupt posting status."
+            case .amountRequired: L10n.text("mac.transactionCRUD.errorDescription.0e0294af48")
+            case .amountOutsideSafeRange: L10n.text("mac.transactionCRUD.errorDescription.f435c45d44")
+            case .categoryRequired: L10n.text("mac.transactionCRUD.errorDescription.accc46b924")
+            case .mixedBaseCurrencies: L10n.text("mac.transactionCRUD.errorDescription.0267152db0")
+            case .foreignCurrencyEdit: L10n.text("mac.transactionCRUD.errorDescription.97626434e6")
+            case .invalidBookCurrency: L10n.text("mac.transactionCRUD.errorDescription.2f2cbac446")
+            case .generatedPostingProtected: L10n.text("mac.transactionCRUD.errorDescription.f3857bb409")
             }
         }
     }
@@ -60,7 +60,7 @@ enum MacTransactionCRUD {
 
     static func validateManualNote(_ note: String) throws {
         guard !["[FTDep:", "[FTRec:", "[FTLoan:"].contains(where: note.contains) else {
-            throw MacSettingsFailure.invalid("备注包含系统入账标记，请移除 [FTDep:、[FTRec: 或 [FTLoan: 后保存。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.transactionCRUD.validateManualNote.39da2f32cf"))
         }
     }
 

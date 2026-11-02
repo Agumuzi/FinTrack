@@ -6,8 +6,8 @@ enum MacFinanceReview {
         case confirmation, schedule
         var errorDescription: String? {
             switch self {
-            case .confirmation: "Confirm the next unrecorded date against your ledger before continuing."
-            case .schedule: "The saved schedule is inconsistent. Review the record before enabling it."
+            case .confirmation: L10n.text("mac.financeReview.errorDescription.5fa38bb290")
+            case .schedule: L10n.text("mac.financeReview.errorDescription.e13bf813f8")
             }
         }
     }

@@ -3,6 +3,7 @@ import SwiftData
 
 /// Only legacy contracts lacking pinned dates reach this explicit review.
 struct MacLoanCalendarReviewView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let loan: LoanRule
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -25,23 +26,23 @@ struct MacLoanCalendarReviewView: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("核对旧贷款还款日期").appFont(.dialogTitle, weight: .semibold)
-            Text("旧记录没有保存合同所在时区，无法自动还原。请选择合同所在时区并逐期核对未来日期；已有还款收据、金额和日期保持不变。")
-            Picker("合同所在时区", selection: $zone) {
+            Text(L10n.text("mac.loanCalendarReviewView.body.21f7d3eee9")).appFont(.dialogTitle, weight: .semibold)
+            Text(L10n.text("mac.loanCalendarReviewView.body.778f158c9f"))
+            Picker(L10n.text("mac.loanCalendarReviewView.Picker.1e674e730d"), selection: $zone) {
                 ForEach(TimeZone.knownTimeZoneIdentifiers, id: \.self) { Text($0).tag($0) }
             }.accessibilityIdentifier("loanContractTimezone")
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(schedule, id: \.index) { payment in
-                        Text("第 \(payment.index) 期 · \(date(payment.date)) · \(MacOverviewStyle.money(payment.total)) \(loan.currency)")
+                        Text(L10n.format("mac.loanCalendarReviewView.ForEach.a10ec45985", "\(payment.index)", "\(date(payment.date))", "\(MacOverviewStyle.money(payment.total))", "\(loan.currency)"))
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(height: 280).accessibilityIdentifier("loanCalendarDates")
-            Toggle("我已对照合同核对以上日期", isOn: $confirmed).accessibilityIdentifier("loanCalendarConfirmed")
+            Toggle(L10n.text("mac.loanCalendarReviewView.body.db9808d8b7"), isOn: $confirmed).accessibilityIdentifier("loanCalendarConfirmed")
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
-                Button("取消") { dismiss() }; Spacer()
-                Button("固定已核对日期") {
+                Button(L10n.text("mac.loanCalendarReviewView.body.2cd0f3be87")) { dismiss() }; Spacer()
+                Button(L10n.text("mac.loanCalendarReviewView.body.9754e59f4b")) {
                     do {
                         try MacLoanSchedule.confirmLegacy(loan, calendar: calendar, expectedDates: schedule.map(\.date), in: context)
                         dismiss()

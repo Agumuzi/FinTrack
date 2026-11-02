@@ -205,6 +205,12 @@ struct MacRecordsTableSizing: NSViewRepresentable {
             var preferred: [CGFloat] = parent.compact ? [parent.dateWidth, parent.categoryWidth, parent.amountWidth] : [parent.dateWidth, parent.categoryWidth, 240, max(48, MacUI.fontTier.bodySize*2.1+24), parent.amountWidth]
             var minimum: [CGFloat] = parent.compact ? [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), parent.amountWidth] : [parent.dateWidth, max(60,MacUI.fontTier.bodySize*2+30), 80, max(48,MacUI.fontTier.bodySize*2.1+24),parent.amountWidth]
             if parent.selecting { preferred.insert(28,at:0); minimum.insert(28,at:0) }
+            let font=MacInterfaceFonts.font(size:MacUI.fontTier.bodySize,weight:.medium)
+            for index in minimum.indices where parent.titles.indices.contains(index) && !parent.titles[index].isEmpty {
+                let headerWidth=ceil((parent.titles[index] as NSString).size(withAttributes:[.font:font]).width)+24
+                minimum[index]=max(minimum[index],min(190,headerWidth))
+                preferred[index]=max(preferred[index],minimum[index])
+            }
             if let candidate = (userWidths?.count == expected ? userWidths:nil) ?? saved,candidate.count == expected {preferred=candidate}
             else {
                 let flexible = parent.compact ? (parent.selecting ? 2 : 1) : (parent.selecting ? 3 : 2)
@@ -277,6 +283,7 @@ final class MacStableRecordsHeader: NSTableHeaderView {
 /// A separate native checkbox remains reachable in the accessibility tree;
 /// NSTableHeaderView normally exposes only its own column header cells.
 struct MacRecordsSelectAllCheckbox: NSViewRepresentable {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var state: Int
     var action: () -> Void
     final class Coordinator: NSObject {
@@ -288,7 +295,7 @@ struct MacRecordsSelectAllCheckbox: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton {
         let button = NSButton(checkboxWithTitle: "", target: context.coordinator, action: #selector(Coordinator.toggle))
         button.allowsMixedState = true
-        button.setAccessibilityLabel("全选筛选结果")
+        button.setAccessibilityLabel(L10n.text("mac.recordsTableSizing.makeNSView.137fb1c9cc"))
         button.setAccessibilityIdentifier("recordSelectAllHeader")
         return button
     }

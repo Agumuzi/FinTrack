@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct MacImageCropView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let input: MacImageAssets.CropInput
     let onSave: (Data) throws -> Void
     @Environment(\.dismiss) private var dismiss
@@ -20,7 +21,7 @@ struct MacImageCropView: View {
         VStack(alignment: .leading, spacing: MacUI.space(18)) {
             Text(input.title).appFont(.dialogTitle, weight: .semibold)
             if !input.label.isEmpty { Text(input.label).appFont(.section, weight: .semibold) }
-            Text("拖动图片调整位置，使用滑块放大或缩小。").appFont(.body, weight: .regular).foregroundStyle(.secondary)
+            Text(L10n.text("mac.imageCropView.body.c22cbdb466")).appFont(.body, weight: .regular).foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 ZStack {
@@ -36,24 +37,24 @@ struct MacImageCropView: View {
                     }.onEnded { _ in dragStart = offset })
                     .accessibilityElement(children: .ignore)
                     .accessibilityAddTraits(.isImage)
-                    .accessibilityLabel("图片裁切预览").accessibilityIdentifier("imageCropPreview")
+                    .accessibilityLabel(L10n.text("mac.imageCropView.body.7abecabb9d")).accessibilityIdentifier("imageCropPreview")
                 Spacer()
             }
             HStack(spacing: MacUI.space(12)) {
                 Image(systemName: "minus.magnifyingglass")
-                Slider(value: $zoom, in: 1...4).accessibilityLabel("图片缩放").accessibilityIdentifier("imageCropZoom")
+                Slider(value: $zoom, in: 1...4).accessibilityLabel(L10n.text("mac.imageCropView.body.37dc6e6be5")).accessibilityIdentifier("imageCropZoom")
                 Image(systemName: "plus.magnifyingglass")
                 Text("\(Int(zoom * 100))%").monospacedDigit().frame(width: MacUI.space(48))
             }
             HStack {
-                Button("重置裁切") { zoom = 1; offset = .zero; dragStart = .zero }.accessibilityIdentifier("imageCropReset")
-                Spacer(); Text("保存为 256 × 256 PNG").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                Button(L10n.text("mac.imageCropView.body.0ca833d845")) { zoom = 1; offset = .zero; dragStart = .zero }.accessibilityIdentifier("imageCropReset")
+                Spacer(); Text(L10n.text("mac.imageCropView.body.dcbe95b2bc")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
             }
-            Text("只保存裁切后的图片，不保留原始大图。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+            Text(L10n.text("mac.imageCropView.body.191bf7f3dd")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
             if let error { Text(error).foregroundStyle(.red).appFont(.caption, weight: .regular) }
             HStack {
-                Spacer(); Button("取消") { dismiss() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("imageCropCancel")
-                Button("保存图片") {
+                Spacer(); Button(L10n.text("mac.imageCropView.body.2cd0f3be87")) { dismiss() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("imageCropCancel")
+                Button(L10n.text("mac.imageCropView.body.850de13a01")) {
                     do {
                         let data = try MacImageAssets.croppedPNG(input.image, zoom: zoom, offset: CGPoint(x: offset.x / side, y: offset.y / side))
                         try onSave(data); dismiss()

@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MacInsightsView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let previewCurrency: String
     @Query(sort: \Transaction.date) private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
@@ -16,8 +17,8 @@ struct MacInsightsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("期间对比").appFont(.pageTitle, weight: .bold).accessibilityIdentifier("insightsPageTitle")
-                        Text("比较不同期间的收入、支出与净额。").appFont(.caption).foregroundStyle(.secondary)
+                        Text(L10n.text("mac.insightsView.ScrollView.36af57a907")).appFont(.pageTitle, weight: .bold).accessibilityIdentifier("insightsPageTitle")
+                        Text(L10n.text("mac.insightsView.ScrollView.e9132cb3dc")).appFont(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if codes.count > 1 {
@@ -31,6 +32,7 @@ struct MacInsightsView: View {
 }
 
 struct MacFinancialProfileEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let currency: String
     let profile: FinancialProfile?
     @Environment(\.modelContext) private var context
@@ -40,15 +42,15 @@ struct MacFinancialProfileEditor: View {
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
-            Text("初始资产与负债").appFont(.dialogTitle, weight: .semibold)
+            Text(L10n.text("mac.insightsView.body.0e199d4bbe")).appFont(.dialogTitle, weight: .semibold)
             Text(currency).foregroundStyle(.secondary)
-            TextField("初始资产", text: $assets).accessibilityIdentifier("profileAssets")
-            TextField("初始负债", text: $debt).accessibilityIdentifier("profileDebt")
+            TextField(L10n.text("mac.insightsView.body.dc57eb2e51"), text: $assets).accessibilityIdentifier("profileAssets")
+            TextField(L10n.text("mac.insightsView.body.eaf3ae29c3"), text: $debt).accessibilityIdentifier("profileDebt")
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("保存") {
+                Button(L10n.text("mac.insightsView.body.2cd0f3be87")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(L10n.text("mac.insightsView.body.a3030bf8f1")) {
                     do {
                         try MacFinancialSettings.saveProfile(assets: assets, debt: debt, currency: currency, in: context)
                         dismiss()

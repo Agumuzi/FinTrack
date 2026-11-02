@@ -56,11 +56,11 @@ struct MacOverviewScope: Equatable {
         return true
     }
     var title: String {
-        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "zh_Hans_CN")
+        let formatter = DateFormatter(); formatter.locale = L10n.locale
         switch period {
         case .month: return MacDisplayPreferences.month(reference)
-        case .year: formatter.dateFormat = "yyyy年"; return formatter.string(from: reference)
-        case .all: return "全部记录"
+        case .year: formatter.setLocalizedDateFormatFromTemplate("y"); return formatter.string(from: reference)
+        case .all: return L10n.text("mac.overviewData.title.e425792084")
         case .custom:
             formatter.dateFormat = "yyyy.MM.dd"
             return "\(formatter.string(from: from)) – \(formatter.string(from: through))"

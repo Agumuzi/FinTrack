@@ -37,7 +37,7 @@ struct MacOperationFeedbackPresenter: ViewModifier {
                     ZStack {
                         Color.black.opacity(0.12).contentShape(Rectangle())
                             .onTapGesture { center.notice = nil }
-                            .accessibilityLabel("关闭结果提示")
+                            .accessibilityLabel(L10n.text("mac.operationFeedback.GeometryReader.cc74346897"))
                             .accessibilityIdentifier("operationFeedbackBackdrop")
                         VStack(alignment:.leading,spacing:16) {
                             HStack(spacing: 9) {
@@ -51,7 +51,7 @@ struct MacOperationFeedbackPresenter: ViewModifier {
                                 .accessibilityIdentifier("operationFeedbackMessage")
                             HStack {
                                 Spacer()
-                                Button("完成") { center.notice = nil }
+                                Button(L10n.text("mac.operationFeedback.GeometryReader.c0b3fbff51")) { center.notice = nil }
                                     .buttonStyle(MacSettingsButtonStyle(primary:true))
                                     .keyboardShortcut(.defaultAction)
                                     .accessibilityIdentifier("dismissOperationFeedback")

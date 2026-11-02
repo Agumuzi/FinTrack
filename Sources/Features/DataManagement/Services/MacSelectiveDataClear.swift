@@ -11,7 +11,7 @@ enum MacSelectiveDataClear {
     struct Preview: Equatable {
         var records: Set<UUID> = [], deposits: Set<UUID> = [], loans: Set<UUID> = [], recurring: Set<UUID> = [], goals: Set<UUID> = []
         var total: Int { records.count + deposits.count + loans.count + recurring.count + goals.count }
-        var summary: String { "账目 \(records.count) · 存款 \(deposits.count) · 贷款 \(loans.count) · 周期 \(recurring.count) · 目标 \(goals.count)" }
+        var summary: String { L10n.format("mac.selectiveDataClear.summary.dc760ada4e", Int64(records.count), Int64(deposits.count), Int64(loans.count), Int64(recurring.count), Int64(goals.count)) }
     }
     static func preview(_ kinds: Set<MacClearKind>, generated: Bool, in context: ModelContext) throws -> Preview {
         var result = Preview()
@@ -30,8 +30,8 @@ enum MacSelectiveDataClear {
     static func apply(_ expected: Preview, kinds: Set<MacClearKind>, generated: Bool, in context: ModelContext,
                       save: ((ModelContext) throws -> Void)? = nil) throws {
         try MacRecoveryJournal.assertWritable(in: context)
-        guard !MacAutomaticPosting.isRunning, !context.hasChanges else { throw MacSettingsFailure.invalid("请等待入账或当前编辑结束后再清理") }
-        guard try preview(kinds, generated: generated, in: context) == expected else { throw MacSettingsFailure.invalid("数据已变化，请重新预览后确认") }
+        guard !MacAutomaticPosting.isRunning, !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.selectiveDataClear.apply.7effbf1ede")) }
+        guard try preview(kinds, generated: generated, in: context) == expected else { throw MacSettingsFailure.invalid(L10n.text("mac.selectiveDataClear.apply.333048b646")) }
         let now = Date()
         do {
             // Keep identity tombstones and receipt markers, so a removed posting
@@ -47,6 +47,7 @@ enum MacSelectiveDataClear {
 }
 
 struct MacSelectiveDataClearView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var initialKind: MacClearKind = .records
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -54,24 +55,24 @@ struct MacSelectiveDataClearView: View {
     @State private var entries: [String] = []
     @State private var error: String?
     var body: some View {
-        MacFormShell(width: 540) { Text("预览删除" + initialKind.rawValue).appFont(.dialogTitle, weight: .semibold) } fields: {
+        MacFormShell(width: 540) { Text(L10n.text("mac.selectiveDataClear.MacFormShell.bf27298df5") + L10n.builtIn(initialKind.rawValue)).appFont(.dialogTitle, weight: .semibold) } fields: {
             VStack(alignment: .leading, spacing: 14) {
-                Text("建议先创建完整备份。仅删除所选类别，其他数据保留。").foregroundStyle(.secondary)
+                Text(L10n.text("mac.selectiveDataClear.MacFormShell.35ed8102f8")).foregroundStyle(.secondary)
                 if let preview {
                     Text(preview.summary).appFont(.body, weight: .semibold)
-                    if preview.total == 0 { Text("没有需要删除的内容").foregroundStyle(.secondary) }
+                    if preview.total == 0 { Text(L10n.text("mac.selectiveDataClear.MacFormShell.74ef13becc")).foregroundStyle(.secondary) }
                     else {
                         ScrollView { VStack(alignment: .leading, spacing: 8) { ForEach(Array(entries.enumerated()), id: \.offset) { _, title in Text(title).appFont(.caption).frame(maxWidth: .infinity, alignment: .leading) } } }.frame(height: min(230, CGFloat(max(1, entries.count)) * 28))
-                        if entries.count == 20 { Text("仅列出前 20 项；以上数量包含全部将删除的项目。").appFont(.caption).foregroundStyle(.secondary) }
+                        if entries.count == 20 { Text(L10n.text("mac.selectiveDataClear.MacFormShell.21f3feae82")).appFont(.caption).foregroundStyle(.secondary) }
                     }
                 }
-                Text(initialKind == .records ? "包括计划生成的账目；原计划已处理状态保留，不会重复生成。" : "已有历史账目保留，所选金融项目停止后续计划。删除贷款时同时停止关联还款周期。").appFont(.caption).foregroundStyle(.secondary)
+                Text(initialKind == .records ? L10n.text("mac.selectiveDataClear.MacFormShell.9eea26e083") : L10n.text("mac.selectiveDataClear.MacFormShell.c651fdd120")).appFont(.caption).foregroundStyle(.secondary)
                 if let error { Text(error).foregroundStyle(.red) }
             }
         } footer: {
             HStack {
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction); Spacer()
-                Button("确认清理", role: .destructive) {
+                Button(L10n.text("mac.selectiveDataClear.MacFormShell.2cd0f3be87")) { dismiss() }.keyboardShortcut(.cancelAction); Spacer()
+                Button(L10n.text("mac.selectiveDataClear.MacFormShell.7ba2d6728f"), role: .destructive) {
                     guard let preview else { return }
                     do { try MacSelectiveDataClear.apply(preview, kinds: [initialKind], generated: true, in: context); Task { try? await MacNotifications.schedule(in: context) }; dismiss() }
                     catch { self.error = MacLocalization.error(error); refresh() }

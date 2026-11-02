@@ -2,18 +2,20 @@ import SwiftUI
 import Charts
 
 struct MacComparisonView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let transactions: [Transaction]
     let currency: String
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack { Text("期间对比").appFont(.dialogTitle, weight: .semibold); Spacer(); Button("完成") { dismiss() } }
+            HStack { Text(L10n.text("mac.comparisonView.body.36af57a907")).appFont(.dialogTitle, weight: .semibold); Spacer(); Button(L10n.text("mac.comparisonView.body.c0b3fbff51")) { dismiss() } }
             ScrollView { MacPeriodComparisonDashboard(transactions: transactions, currency: currency) }
         }.padding(24).appPanel(width: 900, height: 720)
     }
 }
 
 struct MacPeriodComparisonDashboard: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var transactions: [Transaction]
     var currency: String
     @State private var mode = "同月跨年"
@@ -54,17 +56,17 @@ struct MacPeriodComparisonDashboard: View {
             card {
                 MacSettingsSegments(selection: $mode, options: ["同月跨年", "年度对比", "自选期间"])
                 if mode == "自选期间" {
-                    dateRange("期间 A", start: $customStart, end: $customEnd, prefix: "comparisonA")
-                    dateRange("期间 B", start: $previousStart, end: $previousEnd, prefix: "comparisonB")
+                    dateRange(L10n.text("mac.comparisonView.dateRange.59bcc187f3"), start: $customStart, end: $customEnd, prefix: "comparisonA")
+                    dateRange(L10n.text("mac.comparisonView.dateRange.b51283cf4e"), start: $previousStart, end: $previousEnd, prefix: "comparisonB")
                 } else {
                     HStack(alignment: .top, spacing: 18) {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("期间 A").appFont(.caption).foregroundStyle(.secondary)
+                            Text(L10n.text("mac.comparisonView.card.59bcc187f3")).appFont(.caption).foregroundStyle(.secondary)
                             if mode == "同月跨年" { MacSettingsDateButton(date: $reference, monthOnly: true, identifier: "comparisonMonth") }
                             else { yearMenu($currentYear, id: "comparisonCurrentYear") }
                         }.frame(maxWidth: .infinity)
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(mode == "同月跨年" ? "期间 B · 相同月份" : "期间 B").appFont(.caption).foregroundStyle(.secondary)
+                            Text(mode == "同月跨年" ? L10n.text("mac.comparisonView.card.5e6d5db57f") : L10n.text("mac.comparisonView.card.b51283cf4e")).appFont(.caption).foregroundStyle(.secondary)
                             yearMenu($previousYear, id: "comparisonPreviousYear")
                         }.frame(maxWidth: .infinity)
                     }
@@ -72,53 +74,53 @@ struct MacPeriodComparisonDashboard: View {
                 if let (a, b) = ranges {
                     Text("A  " + rangeLabel(a) + "    /    B  " + rangeLabel(b)).appFont(.caption).foregroundStyle(.secondary)
                         .accessibilityIdentifier("comparisonRangeSummary")
-                    Text("按所选完整期间汇总已记录账目；进行中的月份或年份可能尚未记全。").appFont(.caption).foregroundStyle(.secondary)
-                } else { Text("开始日期不能晚于结束日期。").foregroundStyle(.red) }
+                    Text(L10n.text("mac.comparisonView.card.df0d33cff0")).appFont(.caption).foregroundStyle(.secondary)
+                } else { Text(L10n.text("mac.comparisonView.card.90de26a62a")).foregroundStyle(.red) }
             }
             if let (a, b) = ranges {
                 let monthly = mode == "年度对比" || max(a.duration, b.duration) > 90 * 86400
                 let snapshot = MacPeriodComparison.snapshot(rows: transactions, currency: currency, current: a, previous: b, flow: flow == "支出" ? .expense : .income, monthly: monthly, calendar: calendar)
                 MacAdaptiveEqualCardLayout {
-                    metric("收入", current: snapshot.current.income, previous: snapshot.previous.income, color: MacOverviewStyle.income)
-                    metric("支出", current: snapshot.current.expense, previous: snapshot.previous.expense, color: MacOverviewStyle.expense)
-                    metric("净额", current: snapshot.current.net, previous: snapshot.previous.net, color: MacSettingsVisual.accent)
+                    metric(L10n.text("mac.comparisonView.metric.117d8f914d"), current: snapshot.current.income, previous: snapshot.previous.income, color: MacOverviewStyle.income, icon: "arrow.down.left")
+                    metric(L10n.text("mac.comparisonView.metric.e679096865"), current: snapshot.current.expense, previous: snapshot.previous.expense, color: MacOverviewStyle.expense, icon: "arrow.up.right")
+                    metric(L10n.text("mac.comparisonView.metric.d26ca9aea9"), current: snapshot.current.net, previous: snapshot.previous.net, color: MacSettingsVisual.accent, icon: "equal.circle")
                 }
-                Text("期间 A：\(snapshot.currentRows.count) 笔账目 · 期间 B：\(snapshot.previousRows.count) 笔账目")
+                Text(L10n.format("mac.comparisonView.body.1dd65c0af8", Int64(snapshot.currentRows.count), Int64(snapshot.previousRows.count)))
                     .appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("insightsTransactionCount")
                 if snapshot.currentRows.isEmpty || snapshot.previousRows.isEmpty {
-                    Label(snapshot.currentRows.isEmpty && snapshot.previousRows.isEmpty ? "两个期间均无账目" : (snapshot.currentRows.isEmpty ? "期间 A 无账目，金额显示为 0" : "期间 B 无账目，金额显示为 0"), systemImage: "info.circle")
+                    Label(snapshot.currentRows.isEmpty && snapshot.previousRows.isEmpty ? L10n.text("mac.comparisonView.body.065d523ef1") : (snapshot.currentRows.isEmpty ? L10n.text("mac.comparisonView.body.7a6e58989c") : L10n.text("mac.comparisonView.body.85e232b3ef")), systemImage: "info.circle")
                         .appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("comparisonEmptyNotice")
                 }
                 card {
                     ViewThatFits {
-                        HStack { Text("收支趋势").appFont(.section, weight: .semibold); Spacer(); flowControl.frame(width: 180) }
-                        VStack(alignment: .leading) { Text("收支趋势").appFont(.section, weight: .semibold); flowControl }
+                        HStack { Text(L10n.text("mac.comparisonView.ViewThatFits.01a96bd794")).appFont(.section, weight: .semibold); Spacer(); flowControl.frame(width: 180) }
+                        VStack(alignment: .leading) { Text(L10n.text("mac.comparisonView.ViewThatFits.01a96bd794")).appFont(.section, weight: .semibold); flowControl }
                     }
                     Chart(snapshot.points) { point in
                         if let amount = point.current {
-                            BarMark(x: .value("序号", String(point.index)), y: .value("金额", amount))
-                                .foregroundStyle(by: .value("期间", "期间 A")).position(by: .value("期间", "期间 A"))
+                            BarMark(x: .value(L10n.text("mac.comparisonView.BarMark.1fc12f2e41"), point.index), y: .value(L10n.text("mac.comparisonView.BarMark.ffc624300d"), amount))
+                                .foregroundStyle(by: .value(L10n.text("mac.comparisonView.Chart.8adb98534c"), L10n.text("mac.comparisonView.Chart.59bcc187f3"))).position(by: .value(L10n.text("mac.comparisonView.Chart.8adb98534c"), L10n.text("mac.comparisonView.Chart.59bcc187f3")))
                         }
                         if let amount = point.previous {
-                            BarMark(x: .value("序号", String(point.index)), y: .value("金额", amount))
-                                .foregroundStyle(by: .value("期间", "期间 B")).position(by: .value("期间", "期间 B"))
+                            BarMark(x: .value(L10n.text("mac.comparisonView.BarMark.1fc12f2e41"), point.index), y: .value(L10n.text("mac.comparisonView.BarMark.ffc624300d"), amount))
+                                .foregroundStyle(by: .value(L10n.text("mac.comparisonView.Chart.8adb98534c"), L10n.text("mac.comparisonView.Chart.b51283cf4e"))).position(by: .value(L10n.text("mac.comparisonView.Chart.8adb98534c"), L10n.text("mac.comparisonView.Chart.b51283cf4e")))
                         }
-                    }.chartForegroundStyleScale(["期间 A": MacSettingsVisual.accent, "期间 B": Color.blue.opacity(0.6)])
+                    }.chartForegroundStyleScale([L10n.text("mac.comparisonView.Chart.59bcc187f3"): MacSettingsVisual.accent, L10n.text("mac.comparisonView.Chart.b51283cf4e"): Color.blue.opacity(0.6)])
                         .chartXAxis {
                             let stride = max(1, Int(ceil(Double(snapshot.points.count) / Double(monthly ? 12 : 8))))
-                            let labels = snapshot.points.filter { ($0.index - 1) % stride == 0 || $0.index == snapshot.points.count }.map { String($0.index) }
+                            let labels = snapshot.points.filter { ($0.index - 1) % stride == 0 || $0.index == snapshot.points.count }.map(\.index)
                             AxisMarks(values: labels) { value in
-                                AxisGridLine(); AxisValueLabel { if let n = value.as(String.self) { Text(n + (monthly ? "月" : "日")) } }
+                                AxisGridLine(); AxisValueLabel { if let n = value.as(Int.self) { Text(L10n.format(monthly ? "insights.axis.month" : "insights.axis.day", String(n))) } }
                             }
                         }
                         .frame(height: 220).accessibilityIdentifier("periodComparisonChart")
-                    Text("横轴按期间内的第几" + (monthly ? "个月" : "天") + "对齐；超出较短期间的部分不填 0。").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text(monthly ? "insights.axis.month.explanation" : "insights.axis.day.explanation")).appFont(.caption).foregroundStyle(.secondary)
                 }
                 card {
-                    Text(flow + "分类对比").appFont(.section, weight: .semibold)
-                    HStack { Text("分类"); Spacer(); column("期间 A"); column("期间 B"); column("差额 A − B") }
+                    Text(L10n.text(flow == "支出" ? "insights.categories.expense" : "insights.categories.income")).appFont(.section, weight: .semibold)
+                    HStack { Text(L10n.text("mac.comparisonView.card.515559957f")); Spacer(); column(L10n.text("mac.comparisonView.column.59bcc187f3")); column(L10n.text("mac.comparisonView.column.b51283cf4e")); column(L10n.text("mac.comparisonView.column.7ba6322890")) }
                         .appFont(.caption).foregroundStyle(.secondary)
-                    if snapshot.categories.isEmpty { Text("所选期间没有" + flow + "记录").foregroundStyle(.secondary) }
+                    if snapshot.categories.isEmpty { Text(L10n.text(flow == "支出" ? "insights.categories.expense.empty" : "insights.categories.income.empty")).foregroundStyle(.secondary) }
                     ForEach(snapshot.categories) { row in
                         Divider()
                         HStack {
@@ -132,12 +134,12 @@ struct MacPeriodComparisonDashboard: View {
     }
     private var flowControl: some View { MacSettingsSegments(selection: $flow, options: ["支出", "收入"]) }
     private func yearMenu(_ year: Binding<Int>, id: String) -> some View {
-        MacSettingsMenu(selection: year, options: years.map { (String($0) + "年", $0) }).accessibilityIdentifier(id)
+        MacSettingsMenu(selection: year, options: years.map { (L10n.format("insights.year", String($0)), $0) }).accessibilityIdentifier(id)
     }
     private func dateRange(_ title: String, start: Binding<Date>, end: Binding<Date>, prefix: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).appFont(.caption).foregroundStyle(.secondary)
-            HStack { MacSettingsDateButton(date: start, identifier: prefix + "Start"); Text("至").foregroundStyle(.secondary); MacSettingsDateButton(date: end, identifier: prefix + "End") }
+            HStack { MacSettingsDateButton(date: start, identifier: prefix + "Start"); Text(L10n.text("mac.comparisonView.dateRange.65edbf9f1c")).foregroundStyle(.secondary); MacSettingsDateButton(date: end, identifier: prefix + "End") }
         }
     }
     private func rangeLabel(_ interval: DateInterval) -> String {
@@ -146,16 +148,16 @@ struct MacPeriodComparisonDashboard: View {
     private func money(_ value: Double) -> String { MacDisplayPreferences.money(value) }
     private func signed(_ value: Double) -> String { (value > 0 ? "+" : "") + money(value) }
     private func column(_ text: String) -> some View { Text(text).frame(width: 105, alignment: .trailing).fixedSize(horizontal: false, vertical: true) }
-    private func metric(_ title: String, current: Double, previous: Double, color: Color) -> some View {
+    private func metric(_ title: String, current: Double, previous: Double, color: Color, icon: String) -> some View {
         card(fillsHeight: true) {
-            Label(title, systemImage: title == "收入" ? "arrow.down.left" : title == "支出" ? "arrow.up.right" : "equal.circle")
+            Label(title, systemImage: icon)
                 .appFont(.body, weight: .semibold).foregroundStyle(color)
             Text(money(current) + " " + currency).appFont(.amount, weight: .semibold).monospacedDigit().fixedSize(horizontal: false, vertical: true)
-            Text("期间 B  " + money(previous) + " " + currency).appFont(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("mac.comparisonView.card.3006730905") + money(previous) + " " + currency).appFont(.caption).foregroundStyle(.secondary)
             Divider()
-            Text("差额  " + signed(current - previous) + " " + currency).appFont(.body, weight: .medium)
-            Text(abs(previous) < 0.01 ? "期间 B 为 0，变化率不适用" : "变化率  " + ((current - previous) / abs(previous)).formatted(.percent.precision(.fractionLength(1))))
-                .appFont(.caption).foregroundStyle(.secondary).appHelp("变化率 = (期间 A − 期间 B) ÷ |期间 B|")
+            Text(L10n.text("mac.comparisonView.card.0258094391") + signed(current - previous) + " " + currency).appFont(.body, weight: .medium)
+            Text(abs(previous) < 0.01 ? L10n.text("mac.comparisonView.card.2fa7dd3f90") : L10n.text("mac.comparisonView.card.b8e2392d8b") + ((current - previous) / abs(previous)).formatted(.percent.precision(.fractionLength(1))))
+                .appFont(.caption).foregroundStyle(.secondary).appHelp(L10n.text("mac.comparisonView.card.ab97dce106"))
         }.accessibilityElement(children: .combine).accessibilityIdentifier("comparisonMetric-" + title)
     }
     private func card<Content: View>(fillsHeight: Bool = false, @ViewBuilder _ content: () -> Content) -> some View {

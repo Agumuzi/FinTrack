@@ -27,7 +27,7 @@ nonisolated enum MacFXMath {
         return value
     }
     static func formatted(_ value: Double, digits: Int = 4, compact: Bool = false, grouping: Bool = false, groupingSeparator: String = ",") -> String {
-        guard value.isFinite else { return "超出范围" }
+        guard value.isFinite else { return L10n.text("mac.fXMath.formatted.d5572abaf7") }
         let digits = (0...12).contains(digits) ? digits : 4
         if compact && abs(value) >= 1e9 { return String(format: "%.4g", value) }
         var places = digits

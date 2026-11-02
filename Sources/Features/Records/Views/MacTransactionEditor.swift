@@ -5,6 +5,7 @@ import SwiftData
 /// Unlike the iOS custom numeric keyboard, uses standard TextField + DatePicker.
 /// Original currency and dated exchange rates are preserved in each snapshot.
 struct MacTransactionEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("v2_category_styles") private var categoryStyleRevision = Data()
@@ -89,10 +90,10 @@ struct MacTransactionEditor: View {
         MacFormShell(width: 560) {
             VStack(alignment: .leading, spacing: MacUI.space(16)) {
             HStack {
-                Text(existing == nil ? "新增账目" : "编辑账目").appFont(.dialogTitle, weight: .bold, design: .default).accessibilityIdentifier("editorTitle")
+                Text(existing == nil ? L10n.text("mac.transactionEditor.MacFormShell.61a6ed6623") : L10n.text("mac.transactionEditor.MacFormShell.eabdc2aa39")).appFont(.dialogTitle, weight: .bold, design: .default).accessibilityIdentifier("editorTitle")
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark").appIconFont(19, weight: .medium, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(30), height: MacUI.space(30)).contentShape(Rectangle()) }
-                    .buttonStyle(MacInteractiveButtonStyle()).appHelp("关闭").accessibilityLabel("关闭新增账目").accessibilityIdentifier("closeEntry")
+                    .buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.text("mac.transactionEditor.MacFormShell.3fd47edce4")).accessibilityLabel(L10n.text("mac.transactionEditor.MacFormShell.8545c7685f")).accessibilityIdentifier("closeEntry")
             }
             MacEntryTypeSwitcher(type:Binding(get:{type},set:{value in
                 if type != value { type = value; category = ""; savedMessage = nil }
@@ -108,26 +109,33 @@ struct MacTransactionEditor: View {
                         HStack(alignment:.top,spacing:14) {amountInput.frame(minWidth:MacNumberInput.minimumEditingWidth(large:true));currencyInput}
                         VStack(alignment:.leading,spacing:14) {amountInput;currencyInput}
                     }
-                    field("分类") {
+                    field(L10n.text("mac.transactionEditor.field.515559957f")) {
                         HStack(spacing: MacUI.space(12)) {
                             HStack(spacing: MacUI.space(10)) {
                                 if category.isEmpty { Image(systemName: "tag").foregroundStyle(.orange).frame(width: MacUI.space(30)) }
                                 else { MacCategoryBadge(name: category, type: type.rawValue, size: 32) }
-                                TextField("请选择或输入分类", text: Binding(get: { MacOverviewStyle.category(category) }, set: { category = $0 })).textFieldStyle(.plain).appFont(.body, weight: .semibold, design: .default)
-                                    .accessibilityLabel("分类").accessibilityIdentifier("entryCategory")
+                                TextField(L10n.text("mac.transactionEditor.field.b4c9ab1131"), text: Binding(get: { MacOverviewStyle.category(category) }, set: { category = $0 })).textFieldStyle(.plain).appFont(.body, weight: .semibold, design: .default)
+                                    .accessibilityLabel(L10n.text("mac.transactionEditor.field.515559957f")).accessibilityIdentifier("entryCategory")
                                 MacIconMenu(selection: $category, options: savedCategories.map { item in
                                     MacIconMenuOption(title: MacOverviewStyle.category(item), value: item,
                                         image: MacCategoryCatalog.menuImage(style: MacCategoryCatalog.style(name: item, type: type.rawValue), name: item))
-                                }, identifier: "savedCategoryMenu", accessibilityTitle: "已有分类", width: 250, compact: true).disabled(savedCategories.isEmpty)
+                                }, identifier: "savedCategoryMenu", accessibilityTitle: L10n.text("mac.transactionEditor.MacIconMenu.53285bb825"), width: 250, compact: true).disabled(savedCategories.isEmpty)
                             }.appPadding(.horizontal, 12).appMinHeight(40).modifier(MacEntryFieldBorder())
                             Button {
                                 managedCategoryID = categories.first { ($0.name == category || MacOverviewStyle.category($0.name) == category) && $0.type == type.rawValue && $0.deletedAt == nil }?.id
                                 managingCategories = true
-                            } label: { Label("管理分类", systemImage: "gearshape").appFont(.body, weight: .semibold, design: .default).frame(width: MacUI.space(128)).appMinHeight(40).background(MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 9)) }
+                            } label: {
+                                HStack(alignment: .center, spacing: MacUI.space(8)) {
+                                    Image(systemName: "gearshape")
+                                    Text(L10n.text("mac.transactionEditor.field.ee46fd8708")).fixedSize(horizontal: false, vertical: true)
+                                }.appFont(.body, weight: .semibold).appPadding(.horizontal, 10)
+                                    .frame(width: MacUI.space(154)).appMinHeight(44)
+                                    .background(MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 9))
+                            }
                                 .buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("entryManageCategories")
                         }
                     }
-                    field("交易日期") {
+                    field(L10n.text("mac.transactionEditor.field.a12bdb393d")) {
                         Button { showsDatePicker = true } label: {
                             HStack(spacing: MacUI.space(12)) {
                                 Image(systemName: "calendar").appIconFont(22, weight: .regular, design: .default)
@@ -135,10 +143,10 @@ struct MacTransactionEditor: View {
                                 Spacer(); Image(systemName: "chevron.down").appFont(.body, weight: .semibold, design: .default)
                             }.appPadding(.horizontal, 15).appMinHeight(40).modifier(MacEntryFieldBorder())
                         }.buttonStyle(MacInteractiveButtonStyle()).focused($entryDateFocused).accessibilityIdentifier("entryDate")
-                            .accessibilityLabel("选择交易日期").accessibilityValue(entryDateLabel)
+                            .accessibilityLabel(L10n.text("mac.transactionEditor.field.2e7f382ee4")).accessibilityValue(entryDateLabel)
                             .popover(isPresented: $showsDatePicker) {
                                 MacCalendarPickerPopover(
-                                    title: "选择日期",
+                                    title: L10n.text("mac.transactionEditor.MacCalendarPickerPopover.680c78ec60"),
                                     selection: $date,
                                     pickerIdentifier: "entryDatePicker",
                                     doneIdentifier: "entryDateDone",
@@ -146,36 +154,36 @@ struct MacTransactionEditor: View {
                                 )
                             }
                     }
-                    field("备注（可选）") {
+                    field(L10n.text("mac.transactionEditor.field.b405227c7e")) {
                         HStack(alignment: .top, spacing: MacUI.space(11)) {
                             Image(systemName: "doc.text").appIconFont(23, weight: .regular, design: .default).appPadding(.top, 2)
-                            TextField("添加备注，如：午餐、超市购物等…", text: $note, axis: .vertical).textFieldStyle(.plain)
-                                .lineLimit(2...3).appFont(.body, weight: .regular, design: .default).accessibilityLabel("备注").accessibilityIdentifier("entryNote")
-                            Text("\(note.count) 字").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).monospacedDigit().appPadding(.top, 3)
+                            TextField(L10n.text("mac.transactionEditor.field.f1d3bd51b9"), text: $note, axis: .vertical).textFieldStyle(.plain)
+                                .lineLimit(2...3).appFont(.body, weight: .regular, design: .default).accessibilityLabel(L10n.text("mac.transactionEditor.field.daede98817")).accessibilityIdentifier("entryNote")
+                            Text(L10n.format("mac.transactionEditor.field.005b8c90eb", Int64(note.count))).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).monospacedDigit().appPadding(.top, 3)
                         }.appPadding(14).frame(minHeight: MacUI.space(58), alignment: .top).modifier(MacEntryFieldBorder())
                     }
                     MacEntryExchangeCard(expanded:$showsExchangeDetails,source:originalCurrency,base:bookCurrency,identifier:"entryExchangeDetails") {
-                            Text("账本本位币：\(bookCurrency)").appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary)
+                            Text(L10n.format("mac.transactionEditor.MacEntryExchangeCard.f93d3198b7", "\(bookCurrency)")).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary)
                             if foreignCurrency {
                                 HStack(spacing: MacUI.space(10)) {
                                     Text("1 " + originalCurrency.uppercased() + " =")
-                                    TextField("输入汇率",text:editableRate).textFieldStyle(.roundedBorder).accessibilityIdentifier("entryExchangeRate")
+                                    TextField(L10n.text("mac.transactionEditor.MacEntryExchangeCard.77a1126316"),text:editableRate).textFieldStyle(.roundedBorder).accessibilityIdentifier("entryExchangeRate")
                                     Text(bookCurrency)
-                                    Button("获取当日汇率") { fetchRate() }.accessibilityIdentifier("fetchEntryRate").disabled(fetchingRate)
+                                    Button(L10n.text("mac.transactionEditor.MacEntryExchangeCard.18f1e2e636")) { fetchRate() }.accessibilityIdentifier("fetchEntryRate").disabled(fetchingRate)
                                 }.appFont(.body,weight:.regular)
                                 HStack {
-                                    Text("本币记账金额 · " + bookCurrency)
-                                    TextField("自动计算，也可手动修改",text:editableBaseAmount).textFieldStyle(.roundedBorder).accessibilityIdentifier("entryBankAmount")
+                                    Text(L10n.text("mac.transactionEditor.MacEntryExchangeCard.85fbecc157") + bookCurrency)
+                                    TextField(L10n.text("mac.transactionEditor.MacEntryExchangeCard.90d0bca859"),text:editableBaseAmount).textFieldStyle(.roundedBorder).accessibilityIdentifier("entryBankAmount")
                                 }.appFont(.body,weight:.regular)
                                 if useBankAmount {
                                     HStack {
-                                        Text("以手动金额为准，汇率按原币金额反推。").appFont(.caption,weight:.regular).foregroundStyle(.secondary)
+                                        Text(L10n.text("mac.transactionEditor.MacEntryExchangeCard.3afb2bc588")).appFont(.caption,weight:.regular).foregroundStyle(.secondary)
                                         Spacer()
-                                        Button("按汇率重新计算") { useBankAmount = false }.accessibilityIdentifier("entryResetBankAmount")
+                                        Button(L10n.text("mac.transactionEditor.MacEntryExchangeCard.28ee63c2b0")) { useBankAmount = false }.accessibilityIdentifier("entryResetBankAmount")
                                     }
-                                } else { Text("按汇率自动计算，可直接修改本币金额。").appFont(.caption,weight:.regular).foregroundStyle(.secondary) }
+                                } else { Text(L10n.text("mac.transactionEditor.MacEntryExchangeCard.687d341a93")).appFont(.caption,weight:.regular).foregroundStyle(.secondary) }
                             }
-                            Text("记账金额：" + (convertedAmount ?? "填写有效金额与汇率后显示")).appFont(.body, weight: .medium, design: .default).accessibilityIdentifier("entryConvertedAmount")
+                            Text(L10n.text("mac.transactionEditor.MacEntryExchangeCard.0e8f29c0ac") + (convertedAmount ?? L10n.text("mac.transactionEditor.MacEntryExchangeCard.bebaa80420"))).appFont(.body, weight: .medium, design: .default).accessibilityIdentifier("entryConvertedAmount")
                             if let quoteMessage { Text(quoteMessage).appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
                     }
                     if let savedMessage { Text(savedMessage).appFont(.body, weight: .regular, design: .default).foregroundStyle(.green).accessibilityIdentifier("entrySavedMessage") }
@@ -185,20 +193,20 @@ struct MacTransactionEditor: View {
             VStack(alignment: .leading, spacing: 10) {
             if let saveError { Text(saveError).appFont(.body, weight: .regular).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("entryError") }
             HStack(spacing: MacUI.space(12)) {
-                if existing == nil { Toggle("保存后继续添加", isOn: $keepAdding).toggleStyle(.checkbox).appFont(.body, weight: .regular, design: .default).accessibilityIdentifier("entryKeepAdding") }
+                if existing == nil { Toggle(L10n.text("mac.transactionEditor.MacFormShell.3d9804711f"), isOn: $keepAdding).toggleStyle(.checkbox).appFont(.body, weight: .regular, design: .default).accessibilityIdentifier("entryKeepAdding") }
                 Spacer(minLength: 8)
-                Button("取消") { dismiss() }.buttonStyle(MacStandardButtonStyle()).accessibilityIdentifier("cancelEntry").keyboardShortcut(.cancelAction)
-                Button(existing == nil ? "保存" : "保存修改") { save() }.buttonStyle(MacStandardButtonStyle(primary: true))
+                Button(L10n.text("mac.transactionEditor.MacFormShell.2cd0f3be87")) { dismiss() }.buttonStyle(MacStandardButtonStyle()).accessibilityIdentifier("cancelEntry").keyboardShortcut(.cancelAction)
+                Button(existing == nil ? L10n.text("mac.transactionEditor.MacFormShell.a3030bf8f1") : L10n.text("mac.transactionEditor.MacFormShell.991bb7cfe5")) { save() }.buttonStyle(MacStandardButtonStyle(primary: true))
                     .accessibilityIdentifier("saveEntry").keyboardShortcut(.defaultAction).disabled(isSaving || fetchingRate || !sameCurrencyEditable)
             }
         }
         }
-            .environment(\.locale, Locale(identifier: "zh_CN"))
+            .environment(\.locale, localizationState.locale)
             .sheet(isPresented: $managingCategories, onDismiss: {
                 if let id = managedCategoryID { category = categories.first { $0.id == id && $0.deletedAt == nil }?.name ?? "" }
             }) {
                 VStack(spacing: MacUI.space(16)) {
-                    HStack { Text("管理分类").appFont(.dialogTitle, weight: .semibold); Spacer(); Button("完成") { managingCategories = false }.accessibilityIdentifier("entryCategoriesDone") }
+                    HStack { Text(L10n.text("mac.transactionEditor.body.ee46fd8708")).appFont(.dialogTitle, weight: .semibold); Spacer(); Button(L10n.text("mac.transactionEditor.body.c0b3fbff51")) { managingCategories = false }.accessibilityIdentifier("entryCategoriesDone") }
                     ScrollView { MacCategoriesSettingsView(wide: MacUI.dialogWidth(720, available: MacUI.available.width) >= 700) }
                 }.appPadding(20).appPanel(width: 720, height: 540).background(MacOverviewStyle.canvas)
             }
@@ -234,19 +242,19 @@ struct MacTransactionEditor: View {
 
     private var entryDateLabel: String { MacEntryDateDisplay.string(date) }
     private var amountInput:some View {
-        field("金额") {
+        field(L10n.text("mac.transactionEditor.field.ffc624300d")) {
                             HStack(spacing: MacUI.space(3)) {
                                 Text(type == .expense ? "−" : "+").foregroundStyle(.secondary)
                                 MacNumericInput(text: $amountText, identifier: "entryAmount", focus: Binding(get: { amountFocused }, set: { amountFocused = $0 }), large: true).frame(minHeight: 36)
                                     .appFont(.amount, weight: .medium, design: .default).appMinHeight(36)
-                                    .accessibilityLabel("金额").accessibilityIdentifier("entryAmount")
+                                    .accessibilityLabel(L10n.text("mac.transactionEditor.field.ffc624300d")).accessibilityIdentifier("entryAmount")
                             }.appFont(.amount, weight: .medium, design: .default).appPadding(.horizontal, 14).appMinHeight(44)
                                 .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 9))
                                 .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(amountFocused ? Color.blue : .gray.opacity(0.25), lineWidth: amountFocused ? 2 : 1))
                         }
     }
     private var currencyInput:some View {
-        field("货币") {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyChoices,identifier:"entryCurrencyMenu",textIdentifier:"entryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
+        field(L10n.text("mac.transactionEditor.field.04ee13cd1d")) {MacEditableCurrencyMenu(currency:$originalCurrency,custom:$customCurrency,codes:currencyChoices,identifier:"entryCurrencyMenu",textIdentifier:"entryCurrency")}.frame(width:MacCurrencyMenuStyle.fieldWidth)
     }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         MacEntryField(title:title,content:content)
@@ -286,7 +294,7 @@ struct MacTransactionEditor: View {
                 rateText = MacBankSettlement.reusableRateText(savedRate)
                 useBankAmount = false; bankAmount = ""; quoteMessage = nil
                 rateRequest = UUID(); fetchingRate = false
-                savedMessage = "已保存，可以继续添加下一笔账目。"; amountFocused = true
+                savedMessage = L10n.text("mac.transactionEditor.save.6dc64f1412"); amountFocused = true
             } else { dismiss() }
         } catch {
             saveError = MacLocalization.error(error)
@@ -307,7 +315,7 @@ struct MacTransactionEditor: View {
                 let result = try await MacFXAccountingAdapter().accountingQuote(pair: MacFXPair(base: source, quote: bookCurrency), day: day)
                 guard token == rateRequest, requestedCurrency == originalCurrency, requestedDate == date else { return }
                 rateText = String(format: "%.6f", result.unitRate)
-                quoteMessage = "交易日 " + day + " · " + MacFXApplication.shared.sourceLabel(result.identity.sourceID) + "，请核对后保存。"
+                quoteMessage = L10n.text("mac.transactionEditor.Task.2344fc5d1d") + day + " · " + MacFXApplication.shared.sourceLabel(result.identity.sourceID) + L10n.text("mac.transactionEditor.Task.219cf0f78c")
             } catch {
                 guard token == rateRequest else { return }
                 saveError = MacLocalization.error(error)

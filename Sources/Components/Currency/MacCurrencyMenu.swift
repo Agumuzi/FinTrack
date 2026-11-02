@@ -48,6 +48,7 @@ struct MacIconMenuOption {
 
 /// Native keyboard/menu tracking and one visual style for icon-and-name dropdowns.
 struct MacIconMenu: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     @Binding var selection: String
     var options: [MacIconMenuOption]
@@ -69,6 +70,7 @@ struct MacIconMenu: View {
         return NSRect(x:slot.midX-fitted.width/2,y:slot.midY-fitted.height/2,width:fitted.width,height:fitted.height)
     }
     private struct PopupRepresentable: NSViewRepresentable {
+    @ObservedObject private var localizationState = LocalizationController.shared
         @Binding var selection: String
         var options: [MacIconMenuOption]
         var width: CGFloat
@@ -111,7 +113,7 @@ struct MacIconMenu: View {
                 NSGraphicsContext.restoreGraphicsState()
                 let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
                 let attributes:[NSAttributedString.Key:Any] = [.paragraphStyle:paragraph,.font:font ?? NSFont.systemFont(ofSize:16,weight:.semibold),.foregroundColor:isEnabled ? NSColor.labelColor : NSColor.disabledControlTextColor]
-                let text = titleOfSelectedItem ?? "请选择"
+                let text = titleOfSelectedItem ?? L10n.text("mac.currencyMenu.text.da590a8fe3")
                 let size = (text as NSString).size(withAttributes:attributes)
                 (text as NSString).draw(in:NSRect(x:44,y:(bounds.height-size.height)/2,width:bounds.width-76,height:size.height),withAttributes:attributes)
                 NSImage(systemSymbolName:"chevron.down",accessibilityDescription:nil)?.withSymbolConfiguration(.init(paletteColors:[.secondaryLabelColor]))?.draw(in:NSRect(x:bounds.width-25,y:(bounds.height-12)/2,width:12,height:12))
@@ -161,11 +163,14 @@ struct MacIconMenu: View {
 
 
 struct MacCurrencyMenu: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var selection: String
     var codes: [String]
     var identifier: String
     var prefixOptions: [(String,String)] = []
     var suffixOptions: [(String,String)] = []
+    var width: CGFloat = MacCurrencyMenuStyle.width
+    var fillsAvailableWidth = false
     var body: some View {
         var seen:Set<String> = []
         let extra = !selection.isEmpty && !(prefixOptions + suffixOptions).contains { $0.1 == selection } ? [selection] : []
@@ -173,12 +178,13 @@ struct MacCurrencyMenu: View {
         let options = prefixOptions.map { MacIconMenuOption(title:$0.0,value:$0.1,symbol:"globe") }
             + values.map { MacIconMenuOption(title:$0,value:$0,image:MacCurrencyGlyph.image(String($0.split(separator:"/").first ?? ""))) }
             + suffixOptions.map { MacIconMenuOption(title:$0.0,value:$0.1,symbol:"globe") }
-        return MacIconMenu(selection:$selection,options:options,identifier:identifier,accessibilityTitle:"货币")
+        return MacIconMenu(selection:$selection,options:options,identifier:identifier,accessibilityTitle:L10n.text("mac.currencyMenu.MacIconMenu.04ee13cd1d"),width:width,fillsAvailableWidth:fillsAvailableWidth)
     }
 }
 
 /// Custom entry is explicit; merely opening a dropdown never changes the code.
 struct MacEditableCurrencyMenu: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Binding var currency: String
     @Binding var custom: Bool
     var codes: [String]
@@ -191,17 +197,17 @@ struct MacEditableCurrencyMenu: View {
                 HStack(spacing:8) {
                     MacCurrencyFlag(code:currency.uppercased(),width:24)
                         .fixedSize().layoutPriority(1).accessibilityIdentifier(identifier + "Flag")
-                    TextField("代码",text:$currency).textFieldStyle(.plain).appFont(.body,weight:.semibold)
+                    TextField(L10n.text("mac.currencyMenu.body.e6f04ffbaa"),text:$currency).textFieldStyle(.plain).appFont(.body,weight:.semibold)
                         .frame(width:max(76,MacUI.fontTier.bodySize * 3),height:MacInterfaceFonts.controlHeight(32))
-                        .focused($focused).accessibilityLabel("其他货币代码").accessibilityIdentifier(textIdentifier)
+                        .focused($focused).accessibilityLabel(L10n.text("mac.currencyMenu.body.12ffe782bc")).accessibilityIdentifier(textIdentifier)
                     Button { custom = false } label: { Image(systemName:"chevron.down").frame(width:24,height:32) }
                         .fixedSize()
-                        .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("返回货币选择").accessibilityIdentifier(identifier + "Back")
+                        .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(L10n.text("mac.currencyMenu.body.50dd007330")).accessibilityIdentifier(identifier + "Back")
                 }.padding(.horizontal,12).frame(height:MacCurrencyMenuStyle.fieldHeight).modifier(MacEntryFieldBorder())
             } else {
                 MacCurrencyMenu(selection:Binding(get:{currency},set:{ value in
                     if value == "__other__" { custom = true } else { currency = value }
-                }),codes:Array(Set(codes + [currency])).sorted(),identifier:identifier,suffixOptions:[("其他…","__other__")])
+                }),codes:Array(Set(codes + [currency])).sorted(),identifier:identifier,suffixOptions:[(L10n.text("mac.currencyMenu.MacCurrencyMenu.5009c59ecb"),"__other__")])
             }
         }.frame(width:MacCurrencyMenuStyle.fieldWidth,height:MacCurrencyMenuStyle.fieldHeight)
             .onChange(of:custom) { _, value in if value { DispatchQueue.main.async { focused = true } } }

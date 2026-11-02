@@ -32,9 +32,9 @@ enum MacSettingsStore {
     }
     static func validateSettings(_ data: Data) throws -> [String: Any] {
         guard var values = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              Set(values.keys).isSubset(of: Set(keys)) else { throw MacSettingsFailure.invalid("备份设置格式无效") }
+              Set(values.keys).isSubset(of: Set(keys)) else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.73e04f45c7")) }
         guard !(values["v2_font_tier"] != nil && values["v2_font_size"] != nil) else {
-            throw MacSettingsFailure.invalid("备份包含冲突的字号设置")
+            throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.0e2fda7ae2"))
         }
         // Optional fields may be absent in older backups, but present values must
         // match their storage type. Conditional casts alone silently skip bad data.
@@ -67,11 +67,11 @@ enum MacSettingsStore {
                     CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.isFinite && (10.4...19.5).contains($0.doubleValue)
                 } ?? false
             } else { valid = value is String }
-            guard valid else { throw MacSettingsFailure.invalid("备份中的设置类型或选项无效，请选择完整有效的备份文件") }
+            guard valid else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.7a262c66d6")) }
         }
         if let data = values["v141_hotkey"] as? Data {
             let hotkey = try JSONDecoder().decode(MacConversionHotkey.self, from: data)
-            guard hotkey.code <= 127, hotkey.modifiers > 0, hotkey.label.count <= 30 else { throw MacSettingsFailure.invalid("快捷键设置无效") }
+            guard hotkey.code <= 127, hotkey.modifiers > 0, hotkey.label.count <= 30 else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.5d7ff6c952")) }
         }
         if let data = values[MacAppEntryConfiguration.storageKey] as? Data {
             let configuration = try JSONDecoder().decode(MacAppEntryConfiguration.self, from: data)
@@ -83,28 +83,28 @@ enum MacSettingsStore {
         if let currency = values["base_currency"] as? String { _ = try MacCurrency.code(currency) }
         if let budgets = values["v2_budgets"] as? Data {
             let rows = try JSONDecoder().decode([MacBudget].self, from: budgets)
-            guard Set(rows.map(\.id)).count == rows.count else { throw MacSettingsFailure.invalid("预算编号重复") }
+            guard Set(rows.map(\.id)).count == rows.count else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.d34bd1aac2")) }
             for row in rows { try row.validate() }
         }
         if let data = values["v2_avatar"] as? Data, !data.isEmpty { try MacImageAssets.validatePreparedPNG(data) }
-        if let data = values["v2_fx_sources"] as? Data { let rows = try JSONDecoder().decode([MacFXSource].self, from: data); guard rows.count <= 50 else { throw MacSettingsFailure.invalid("汇率源数量过多") }; for row in rows { try row.validate() } }
+        if let data = values["v2_fx_sources"] as? Data { let rows = try JSONDecoder().decode([MacFXSource].self, from: data); guard rows.count <= 50 else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.cb6a69486f")) }; for row in rows { try row.validate() } }
         if let data = values["v2_fx_quotes"] as? Data {
             let rows = try JSONDecoder().decode([MacFXQuote].self, from: data)
-            guard rows.count <= 2000 else { throw MacSettingsFailure.invalid("报价记录数量过多") }
-            for row in rows { _ = try MacCurrency.code(row.from); _ = try MacCurrency.code(row.to); guard row.rate.isFinite, row.rate > 0, row.rate <= 1e9 else { throw MacSettingsFailure.invalid("报价记录无效") } }
+            guard rows.count <= 2000 else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.be1cc2953f")) }
+            for row in rows { _ = try MacCurrency.code(row.from); _ = try MacCurrency.code(row.to); guard row.rate.isFinite, row.rate > 0, row.rate <= 1e9 else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.9cb3471e40")) } }
         }
         if let data = values["v2_goal_presentation"] as? Data {
             let rows = try JSONDecoder().decode([String: MacGoalPresentation].self, from: data)
             for row in rows.values {
                 guard MacPresentationOptions.icons.contains(where: { $0.0 == row.icon }), MacPresentationOptions.validColor(row.color),
                       ["高", "普通", "低"].contains(row.priority), row.note.count <= 200 else {
-                    throw MacSettingsFailure.invalid("目标图标、颜色或备注无效")
+                    throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.4a299b9ebe"))
                 }
             }
         }
         if let data = values["v2_category_styles"] as? Data {
             let rows = try JSONDecoder().decode([String: MacCategoryStyle].self, from: data)
-            for row in rows.values { guard (row.displayName?.count ?? 0) <= 100, row.emoji == nil || MacCategoryEmoji.isValid(row.emoji!), (MacCategoryCatalog.symbols + MacPresentationOptions.icons.map { $0.0 }).contains(row.symbol), (MacCategoryCatalog.colors.contains(row.color) || row.color.range(of: #"^#[0-9A-Fa-f]{6}$"#, options: .regularExpression) != nil) else { throw MacSettingsFailure.invalid("分类显示设置无效") } }
+            for row in rows.values { guard (row.displayName?.count ?? 0) <= 100, row.emoji == nil || MacCategoryEmoji.isValid(row.emoji!), (MacCategoryCatalog.symbols + MacPresentationOptions.icons.map { $0.0 }).contains(row.symbol), (MacCategoryCatalog.colors.contains(row.color) || row.color.range(of: #"^#[0-9A-Fa-f]{6}$"#, options: .regularExpression) != nil) else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validateSettings.31469c5661")) } }
         }
         return values
     }
@@ -116,7 +116,7 @@ enum MacSettingsStore {
               let raw = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
               let menu = raw["showMenuBar"] as? NSNumber, CFGetTypeID(menu) == CFBooleanGetTypeID(), !menu.boolValue,
               let dock = raw["showDock"] as? NSNumber, CFGetTypeID(dock) == CFBooleanGetTypeID(), !dock.boolValue else { return nil }
-        return "备份中的菜单栏和 Dock 均关闭；恢复后会启用两个入口，确保可以重新打开应用。"
+        return L10n.text("mac.settingsData.restorationNotice.021b32f2c5")
     }
     static func restoreSettings(_ values: [String: Any]) {
         let machineLocalKeys: Set<String> = ["v2_backup_folder"]
@@ -176,7 +176,7 @@ struct MacBudget: Codable, Identifiable, Hashable {
               month.range(of: #"^\d{4}-(0[1-9]|1[0-2])$"#, options: .regularExpression) != nil,
               note.count <= 500,
               icon == nil || MacPresentationOptions.icons.contains(where: { $0.0 == icon }),
-              color == nil || MacPresentationOptions.validColor(color!) else { throw MacSettingsFailure.invalid("请检查预算月份、金额与备注") }
+              color == nil || MacPresentationOptions.validColor(color!) else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.validate.fb8e6284ec")) }
     }
 }
 
@@ -196,7 +196,7 @@ enum MacBudgetData {
         try row.validate()
         var all: [MacBudget] = MacSettingsStore.load("v2_budgets", fallback: [])
         guard !all.contains(where: { $0.id != row.id && $0.month == row.month && $0.currency == row.currency && ($0.categoryID != nil ? $0.categoryID == row.categoryID : row.categoryID == nil && $0.categoryName == row.categoryName) })
-        else { throw MacSettingsFailure.invalid("该月份已有相同预算，请编辑现有条目") }
+        else { throw MacSettingsFailure.invalid(L10n.text("mac.settingsData.save.42c28bc0f5")) }
         if let index = all.firstIndex(where: { $0.id == row.id }) { all[index] = row } else { all.append(row) }
         try MacSettingsStore.save(all, key: "v2_budgets")
     }
@@ -211,6 +211,19 @@ struct MacCategoryStyle: Codable {
 }
 
 enum MacDisplayPreferences {
+    /// Decimal aggregates must not pass through Double merely for display.
+    static func money(_ amount: Decimal) -> String {
+        let d = MacPreferences.defaults
+        let decimals = min(4, max(0, d.object(forKey: "v2_decimals") == nil ? 2 : d.integer(forKey: "v2_decimals")))
+        if amount == 0 && d.string(forKey: "v2_zero") == "dash" { return "—" }
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = decimals; formatter.maximumFractionDigits = decimals
+        formatter.usesGroupingSeparator = d.string(forKey: "v2_grouping") != "none"
+        formatter.groupingSeparator = d.string(forKey: "v2_grouping") == "space" ? " " : ","
+        let result = formatter.string(from: NSDecimalNumber(decimal: amount)) ?? NSDecimalNumber(decimal: amount).stringValue
+        return amount < 0 && d.string(forKey: "v2_negative") == "parentheses" ? "(\(String(result.dropFirst())))" : result
+    }
     static var calendar: Calendar {
         var calendar = Calendar.current
         calendar.firstWeekday = MacPreferences.defaults.integer(forKey: "v2_week_start") == 1 ? 1 : 2
@@ -230,12 +243,13 @@ enum MacDisplayPreferences {
         return amount < 0 && negative == "parentheses" ? "(\(String(result.dropFirst())))" : result
     }
     static func month(_ date: Date) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = MacPreferences.defaults.string(forKey: "v2_month_format") ?? "yyyy年M月"
+        let f = DateFormatter(); f.locale = L10n.locale
+        if let saved = MacPreferences.defaults.string(forKey: "v2_month_format"), saved != "yyyy年M月" { f.dateFormat = saved }
+        else { f.setLocalizedDateFormatFromTemplate("yMMM") }
         return f.string(from: date)
     }
     static func time(_ date: Date) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "zh_CN")
+        let f = DateFormatter(); f.locale = L10n.locale
         f.dateFormat = MacPreferences.defaults.string(forKey: "v2_time_format") ?? "HH:mm"
         return f.string(from: date)
     }
@@ -250,25 +264,26 @@ struct MacSettingsCard<Content: View>: View {
     var action: AnyView? = nil
     var compactHeader = false
     var heading: AnyView? = nil
+    var fillsHeight = false
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(12)) {
             if !title.isEmpty {
             HStack(spacing: MacUI.space(12)) {
                 if compactHeader { MacSettingsSymbol(symbol: icon, size: 20).frame(width: MacUI.space(25)) }
-                else { MacSettingsIcon(symbol: icon, color: headerColor ?? MacSettingsVisual.headerColor(title), size: 36) }
+                else { MacSettingsIcon(symbol: icon, color: headerColor ?? MacSettingsVisual.headerColor(for: icon), size: 36) }
                 VStack(alignment: .leading, spacing: MacUI.space(4)) {
                     if let heading { heading } else { Text(title).appFont(.section, weight: .semibold, design: .default) }
-                    if !subtitle.isEmpty { Text(subtitle).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).lineLimit(2) }
-                }
+                    if !subtitle.isEmpty { Text(subtitle).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
                 Spacer(minLength: 0)
-                if let action { action }
             }
+            if let action { HStack { Spacer(minLength: 0); action } }
             }
             content
         }.appFont(.body, weight: .regular, design: .default)
             .appPadding(density == "compact" ? 16 : density == "spacious" ? 24 : 20)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: fillsHeight ? .infinity : nil, alignment: .topLeading)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.035)))
     }

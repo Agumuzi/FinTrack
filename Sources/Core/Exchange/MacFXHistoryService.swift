@@ -4,7 +4,7 @@ import Combine
 nonisolated enum MacFXHistoryRange: Int, CaseIterable, Codable, Identifiable, Sendable {
     case week = 7, month = 30, quarter = 90, halfYear = 180, year = 365
     var id: Int { rawValue }
-    var title: String { switch self { case .week: "7天"; case .month: "1月"; case .quarter: "3月"; case .halfYear: "6月"; case .year: "1年" } }
+    var title: String { switch self { case .week: L10n.text("mac.fXHistoryService.title.fbe4336d91"); case .month: L10n.text("mac.fXHistoryService.title.3e750612b1"); case .quarter: L10n.text("mac.fXHistoryService.title.720a8da458"); case .halfYear: L10n.text("mac.fXHistoryService.title.bc3e874c55"); case .year: L10n.text("mac.fXHistoryService.title.68de169ae9") } }
     func days(endingAt end: String) -> [String] {
         guard let last = MacFXDates.day(end) else { return [] }
         let count = min(31, rawValue)
@@ -150,11 +150,11 @@ final class MacFXHistoryService: ObservableObject {
         if let result = results[request], !result.points.isEmpty || result.error != nil { return result }
         let start = request.range.days(endingAt: request.endingDay).first ?? request.endingDay
         var rows = entries.values.filter { $0.pair == request.pair && $0.sourceID == request.sourceID && $0.revision == request.revision && $0.point.day >= start && $0.point.day <= request.endingDay }
-        var name = request.sourceID == "system.cbr" ? "CBR" : request.sourceID == "system.ecb" ? "ECB" : "历史参考"
+        var name = request.sourceID == "system.cbr" ? "CBR" : request.sourceID == "system.ecb" ? "ECB" : L10n.text("mac.fXHistoryService.name.257aec101d")
         if rows.isEmpty {
             // Never merge old Currency API points into an ECB/CBR-labelled line.
             rows = entries.values.filter { $0.pair == request.pair && $0.sourceID == "free" && $0.revision == "currency-api-v1-utc-publication-day" && $0.point.day >= start && $0.point.day <= request.endingDay }
-            name = "Currency API · 旧缓存"
+            name = L10n.text("mac.fXHistoryService.result.182562184e")
         }
         guard !rows.isEmpty else { return results[request] }
         return MacFXHistoryResult(points: rows.map(\.point).sorted { $0.day < $1.day }, sourceName: name, fromCache: true, fetchedAt: rows.map { $0.point.retrievedAt }.min() ?? now())
@@ -210,7 +210,7 @@ final class MacFXHistoryService: ObservableObject {
     }
     private func performDaily(_ request: MacFXHistoryRequest, monitor: MacFXMonitor, job: UUID) async -> MacFXHistoryResult {
         let days = request.range.days(endingAt: request.endingDay), cycle = "chart-" + UUID().uuidString
-        var result = MacFXHistoryResult(sourceName: monitor.providerList().first { $0.id == request.sourceID }?.name ?? "历史参考", fromCache: true, fetchedAt: now())
+        var result = MacFXHistoryResult(sourceName: monitor.providerList().first { $0.id == request.sourceID }?.name ?? L10n.text("mac.fXHistoryService.MacFXHistoryResult.257aec101d"), fromCache: true, fetchedAt: now())
         result.totalDays = days.count
         var collected: [String: MacFXHistoryPoint] = [:]
         for day in days {

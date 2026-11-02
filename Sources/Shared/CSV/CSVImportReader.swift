@@ -29,9 +29,9 @@ nonisolated struct CSVImportReader {
         var errorDescription: String? {
             switch self {
             case .emptyFile:
-                return "CSV file is empty."
+                return L10n.text("mac.cSVImportReader.errorDescription.0524b124d5")
             case .malformedCSV:
-                return "CSV file could not be parsed."
+                return L10n.text("mac.cSVImportReader.errorDescription.acb7084268")
             }
         }
     }

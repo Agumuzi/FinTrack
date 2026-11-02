@@ -45,18 +45,19 @@ private struct MacFXSettingsDrop: DropDelegate {
 }
 
 private enum MacFXSettingsCurrencySearch {
-    static func name(_ code:String,language:String = "zh_CN") -> String {
-        Locale(identifier:language).localizedString(forCurrencyCode:code) ?? code
+    static func name(_ code:String,language:String? = nil) -> String {
+        (language.map(Locale.init(identifier:)) ?? L10n.locale).localizedString(forCurrencyCode:code) ?? code
     }
     static func codes(_ query:String) -> [String] {
         guard !query.isEmpty else { return MacFXCatalog.codes }
         return Set(MacFXCatalog.codes + Locale.commonISOCurrencyCodes).sorted().filter {
-            $0.localizedCaseInsensitiveContains(query) || name($0).localizedCaseInsensitiveContains(query) || name($0,language:"en").localizedCaseInsensitiveContains(query)
+            $0.localizedCaseInsensitiveContains(query) || name($0).localizedCaseInsensitiveContains(query) || name($0,language:"en").localizedCaseInsensitiveContains(query) || name($0,language:"zh-Hans").localizedCaseInsensitiveContains(query)
         }
     }
 }
 
 struct MacFXPairAddForm: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var onAdded: (MacFXPair) -> Void = { _ in }
     @ObservedObject private var service = MacFXApplication.shared.monitor
     @State private var base = "USD"
@@ -69,19 +70,19 @@ struct MacFXPairAddForm: View {
     private var duplicate: Bool { pair.map { service.configuration.watchedPairs.contains($0) } ?? false }
     var body: some View {
         VStack(alignment:.leading,spacing:10) {
-            TextField("搜索代码、中文名或英文名",text:$search).textFieldStyle(MacSettingsFieldStyle()).accessibilityIdentifier("fxPairSearch")
-            HStack { Text("原币"); Spacer(minLength:8); MacEditableCurrencyMenu(currency:$base,custom:$customBase,codes:MacFXSettingsCurrencySearch.codes(search),identifier:"fxPairBase",textIdentifier:"fxPairBaseCustom") }
-            HStack { Text("目标币"); Spacer(minLength:8); MacEditableCurrencyMenu(currency:$quote,custom:$customQuote,codes:MacFXSettingsCurrencySearch.codes(search),identifier:"fxPairQuote",textIdentifier:"fxPairQuoteCustom") }
+            TextField(L10n.text("mac.fXDisplaySettings.body.7c74e956cd"),text:$search).textFieldStyle(MacSettingsFieldStyle()).accessibilityIdentifier("fxPairSearch")
+            HStack { Text(L10n.text("mac.fXDisplaySettings.body.1e878068f9")); Spacer(minLength:8); MacEditableCurrencyMenu(currency:$base,custom:$customBase,codes:MacFXSettingsCurrencySearch.codes(search),identifier:"fxPairBase",textIdentifier:"fxPairBaseCustom") }
+            HStack { Text(L10n.text("mac.fXDisplaySettings.body.8a5604887d")); Spacer(minLength:8); MacEditableCurrencyMenu(currency:$quote,custom:$customQuote,codes:MacFXSettingsCurrencySearch.codes(search),identifier:"fxPairQuote",textIdentifier:"fxPairQuoteCustom") }
             HStack {
-                Button("加入汇率列表") { add() }.buttonStyle(MacSettingsButtonStyle(primary:true,height:40))
+                Button(L10n.text("mac.fXDisplaySettings.body.64c75ceb26")) { add() }.buttonStyle(MacSettingsButtonStyle(primary:true,height:40))
                     .disabled(pair == nil || pair?.base == pair?.quote || duplicate).accessibilityIdentifier("fxPairConfirm")
                 Spacer(minLength:0)
                 Button { swap(&base,&quote); swap(&customBase,&customQuote) } label: { Image(systemName:"arrow.left.arrow.right").frame(width:36,height:36) }
-                    .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel("交换货币").accessibilityIdentifier("fxPairSwap")
+                    .buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(L10n.text("mac.fXDisplaySettings.body.2302eda645")).accessibilityIdentifier("fxPairSwap")
             }
-            if duplicate { Text("这个汇率已经存在").appFont(.caption).foregroundStyle(.secondary) }
-            else if pair == nil { Text("请输入三位英文字母货币代码").appFont(.caption).foregroundStyle(.secondary) }
-            else if pair?.base == pair?.quote { Text("请选择不同的原币和目标币").appFont(.caption).foregroundStyle(.secondary) }
+            if duplicate { Text(L10n.text("mac.fXDisplaySettings.body.048daee980")).appFont(.caption).foregroundStyle(.secondary) }
+            else if pair == nil { Text(L10n.text("mac.fXDisplaySettings.body.159aeeb049")).appFont(.caption).foregroundStyle(.secondary) }
+            else if pair?.base == pair?.quote { Text(L10n.text("mac.fXDisplaySettings.body.75308f958e")).appFont(.caption).foregroundStyle(.secondary) }
             if let error { Text(error).appFont(.caption).foregroundStyle(.red) }
         }.appFont(.body).onAppear {
             if !MacFXCatalog.codes.contains(base) { base = MacFXCatalog.codes.first ?? "USD" }
@@ -94,11 +95,12 @@ struct MacFXPairAddForm: View {
             try MacFXApplication.shared.addWatchedPair(base:pair.base,quote:pair.quote)
             base = pair.base; quote = pair.quote; customBase = false; customQuote = false; error = nil
             onAdded(pair); Task { await service.pageOpened() }
-        } catch { self.error = "未能添加汇率，请检查货币代码" }
+        } catch { self.error = L10n.text("mac.fXDisplaySettings.add.b0ae1327b1") }
     }
 }
 
 struct MacFXDisplaySettings: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject private var service = MacFXApplication.shared.monitor
     var availableHeight: CGFloat = 600
     @State private var addingPair = false
@@ -115,13 +117,13 @@ struct MacFXDisplaySettings: View {
             VStack(spacing:0) { layout { pairsCard; converterCard } }.frame(maxWidth:.infinity)
                 .accessibilityElement(children:.contain).accessibilityIdentifier("fxDisplayLists")
                 .onGeometryChange(for:CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
-            Text("拖动左侧把手或使用上下箭头排序，顺序会同步到菜单栏。").appFont(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("mac.fXDisplaySettings.body.21b4da0d6c")).appFont(.caption).foregroundStyle(.secondary)
         }
     }
     private var pairsCard: some View {
-        MacSettingsCard(title:"汇率列表",icon:"chart.xyaxis.line",subtitle:"关注的货币对",action:AnyView(HStack(spacing:10) { count(service.configuration.watchedPairs.count); Button("添加",systemImage:"plus") { addingPair = true }.accessibilityIdentifier("fxSettingsAddPair").popover(isPresented:$addingPair) { MacFXPairPicker { _ in addingPair = false } } })) {
+        MacSettingsCard(title:L10n.text("mac.fXDisplaySettings.pairsCard.f9200d1d46"),icon:"chart.xyaxis.line",subtitle:L10n.text("mac.fXDisplaySettings.pairsCard.da4b607354"),action:AnyView(HStack(spacing:10) { count(service.configuration.watchedPairs.count); Button(L10n.text("mac.fXDisplaySettings.AnyView.7a8a11ead5"),systemImage:"plus") { addingPair = true }.accessibilityIdentifier("fxSettingsAddPair").popover(isPresented:$addingPair) { MacFXPairPicker { _ in addingPair = false } } })) {
             ScrollView { VStack(spacing:6) {
-                if service.configuration.watchedPairs.isEmpty { empty("尚未关注货币对") }
+                if service.configuration.watchedPairs.isEmpty { empty(L10n.text("mac.fXDisplaySettings.empty.3346ae2b79")) }
                 ForEach(service.configuration.watchedPairs,id:\.key) { pair in
                     HStack(spacing:8) {
                         handle("fxSettingsPairDrag-" + pair.key) .onDrag { draggedPair = pair.key; draggedCurrency = nil; return MacFXSettingsDrag.provider(pair.key,type:MacFXSettingsDrag.pair,token:dragToken) }
@@ -130,7 +132,7 @@ struct MacFXDisplaySettings: View {
                             Text("\(service.configuration.displayUnits) " + pair.base + " → " + pair.quote).appFont(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth:.infinity,alignment:.leading)
                         orderControls(pair.key,ids:service.configuration.watchedPairs.map(\.key),prefix:"fxPairOrder") { delta in stepPair(pair,delta) }
-                        Button("移除") { app.update { $0.watchedPairs.removeAll { $0 == pair } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemovePair-" + pair.key)
+                        Button(L10n.text("mac.fXDisplaySettings.ForEach.6135d4159e")) { app.update { $0.watchedPairs.removeAll { $0 == pair } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemovePair-" + pair.key)
                     }.modifier(ListRow()).accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsPair-" + pair.key)
                         .onDrop(of:[UTType.text],delegate:MacFXSettingsDrop(type:MacFXSettingsDrag.pair,token:dragToken,target:pair.key,dragged:$draggedPair,move:movePair))
                 }
@@ -139,9 +141,9 @@ struct MacFXDisplaySettings: View {
         }.accessibilityElement(children:.contain).accessibilityIdentifier("fxPairsSettingsCard")
     }
     private var converterCard: some View {
-        MacSettingsCard(title:"汇率换算",icon:"arrow.left.arrow.right",subtitle:"独立维护换算页币种",action:AnyView(HStack(spacing:10) { count(service.configuration.converterCurrencies.count); Button("添加",systemImage:"plus") { addingCurrency = true }.accessibilityIdentifier("fxSettingsAddCurrencyButton").popover(isPresented:$addingCurrency) { MacFXCurrencyPicker(service:service) { addingCurrency = false } } })) {
+        MacSettingsCard(title:L10n.text("mac.fXDisplaySettings.converterCard.473e46f09c"),icon:"arrow.left.arrow.right",subtitle:L10n.text("mac.fXDisplaySettings.converterCard.89e36af780"),action:AnyView(HStack(spacing:10) { count(service.configuration.converterCurrencies.count); Button(L10n.text("mac.fXDisplaySettings.AnyView.7a8a11ead5"),systemImage:"plus") { addingCurrency = true }.accessibilityIdentifier("fxSettingsAddCurrencyButton").popover(isPresented:$addingCurrency) { MacFXCurrencyPicker(service:service) { addingCurrency = false } } })) {
             ScrollView { VStack(spacing:6) {
-                if service.configuration.converterCurrencies.isEmpty { empty("尚未添加换算币种") }
+                if service.configuration.converterCurrencies.isEmpty { empty(L10n.text("mac.fXDisplaySettings.empty.d342ddb18e")) }
                 ForEach(service.configuration.converterCurrencies,id:\.self) { code in
                     HStack(spacing:8) {
                         handle("fxSettingsCurrencyDrag-" + code) .onDrag { draggedCurrency = code; draggedPair = nil; return MacFXSettingsDrag.provider(code,type:MacFXSettingsDrag.currency,token:dragToken) }
@@ -151,7 +153,7 @@ struct MacFXDisplaySettings: View {
                             Text(MacFXSettingsCurrencySearch.name(code)).appFont(.caption).foregroundStyle(.secondary).lineLimit(2)
                         }.frame(maxWidth:.infinity,alignment:.leading)
                         orderControls(code,ids:service.configuration.converterCurrencies,prefix:"fxCurrencyOrder") { delta in stepCurrency(code,delta) }
-                        Button("移除") { app.update { $0.converterCurrencies.removeAll { $0 == code } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemoveCurrency-" + code)
+                        Button(L10n.text("mac.fXDisplaySettings.ForEach.6135d4159e")) { app.update { $0.converterCurrencies.removeAll { $0 == code } } }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxSettingsRemoveCurrency-" + code)
                     }.modifier(ListRow()).accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsCurrency-" + code)
                         .onDrop(of:[UTType.text],delegate:MacFXSettingsDrop(type:MacFXSettingsDrag.currency,token:dragToken,target:code,dragged:$draggedCurrency,move:moveCurrency))
                 }
@@ -161,15 +163,15 @@ struct MacFXDisplaySettings: View {
     }
     private func count(_ value:Int) -> some View { Text(String(value)).appFont(.caption,weight:.semibold).padding(8).foregroundStyle(MacUI.accent).background(MacUI.accent.opacity(0.12),in:Circle()) }
     private func empty(_ text:String) -> some View { Text(text).appFont(.caption).foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:54) }
-    private func handle(_ id:String) -> some View { Image(systemName:"line.3.horizontal").appIconFont(14).foregroundStyle(.secondary).frame(width:24,height:36).contentShape(Rectangle()).accessibilityLabel("拖动排序").accessibilityIdentifier(id) }
+    private func handle(_ id:String) -> some View { Image(systemName:"line.3.horizontal").appIconFont(14).foregroundStyle(.secondary).frame(width:24,height:36).contentShape(Rectangle()).accessibilityLabel(L10n.text("mac.fXDisplaySettings.handle.a8036485f9")).accessibilityIdentifier(id) }
     private func orderControls(_ id:String,ids:[String],prefix:String,move:@escaping (Int)->Void) -> some View {
         HStack(spacing:0) {
-            Button { move(-1) } label: { Image(systemName:"chevron.up").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.first == id).accessibilityLabel("上移").accessibilityIdentifier(prefix + "Up-" + id)
-            Button { move(1) } label: { Image(systemName:"chevron.down").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.last == id).accessibilityLabel("下移").accessibilityIdentifier(prefix + "Down-" + id)
+            Button { move(-1) } label: { Image(systemName:"chevron.up").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.first == id).accessibilityLabel(L10n.text("mac.fXDisplaySettings.orderControls.f853a70b12")).accessibilityIdentifier(prefix + "Up-" + id)
+            Button { move(1) } label: { Image(systemName:"chevron.down").frame(width:26,height:32).contentShape(Rectangle()) }.disabled(ids.last == id).accessibilityLabel(L10n.text("mac.fXDisplaySettings.orderControls.e75e8b4e5c")).accessibilityIdentifier(prefix + "Down-" + id)
         }.buttonStyle(MacInteractiveButtonStyle()).appIconFont(12).background(MacOverviewStyle.canvas,in:RoundedRectangle(cornerRadius:7))
     }
     private func endStrip(_ id:String,type:String,dragged:Binding<String?>,move:@escaping (String,String?)->Void) -> some View {
-        Label("移至末尾",systemImage:"arrow.down.to.line").appFont(.caption).foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:28).background(MacOverviewStyle.filters,in:RoundedRectangle(cornerRadius:8)).contentShape(Rectangle()).accessibilityIdentifier(id)
+        Label(L10n.text("mac.fXDisplaySettings.endStrip.40045bdabe"),systemImage:"arrow.down.to.line").appFont(.caption).foregroundStyle(.secondary).frame(maxWidth:.infinity,minHeight:28).background(MacOverviewStyle.filters,in:RoundedRectangle(cornerRadius:8)).contentShape(Rectangle()).accessibilityIdentifier(id)
             .onDrop(of:[UTType.text],delegate:MacFXSettingsDrop(type:type,token:dragToken,target:nil,dragged:dragged,move:move))
     }
     private func stepPair(_ pair:MacFXPair,_ delta:Int) {

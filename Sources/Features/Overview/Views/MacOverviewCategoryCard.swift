@@ -3,6 +3,7 @@ import Charts
 import AppKit
 
 struct MacOverviewCategoryCard: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var type: TransactionType
     var rows: [MacOverviewData.Bucket]
     var total: Double
@@ -14,15 +15,15 @@ struct MacOverviewCategoryCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var active: String? { hovered ?? selected }
     private var prefix: String { type == .income ? "overviewIncome" : "overviewExpense" }
-    private var title: String { type == .income ? "收入分类" : "支出分类" }
+    private var title: String { type == .income ? L10n.text("mac.overviewCategoryCard.title.ba01282192") : L10n.text("mac.overviewCategoryCard.title.b6a1a504a8") }
     var body: some View {
-        OverviewCard(help: "点击饼图区块定位分类，点击分类查看账目", height: 270) {
+        OverviewCard(help: L10n.text("mac.overviewCategoryCard.OverviewCard.3bdad07a38"), height: 270) {
             VStack(alignment:.leading,spacing:12) {
-                HStack { Text(title).appFont(.body,weight:.semibold).accessibilityIdentifier(prefix+"CategoryTitle"); Spacer(); Text("\(rows.count) 个类别").appFont(.caption).foregroundStyle(.secondary) }
+                HStack { Text(title).appFont(.body,weight:.semibold).accessibilityIdentifier(prefix+"CategoryTitle"); Spacer(); Text(L10n.format("mac.overviewCategoryCard.OverviewCard.a43db92312", Int64(rows.count))).appFont(.caption).foregroundStyle(.secondary) }
                 if !rows.isEmpty && !centerFits {
-                    Text("合计 " + MacOverviewStyle.money(total) + " " + MacSettingsVisual.symbol(currency)).appFont(.caption).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).accessibilityIdentifier(prefix+"CategoryTotal")
+                    Text(L10n.text("mac.overviewCategoryCard.OverviewCard.51c8fb2855") + MacOverviewStyle.money(total) + " " + MacSettingsVisual.symbol(currency)).appFont(.caption).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).accessibilityIdentifier(prefix+"CategoryTotal")
                 }
-                if rows.isEmpty { ContentUnavailableView(type == .income ? "该期间暂无收入" : "该期间暂无支出",systemImage:"chart.pie").frame(height:chartSize) }
+                if rows.isEmpty { ContentUnavailableView(type == .income ? L10n.text("mac.overviewCategoryCard.ContentUnavailableView.e505f4ace2") : L10n.text("mac.overviewCategoryCard.ContentUnavailableView.714d082bb9"),systemImage:"chart.pie").frame(height:chartSize) }
                 else {
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment:.center,spacing:16) {
@@ -66,7 +67,7 @@ struct MacOverviewCategoryCard: View {
                                         }.buttonStyle(MacInteractiveButtonStyle()).id(row.id)
                                             .onHover { hovered = $0 ? row.id : nil }
                                             .accessibilityIdentifier(prefix+"Category-"+row.id)
-                                            .accessibilityValue(selected == row.id ? "已选中" : "")
+                                            .accessibilityValue(selected == row.id ? L10n.text("mac.overviewCategoryCard.ForEach.a737fd72b0") : "")
                                     }
                                 }
                             }.frame(height:chartSize+26)
@@ -79,7 +80,7 @@ struct MacOverviewCategoryCard: View {
     private func color(_ row: MacOverviewData.Bucket) -> Color { MacAccent.color(MacCategoryCatalog.style(name:row.id,type:type.rawValue).color) }
     private var chart: some View {
         Chart(rows) { row in
-            SectorMark(angle:.value("金额",row.amount),innerRadius:.ratio(0.66),outerRadius:.ratio(active == row.id ? 1 : 0.9),angularInset:1.4)
+            SectorMark(angle:.value(L10n.text("mac.overviewCategoryCard.SectorMark.ffc624300d"),row.amount),innerRadius:.ratio(0.66),outerRadius:.ratio(active == row.id ? 1 : 0.9),angularInset:1.4)
                 .foregroundStyle(color(row)).opacity(active == nil || active == row.id ? 1 : 0.7)
                 .accessibilityLabel(MacOverviewStyle.category(row.id)).accessibilityValue(MacOverviewStyle.money(row.amount)+" "+currency)
         }.chartLegend(.hidden).frame(width:chartSize,height:chartSize)
@@ -87,7 +88,7 @@ struct MacOverviewCategoryCard: View {
                 VStack(spacing:3) {
                     if centerFits {
                         Text(MacOverviewStyle.money(total)).appFont(.section,weight:.semibold).monospacedDigit().fixedSize()
-                    } else { Text("分类合计").appFont(.caption) }
+                    } else { Text(L10n.text("mac.overviewCategoryCard.chart.4b47c7864e")).appFont(.caption) }
                     Text(currency).appFont(.caption).foregroundStyle(.secondary)
                 }.frame(width:chartSize*0.60)
             }

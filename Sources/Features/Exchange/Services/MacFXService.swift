@@ -21,23 +21,23 @@ struct MacFXSource: Codable, Identifiable, Equatable, Sendable {
         }
         guard !text.contains("{"), !text.contains("}"), let url = URL(string: text), url.scheme == "https", let host = url.host, !host.isEmpty,
               url.user == nil, url.password == nil, url.fragment == nil, url.port == nil || url.port == 443
-        else { throw MacSettingsFailure.invalid("URL 必须是无嵌入凭证的 HTTPS 地址，且占位符有效") }
+        else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.resolved.8418ac5079")) }
         return url
     }
     func validate() throws {
         if let imageData { try MacImageAssets.validatePreparedPNG(imageData) }
-        if let dateTimeZoneID, TimeZone(identifier: dateTimeZoneID) == nil { throw MacSettingsFailure.invalid("报价日时区无效") }
+        if let dateTimeZoneID, TimeZone(identifier: dateTimeZoneID) == nil { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.validate.5aaa71202d")) }
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 80, !ratePath.isEmpty,
-              !urlTemplate.contains("\n"), ratePath.count <= 256 else { throw MacSettingsFailure.invalid("请填写名称、HTTPS URL 模板和 JSON 路径") }
+              !urlTemplate.contains("\n"), ratePath.count <= 256 else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.validate.b0ed6dbd4f")) }
         _ = try resolved(from: "USD", to: "CNY", date: "2026-10-14")
         guard provider == nil || ["twelveData", "openExchangeRates"].contains(provider!) else {
-            throw MacSettingsFailure.invalid("未知的汇率模板")
+            throw MacSettingsFailure.invalid(L10n.text("mac.fXService.validate.0e9aa00c04"))
         }
         // Keep secrets in Keychain; never embed them in the persisted URL template.
         let resolved = urlTemplate.replacingOccurrences(of: "{key}", with: "FINTRACK_SECRET_PLACEHOLDER")
         if let components = URLComponents(string: resolved) {
             for item in components.queryItems ?? [] where ["key", "api_key", "apikey", "access_key", "app_id", "token"].contains(item.name.lowercased()) {
-                guard item.value == "FINTRACK_SECRET_PLACEHOLDER" else { throw MacSettingsFailure.invalid("密钥参数请使用 {key}，并在 API Key 字段填写密钥") }
+                guard item.value == "FINTRACK_SECRET_PLACEHOLDER" else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.validate.bdf04f4b82")) }
             }
         }
     }
@@ -45,7 +45,7 @@ struct MacFXSource: Codable, Identifiable, Equatable, Sendable {
 
 enum MacFXTemplate: String, CaseIterable {
     case twelveData, openExchangeRates, custom
-    var title: String { switch self { case .twelveData: "Twelve Data"; case .openExchangeRates: "Open Exchange Rates"; case .custom: "自定义 API" } }
+    var title: String { switch self { case .twelveData: "Twelve Data"; case .openExchangeRates: "Open Exchange Rates"; case .custom: L10n.text("mac.fXService.title.cadf64cf74") } }
     func source(id: UUID = UUID()) -> MacFXSource {
         switch self {
         case .twelveData:
@@ -82,15 +82,15 @@ enum MacFXSecrets {
     static func read(_ id: UUID, retryAuthorization: Bool = false) throws -> String {
         if retryAuthorization { refused.remove(id); sessionValues[id] = nil }
         if MacPreferences.isTesting { return testValues[id.uuidString] ?? "" }
-        guard !refused.contains(id) else { throw MacSettingsFailure.invalid("钥匙串需要授权；请打开对应数据源设置后重试。") }
+        guard !refused.contains(id) else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.read.5eb01c7d08")) }
         if let value = sessionValues[id] { return value }
         let (status, value) = try MacFXKeychainClient.perform("read", id:id, authorize:retryAuthorization)
         if status == errSecItemNotFound { sessionValues[id] = ""; return "" }
         if status == errSecUserCanceled || status == errSecAuthFailed { refused.insert(id) }
         if status == errSecUserCanceled || status == errSecAuthFailed || status == errSecInteractionNotAllowed {
-            throw MacSettingsFailure.invalid("钥匙串需要授权或解锁；请打开对应数据源设置后重试。后台更新不会弹出密码窗口。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.fXService.read.d923e186ab"))
         }
-        guard status == errSecSuccess, let value else { throw MacSettingsFailure.invalid("无法读取系统钥匙串中的 API Key") }
+        guard status == errSecSuccess, let value else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.read.1f97c76b02")) }
         sessionValues[id] = value
         return value
     }
@@ -98,7 +98,7 @@ enum MacFXSecrets {
         if MacPreferences.isTesting { testValues[id.uuidString] = key; revise(id); return }
         let (status, _) = try MacFXKeychainClient.perform(key.isEmpty ? "delete" : "save", id:id, value:key, authorize:true)
         guard status == errSecSuccess || (key.isEmpty && status == errSecItemNotFound) else {
-            throw MacSettingsFailure.invalid(key.isEmpty ? "无法移除 API Key" : "API Key 未能保存到钥匙串")
+            throw MacSettingsFailure.invalid(key.isEmpty ? L10n.text("mac.fXService.save.ec1e67fe98") : L10n.text("mac.fXService.save.f5ae3d5b0a"))
         }
         sessionValues[id] = key; refused.remove(id)
         revise(id)
@@ -107,21 +107,21 @@ enum MacFXSecrets {
     static func readAsync(_ id: UUID, retryAuthorization: Bool = false) async throws -> String {
         if MacPreferences.isTesting { return testValues[id.uuidString] ?? "" }
         if retryAuthorization { refused.remove(id);sessionValues[id]=nil }
-        guard !refused.contains(id) else {throw MacSettingsFailure.invalid("钥匙串需要授权，请在数据源设置中重试。")}
+        guard !refused.contains(id) else {throw MacSettingsFailure.invalid(L10n.text("mac.fXService.readAsync.2293b95af3"))}
         if let value=sessionValues[id] {return value}
         let generation=versions[id,default:0]
         let (status,value)=try await MacFXKeychainClient.performAsync("read",id:id,authorize:retryAuthorization)
-        guard versions[id,default:0] == generation else {throw MacSettingsFailure.invalid("密钥配置已变化，请重试。")}
+        guard versions[id,default:0] == generation else {throw MacSettingsFailure.invalid(L10n.text("mac.fXService.readAsync.c6b6b72ae2"))}
         if status == errSecItemNotFound {sessionValues[id]="";return ""}
         if status == errSecUserCanceled || status == errSecAuthFailed {refused.insert(id)}
-        guard status == errSecSuccess,let value else {throw MacSettingsFailure.invalid("钥匙串需要授权或解锁，请在数据源设置中重试。")}
+        guard status == errSecSuccess,let value else {throw MacSettingsFailure.invalid(L10n.text("mac.fXService.readAsync.6f85ee36d5"))}
         sessionValues[id]=value;return value
     }
     static func saveAsync(_ key: String, id: UUID) async throws {
         if MacPreferences.isTesting {try save(key,id:id);return}
         versions[id,default:0] += 1;let generation=versions[id]!
         let (status,_)=try await MacFXKeychainClient.performAsync(key.isEmpty ? "delete":"save",id:id,value:key,authorize:true)
-        guard status == errSecSuccess || (key.isEmpty && status == errSecItemNotFound) else {throw MacSettingsFailure.invalid("密钥未能保存，请重试。")}
+        guard status == errSecSuccess || (key.isEmpty && status == errSecItemNotFound) else {throw MacSettingsFailure.invalid(L10n.text("mac.fXService.saveAsync.b204891d31"))}
         if versions[id] == generation {sessionValues[id]=key;refused.remove(id);revise(id)}
     }
 
@@ -196,28 +196,28 @@ enum MacFXService {
         let root = try JSONSerialization.jsonObject(with: data)
         if let provider = source.provider {
             guard let root = root as? [String: Any], root["status"] as? String != "error", root["error"] == nil else {
-                throw MacSettingsFailure.invalid("服务未返回有效汇率，请检查 API Key 与用量")
+                throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.924b2bcb2b"))
             }
             let rawRate: Double
             if provider == "openExchangeRates" {
                 guard root["base"] as? String == "USD", let rates = root["rates"] as? [String: Any],
                       let numerator = positiveNumber(rates[to]), let denominator = positiveNumber(rates[from]) else {
-                    throw MacSettingsFailure.invalid("数据源未返回该货币对")
+                    throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.2b31e1df01"))
                 }
                 rawRate = numerator / denominator
             } else {
                 guard let rate = positiveNumber(root["rate"]), root["symbol"] as? String == from + "/" + to else {
-                    throw MacSettingsFailure.invalid("数据源未返回所请求的货币对")
+                    throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.18adca9707"))
                 }
                 rawRate = rate
             }
             guard let timestamp = positiveNumber(root["timestamp"]), timestamp <= Date().timeIntervalSince1970 + 300 else {
-                throw MacSettingsFailure.invalid("报价时间无效")
+                throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.2e1bf9a631"))
             }
             let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.timeZone = TimeZone(secondsFromGMT: 0); formatter.dateFormat = "yyyy-MM-dd"
             let actualDate = formatter.string(from: Date(timeIntervalSince1970: timestamp))
-            if let date, date != actualDate { throw MacSettingsFailure.invalid("报价日期与历史记账日期不符") }
+            if let date, date != actualDate { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.c379231f7e")) }
             guard rawRate.isFinite, rawRate > 0 else { throw MacFXNetworkFailure.invalid }
             return (rawRate, actualDate)
         }
@@ -228,7 +228,7 @@ enum MacFXService {
         if let number = raw as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() { rate = number.doubleValue }
         else if let string = raw as? String { rate = Double(string) }
         else { rate = nil }
-        guard let rate, rate.isFinite, rate > 0, (preserveRawRate || rate <= 1_000_000_000) else { throw MacSettingsFailure.invalid("JSON 路径未返回有效的正数汇率") }
+        guard let rate, rate.isFinite, rate > 0, (preserveRawRate || rate <= 1_000_000_000) else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.4f59238690")) }
         let actualDate = source.datePath.isEmpty ? nil : value(root, path: source.datePath) as? String
         if !source.datePath.isEmpty {
             var calendar = Calendar.current
@@ -238,9 +238,9 @@ enum MacFXService {
                 else { calendar.timeZone = TimeZone(secondsFromGMT: 14 * 3600)! }
             }
             guard let actualDate, MacFXDates.day(actualDate, calendar: calendar) != nil,
-                  actualDate <= MacFXDates.tag(Date(), calendar: calendar) else { throw MacSettingsFailure.invalid("报价日期无效或晚于当前日期") }
+                  actualDate <= MacFXDates.tag(Date(), calendar: calendar) else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.369aaea922")) }
         }
-        if let date { guard actualDate == date else { throw MacSettingsFailure.invalid("数据源未返回所请求日期，不能用于历史记账") } }
+        if let date { guard actualDate == date else { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.rawDecoded.bc22672bb7")) } }
         return (rate, actualDate)
     }
     static func fetch(_ source: MacFXSource, from: String, to: String, date: Date = Date(), keyOverride: String? = nil) async throws -> MacFXQuote {
@@ -251,13 +251,13 @@ enum MacFXService {
         }
         let from = try MacCurrency.code(from), to = try MacCurrency.code(to), tag = MacExchangeRates.dateTag(date)
         let historical = tag != MacExchangeRates.dateTag(Date())
-        if historical && (!source.urlTemplate.contains("{date}") || source.datePath.isEmpty) { throw MacSettingsFailure.invalid("此数据源不支持可核验的历史日期") }
+        if historical && (!source.urlTemplate.contains("{date}") || source.datePath.isEmpty) { throw MacSettingsFailure.invalid(L10n.text("mac.fXService.fetch.231d035042")) }
         let data = try await requestData(source, from: from, to: to, date: date, keyOverride: keyOverride)
         let (rate, actualDate) = try decode(data, source: source, from: from, to: to, date: historical ? tag : nil)
         return MacFXQuote(from: from, to: to, rate: rate, source: source.name, sourceID: source.id, date: actualDate, retrievedAt: Date())
     }
     static func publicData(_ url: String) async throws -> Data {
-        try await requestData(MacFXSource(name: "系统数据源", urlTemplate: url), from: "USD", to: "CNY", date: Date(), keyOverride: "")
+        try await requestData(MacFXSource(name: L10n.text("mac.fXService.MacFXSource.2ea759ff20"), urlTemplate: url), from: "USD", to: "CNY", date: Date(), keyOverride: "")
     }
     static func requestData(_ source: MacFXSource, from: String, to: String, date: Date, keyOverride: String? = nil, dateTagOverride: String? = nil) async throws -> Data {
         let tag = dateTagOverride ?? MacExchangeRates.dateTag(date)
@@ -281,8 +281,8 @@ enum MacFXService {
     struct RefreshResult {
         var updated: [String] = []
         var failed: [String] = []
-        var message: String { updated.isEmpty ? "没有更新汇率" : "已更新 \(updated.count) 种货币：" + updated.joined(separator: "、") }
-        var failureMessage: String? { failed.isEmpty ? nil : "获取失败，保留原有缓存：" + failed.joined(separator: "、") }
+        var message: String { updated.isEmpty ? L10n.text("mac.fXService.message.86f1191876") : L10n.format("mac.fXService.message.d5f782b118", Int64(updated.count)) + updated.joined(separator: "、") }
+        var failureMessage: String? { failed.isEmpty ? nil : L10n.text("mac.fXService.failureMessage.f542ebc11d") + failed.joined(separator: "、") }
     }
     static func refreshAll(from: String, codes: [String], date: Date = Date(),
                            fetchOverride: ((String, String, Date) async throws -> MacFXQuote)? = nil) async -> RefreshResult {

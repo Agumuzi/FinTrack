@@ -16,21 +16,21 @@ enum MacLoanRepayment {
         var errorDescription: String? {
             switch self {
             case .legacyLoan:
-                "Previous loan records require historical payment reconciliation."
+                L10n.text("mac.loanRepayment.errorDescription.1d628d52a0")
             case .generatedRecurringConflict:
-                "This loan already has linked scheduled repayments. Disable duplicate flows before posting."
+                L10n.text("mac.loanRepayment.errorDescription.7c21bbabec")
             case .foreignCurrency:
-                "Confirm the ledger currency and payment exchange rate before recording this payment."
+                L10n.text("mac.loanRepayment.errorDescription.533af89748")
             case .notDue:
-                "This payment is not due yet."
+                L10n.text("mac.loanRepayment.errorDescription.ff5987c4c0")
             case .allPaid:
-                "All scheduled installments already have a receipt."
+                L10n.text("mac.loanRepayment.errorDescription.4cebfc8fc8")
             case .alreadyPosted:
-                "This installment is already recorded. A duplicate was blocked."
+                L10n.text("mac.loanRepayment.errorDescription.2013e00074")
             case .inconsistentLedger:
-                "Loan payment receipts do not match the saved schedule or cash ledger. Review existing payments before recording another installment."
+                L10n.text("mac.loanRepayment.errorDescription.d6dce43c8a")
             case .zeroCashPayment:
-                "The original schedule has a zero-amount installment; manual cash posting is not appropriate."
+                L10n.text("mac.loanRepayment.errorDescription.610c8d0dba")
             }
         }
     }
@@ -154,7 +154,7 @@ enum MacLoanRepayment {
     ) throws -> Preview {
         guard MacLoanSchedule.valid(loan) else { throw PostingError.inconsistentLedger }
         guard isManaged(loan) else { throw PostingError.legacyLoan }
-        guard !MacLoanSchedule.requiresReview(loan) else { throw MacSettingsFailure.invalid("旧贷款未保存合同所在时区，请先在贷款详情核对并固定还款日期。已有收据保持不变。") }
+        guard !MacLoanSchedule.requiresReview(loan) else { throw MacSettingsFailure.invalid(L10n.text("mac.loanRepayment.nextPayment.050117937a")) }
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let deposits = try context.fetch(FetchDescriptor<DepositRecord>())
         let loans = try context.fetch(FetchDescriptor<LoanRule>())

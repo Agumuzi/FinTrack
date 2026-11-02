@@ -7,15 +7,15 @@ enum MacDataManagement {
         case generatedReceipts, protectedCategory
         var errorDescription: String? {
             switch self {
-            case .generatedReceipts: "Generated finance receipts cannot be deleted from Records."
-            case .protectedCategory: "Loan and Deposit categories cannot be renamed."
+            case .generatedReceipts: L10n.text("mac.dataManagement.errorDescription.0847a2c0d4")
+            case .protectedCategory: L10n.text("mac.dataManagement.errorDescription.bbcd51d163")
             }
         }
     }
     /// Repair catalogs created by older imports without changing any financial row.
     /// A new ledger stays empty; categories only come from the user's own records.
     static func reconcileCategories(in context: ModelContext) throws {
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再更新分类目录") }
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.dataManagement.reconcileCategories.4c71bfc845")) }
         do {
             try registerReferencedCategories(in: context)
             if context.hasChanges { try context.save() }
@@ -52,7 +52,7 @@ enum MacDataManagement {
     }
     static func clearLedger(in context: ModelContext) throws {
         try MacRecoveryJournal.assertWritable(in:context)
-        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请完成后再清空账本") }
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("mac.dataManagement.clearLedger.3b22e29ba3")) }
         do {
             for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) { context.delete(row) }
             for row in try context.fetch(FetchDescriptor<LoanRule>()) { context.delete(row) }
@@ -91,14 +91,14 @@ enum MacDataManagement {
         if CategoryUsageHelper.isProtectedCategory(category) {
             let clean = try MacTransactionCRUD.validatedCategory(name)
             let catalog = try context.fetch(FetchDescriptor<Category>())
-            guard !catalog.contains(where: { $0.deletedAt == nil && $0.id != category.id && $0.type == category.type && ($0.name.localizedCaseInsensitiveCompare(clean) == .orderedSame || MacOverviewStyle.category($0.name).localizedCaseInsensitiveCompare(clean) == .orderedSame) }) else { throw MacSettingsFailure.invalid("系统分类显示名称不能与其他分类重复") }
+            guard !catalog.contains(where: { $0.deletedAt == nil && $0.id != category.id && $0.type == category.type && ($0.name.localizedCaseInsensitiveCompare(clean) == .orderedSame || MacOverviewStyle.category($0.name).localizedCaseInsensitiveCompare(clean) == .orderedSame) }) else { throw MacSettingsFailure.invalid(L10n.text("mac.dataManagement.rename.6a2fd9cebd")) }
             var style = MacCategoryCatalog.style(name: category.name, type: category.type)
             style.displayName = clean
             try MacCategoryCatalog.saveStyle(style, name: category.name, type: category.type)
             return
         }
         let name = try MacTransactionCRUD.validatedCategory(CategoryUsageHelper.canonicalCategoryName(name, type: category.type))
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再重命名分类") }
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.dataManagement.rename.c047fd3fa3")) }
         let old = category.name
         let categoryType = category.type
         let target = try context.fetch(FetchDescriptor<Category>()).first {
@@ -110,7 +110,7 @@ enum MacDataManagement {
             let sourceBudgets = budgets.filter { $0.categoryID == category.id || ($0.categoryID == nil && $0.categoryName == old) }
             let targetBudgets = budgets.filter { $0.categoryID == target.id || ($0.categoryID == nil && $0.categoryName == target.name) }
             guard !sourceBudgets.contains(where: { source in targetBudgets.contains { $0.month == source.month && $0.currency == source.currency } })
-            else { throw MacSettingsFailure.invalid("两个分类在同月均有预算，请先调整预算再合并，避免重复统计") }
+            else { throw MacSettingsFailure.invalid(L10n.text("mac.dataManagement.rename.a12d61041b")) }
         }
         if category.type == "Expense" {
             for index in budgets.indices where budgets[index].categoryID == category.id || (budgets[index].categoryID == nil && budgets[index].categoryName == old) {

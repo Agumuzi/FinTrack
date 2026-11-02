@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MacFXRatesView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject var service: MacFXMonitor
     @ObservedObject var query: MacFXQuerySession
     var showsTools = true
@@ -10,17 +11,17 @@ struct MacFXRatesView: View {
         VStack(spacing: 10) {
             if showsTools {
             HStack {
-                Text("关注 \(service.configuration.watchedPairs.count) 个汇率").appFont(.body, weight: .semibold)
+                Text(L10n.format("mac.fXRatesView.body.63807509c6", Int64(service.configuration.watchedPairs.count))).appFont(.body, weight: .semibold)
                 Spacer()
-                Picker("显示单位", selection: Binding(get: { service.configuration.displayUnits }, set: { value in DispatchQueue.main.async { app.update { $0.displayUnits = value } } })) {
-                    Text("1单位").tag(1); Text("100单位").tag(100)
+                Picker(L10n.text("mac.fXRatesView.Picker.7f92957e2e"), selection: Binding(get: { service.configuration.displayUnits }, set: { value in DispatchQueue.main.async { app.update { $0.displayUnits = value } } })) {
+                    Text(L10n.text("mac.fXRatesView.Picker.741dcea7b4")).tag(1); Text(L10n.text("mac.fXRatesView.Picker.b6e384046e")).tag(100)
                 }.pickerStyle(.segmented).labelsHidden().frame(width: 154).accessibilityIdentifier("fxDisplayUnits")
             }
             HStack {
-                Button("添加汇率", systemImage: "plus") { adding = true }.buttonStyle(MacSettingsButtonStyle(height: 40)).accessibilityIdentifier("fxAddPair")
+                Button(L10n.text("mac.fXRatesView.body.fce6c36a18"), systemImage: "plus") { adding = true }.buttonStyle(MacSettingsButtonStyle(height: 40)).accessibilityIdentifier("fxAddPair")
 
                 Spacer()
-                Button(service.busy ? "正在更新…" : "更新", systemImage: "arrow.clockwise") { Task { await service.refresh(reason: .manual) } }
+                Button(service.busy ? L10n.text("mac.fXRatesView.body.e6442ce18f") : L10n.text("mac.fXRatesView.body.3055a035f0"), systemImage: "arrow.clockwise") { Task { await service.refresh(reason: .manual) } }
                     .buttonStyle(MacSettingsButtonStyle(height: 40)).disabled(service.busy).accessibilityIdentifier("fxUpdateRates")
             }
             }
@@ -30,7 +31,7 @@ struct MacFXRatesView: View {
                         MacFXRateCard(pair: pair, service: service, query: query, history: app.history).id(pair.key)
                     }
                 }.scrollTargetLayout().padding(.bottom, 8)
-                if service.configuration.watchedPairs.isEmpty {ContentUnavailableView {Label("尚未关注汇率",systemImage:"chart.line.uptrend.xyaxis")} description:{Text("选择需要关注的货币对。")} actions:{Button("添加货币对") {adding=true}.accessibilityIdentifier("fxEmptyAddPair")}}
+                if service.configuration.watchedPairs.isEmpty {ContentUnavailableView {Label(L10n.text("mac.fXRatesView.ContentUnavailableView.c180208d3f"),systemImage:"chart.line.uptrend.xyaxis")} description:{Text(L10n.text("mac.fXRatesView.ContentUnavailableView.0f27f21be3"))} actions:{Button(L10n.text("mac.fXRatesView.ContentUnavailableView.00c06565a0")) {adding=true}.accessibilityIdentifier("fxEmptyAddPair")}}
             }.scrollPosition(id: $query.ratesScrollPair, anchor: .top).accessibilityIdentifier("fxRatesScroll")
             MacFXLastUpdatedView(service:service)
         }
@@ -47,10 +48,11 @@ struct MacFXRatesView: View {
 }
 
 struct MacFXPairPicker: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var onChoose: (MacFXPair) -> Void
     var body: some View {
         VStack(alignment:.leading,spacing:14) {
-            Text("添加关注汇率").appFont(.section,weight:.semibold)
+            Text(L10n.text("mac.fXRatesView.body.e7461b42f4")).appFont(.section,weight:.semibold)
             MacFXPairAddForm(onAdded:onChoose)
         }.appFont(.body).padding(18).frame(width:360)
     }

@@ -46,8 +46,8 @@ nonisolated struct MacFXConfiguration: Codable, Equatable {
 }
 
 nonisolated enum MacMenuIconStyle: String, Codable, CaseIterable { case application, book, arrows
-    var title: String { switch self { case .application: "FinTrack"; case .book: "账本"; case .arrows: "换算" } }
+    var title: String { switch self { case .application: "FinTrack"; case .book: L10n.text("mac.fXConfiguration.title.fcaba66058"); case .arrows: L10n.text("mac.fXConfiguration.title.d9c792dfca") } }
 }
 nonisolated enum MacMenuInformation: String, Codable, CaseIterable { case icon, iconAndRate, rate
-    var title: String { switch self { case .icon: "仅图标"; case .iconAndRate: "图标与汇率"; case .rate: "仅汇率" } }
+    var title: String { switch self { case .icon: L10n.text("mac.fXConfiguration.title.aa7a29114a"); case .iconAndRate: L10n.text("mac.fXConfiguration.title.d3d6e3621d"); case .rate: L10n.text("mac.fXConfiguration.title.f08be6d8e9") } }
 }

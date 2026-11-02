@@ -20,10 +20,10 @@ enum MacRecurringData {
         (rule.projectIdentifier ?? "").hasPrefix("loan_generated:")
     }
     static func frequency(_ rule: RecurringTransaction) -> String {
-        guard let unit = RecurringIntervalUnit(rawValue: rule.intervalUnit), (1...365).contains(rule.intervalValue) else { return "频率待核对" }
+        guard let unit = RecurringIntervalUnit(rawValue: rule.intervalUnit), (1...365).contains(rule.intervalValue) else { return L10n.text("mac.recurringData.frequency.6f13f1e3ca") }
         let label: String
-        switch unit { case .day: label = "天"; case .week: label = "周"; case .month: label = "个月"; case .year: label = "年" }
-        return "每 \(rule.intervalValue) \(label)"
+        switch unit { case .day: label = L10n.text("mac.recurringData.frequency.49da61ceee"); case .week: label = L10n.text("mac.recurringData.frequency.5c553ec3f6"); case .month: label = L10n.text("mac.recurringData.frequency.e5afd16c6a"); case .year: label = "年" }
+        return L10n.format("mac.recurringData.frequency.26272e530d", "\(rule.intervalValue)", "\(label)")
     }
     static func filtered(_ rules: [RecurringTransaction], search: String, type: RecurringTransactionType?, status selected: Status?, category: String?, currency: String?, sort: Sort) -> [RecurringTransaction] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)

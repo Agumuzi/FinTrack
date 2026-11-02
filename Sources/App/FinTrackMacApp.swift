@@ -6,11 +6,13 @@ import AppKit
 @main
 struct FinTrackMacApp: App {
     @NSApplicationDelegateAdaptor(MacApplicationDelegate.self) private var applicationDelegate
+    @ObservedObject private var localization = LocalizationController.shared
     @StateObject private var entries = MacApplicationRuntime.shared.entries
     init() {
         #if FINTRACK_LOCAL_VALIDATION
         if MacV147RecoveryFixture.requested { MacV147RecoveryFixture.start(); RunLoop.current.run() }
         #endif
+        _ = LocalizationController.shared
         MacSettingsStore.migrateFontPreference()
     }
 
@@ -20,7 +22,7 @@ struct FinTrackMacApp: App {
     var body: some Scene {
         let _ = configureRouter()
         #if FINTRACK_MENU_PROTOTYPE
-        Window("FinTrack 原型", id: "menu-prototype-main") {
+        Window(L10n.text("mac.finTrackMacApp.Window.2fb461fbdb"), id: "menu-prototype-main") {
             MacMenuPrototypeMainView(runtime: MacApplicationRuntime.shared, entries: entries)
         }.defaultSize(width: 760, height: 800)
             .defaultLaunchBehavior(entries.configuration.showMainOnLaunch ? .presented : .suppressed)
@@ -30,16 +32,19 @@ struct FinTrackMacApp: App {
             .defaultLaunchBehavior(entries.configuration.showMainOnLaunch ? .presented : .suppressed)
             .windowStyle(.hiddenTitleBar)
             .commands {
+                #if FINTRACK_LOCAL_VALIDATION
+                MacLocalizationValidationCommands()
+                #endif
                 CommandGroup(replacing: .appSettings) {
-                    Button("设置…") { MacApplicationRuntime.shared.showMain(settings: true) }.keyboardShortcut(",", modifiers: .command)
+                    Button(L10n.text("mac.finTrackMacApp.CommandGroup.da9fc8ba94")) { MacApplicationRuntime.shared.showMain(settings: true) }.keyboardShortcut(",", modifiers: .command)
                 }
                 CommandGroup(after: .toolbar) {
-                    Button("放大界面") { MacTypographyCommands.adjust(1) }.keyboardShortcut("+", modifiers: .command)
-                    Button("缩小界面") { MacTypographyCommands.adjust(-1) }.keyboardShortcut("-", modifiers: .command)
-                    Button("恢复默认缩放") { MacInterfaceZoom.reset() }.keyboardShortcut("0", modifiers: .command)
+                    Button(L10n.text("mac.finTrackMacApp.CommandGroup.b7eaf4a368")) { MacTypographyCommands.adjust(1) }.keyboardShortcut("+", modifiers: .command)
+                    Button(L10n.text("mac.finTrackMacApp.CommandGroup.a6878682a7")) { MacTypographyCommands.adjust(-1) }.keyboardShortcut("-", modifiers: .command)
+                    Button(L10n.text("mac.finTrackMacApp.CommandGroup.841a15ca48")) { MacInterfaceZoom.reset() }.keyboardShortcut("0", modifiers: .command)
                 }
                 CommandGroup(after: .windowArrangement) {
-                    Button("打开主窗口") { MacApplicationRuntime.shared.showMain() }.keyboardShortcut("0", modifiers: [.command, .shift])
+                    Button(L10n.text("mac.finTrackMacApp.CommandGroup.f6b64b637b")) { MacApplicationRuntime.shared.showMain() }.keyboardShortcut("0", modifiers: [.command, .shift])
                 }
             }
         #endif

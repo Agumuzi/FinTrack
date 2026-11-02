@@ -7,9 +7,9 @@ enum MacCSV {
         case invalid(String), duplicateID(String), empty
         var errorDescription: String? {
             switch self {
-            case .invalid(let detail): "CSV 导入已停止：\(detail)。本批未保存任何记录。"
-            case .duplicateID(let detail): "CSV 中的 ID 重复：\(detail)。本批未保存任何记录。"
-            case .empty: "CSV 中没有可导入的记录；请填写模板后再导入。"
+            case .invalid(let detail): L10n.format("mac.cSV.errorDescription.a480733251", "\(detail)")
+            case .duplicateID(let detail): L10n.format("mac.cSV.errorDescription.c71e4bfeaa", "\(detail)")
+            case .empty: L10n.text("mac.cSV.errorDescription.fdeb203075")
             }
         }
     }
@@ -33,7 +33,7 @@ enum MacCSV {
             profiles: try context.fetch(FetchDescriptor<FinancialProfile>()),
             categories: try context.fetch(FetchDescriptor<Category>()),
             accounts: try context.fetch(FetchDescriptor<Account>()))
-        else { throw Failure.invalid("Export could not be written") }
+        else { throw Failure.invalid(L10n.text("mac.cSV.export.c606624555")) }
         return url
     }
 
@@ -43,10 +43,10 @@ enum MacCSV {
             recurringRules: kind == .recurring ? try context.fetch(FetchDescriptor<RecurringTransaction>()).filter { $0.deletedAt == nil } : [],
             deposits: kind == .deposits ? try context.fetch(FetchDescriptor<DepositRecord>()).filter { $0.deletedAt == nil } : [],
             loans: kind == .loans ? try context.fetch(FetchDescriptor<LoanRule>()).filter { $0.deletedAt == nil } : [],
-            goals: [], profiles: [], categories: [], accounts: []) else { throw Failure.invalid("导出失败") }
+            goals: [], profiles: [], categories: [], accounts: []) else { throw Failure.invalid(L10n.text("mac.cSV.export.6e4445df69")) }
         defer { try? FileManager.default.removeItem(at: url) }
         let tables = try CSVImportReader().readSections(contents: String(contentsOf: url, encoding: .utf8))
-        guard let table = tables[kind.sectionTitle.lowercased()] else { throw Failure.invalid("导出类型缺失") }
+        guard let table = tables[kind.sectionTitle.lowercased()] else { throw Failure.invalid(L10n.text("mac.cSV.export.c2bee0e58c")) }
         return MacCSVFormat.csv(headers: table.headers, rows: table.rows.map { row in table.headers.map { row.values[$0] ?? "" } })
     }
 
@@ -70,7 +70,7 @@ enum MacCSV {
     }
     static func previewAsync(_ content: String, bookCurrency: String, kind: MacCSVKind? = nil) async throws -> Preview {
         let parsed=try await Task.detached(priority:.userInitiated) {
-            guard content.utf8.count <= 50_000_000 else {throw Failure.invalid("文件不能超过50,000,000字节")}
+            guard content.utf8.count <= 50_000_000 else {throw Failure.invalid(L10n.text("mac.cSV.parsed.6c2a2a02ea"))}
             let document=try MacCSVDocument(content),headers=document.records[0].cells
             let standard = !document.isSectioned && headers.contains("ExchangeRate") && headers.contains("BaseCurrency")
             let native = !document.isSectioned && (headers.contains("OriginalAmount") || headers.contains("OriginalPrincipal") || headers.contains("BasePrincipal"))
@@ -88,17 +88,17 @@ enum MacCSV {
         try preview(content,bookCurrency:bookCurrency,kind:expectedKind,parsed:nil)
     }
     private static func preview(_ content: String, bookCurrency: String, kind expectedKind: MacCSVKind?, parsed: Parsed?) throws -> Preview {
-        guard content.utf8.count <= 50_000_000 else { throw Failure.invalid("文件不能超过50,000,000字节") }
+        guard content.utf8.count <= 50_000_000 else { throw Failure.invalid(L10n.text("mac.cSV.preview.6c2a2a02ea")) }
         let document = try parsed?.document ?? MacCSVDocument(content)
         if let templateKind = document.templateKind {
-            guard expectedKind == nil || expectedKind == templateKind else { throw Failure.invalid("所选类型为\(expectedKind!.title)，文件属于\(templateKind.title)") }
-            guard document.templateBaseCurrency == (try MacCurrency.code(bookCurrency)) else { throw Failure.invalid("模板本位币为\(document.templateBaseCurrency ?? "")，与当前账本不符；请重新导出模板") }
+            guard expectedKind == nil || expectedKind == templateKind else { throw Failure.invalid(L10n.format("mac.cSV.preview.b480f88e38", "\(expectedKind!.title)", "\(templateKind.title)")) }
+            guard document.templateBaseCurrency == (try MacCurrency.code(bookCurrency)) else { throw Failure.invalid(L10n.format("mac.cSV.preview.126622ffef", "\(document.templateBaseCurrency ?? "")")) }
         }
         let headers = document.records[0].cells
         let standard = !document.isSectioned && headers.contains("ExchangeRate") && headers.contains("BaseCurrency")
         if standard {
             let kind = MacCSVStandard.kind(headers: headers)
-            guard expectedKind == nil || expectedKind == kind else { throw Failure.invalid("所选类型为\(expectedKind!.title)，文件属于\(kind.title)") }
+            guard expectedKind == nil || expectedKind == kind else { throw Failure.invalid(L10n.format("mac.cSV.preview.b480f88e38", "\(expectedKind!.title)", "\(kind.title)")) }
             let table = try MacCSVStandard.section(document, kind: kind, bookCurrency: bookCurrency)
             let sections = [kind.sectionKey: table]
             try validate(sections)
@@ -119,22 +119,22 @@ enum MacCSV {
             } else {
                 let table = try parsed?.flat ?? reader.read(contents: content)
                 guard table.headers.allSatisfy({ !$0.isEmpty && $0 != "account" }), Set(table.headers).count == table.headers.count else {
-                    throw Failure.invalid("普通收支CSV列名无法识别、重复映射或包含不支持的账户列；请使用记账模板，账户信息可放在Note")
+                    throw Failure.invalid(L10n.text("mac.cSV.preview.cece134f53"))
                 }
                 let required = Set(["date", "type", "category", "currency", "amount"])
-                guard required.isSubset(of: Set(table.headers)) else { throw Failure.invalid("缺少Date、Type、Category、Currency或Amount列") }
+                guard required.isSubset(of: Set(table.headers)) else { throw Failure.invalid(L10n.text("mac.cSV.preview.40dbf2b5b9")) }
                 let book = try MacCurrency.code(bookCurrency)
                 generatedIDs = true
                 var rows: [CSVImportSectionTable.RawRow] = []
                 for row in table.rows {
-                    guard let currency = row.values["currency"], !currency.isEmpty else { throw Failure.invalid("row \(row.rowIndex): Currency") }
+                    guard let currency = row.values["currency"], !currency.isEmpty else { throw Failure.invalid(L10n.format("mac.cSV.preview.df8880a06e", "\(row.rowIndex)")) }
                     let source = try MacCurrency.code(currency)
                     let amount = try MacTransactionCRUD.amount(row.values["amount"] ?? "")
                     try MacTransactionCRUD.validateManualNote(row.values["note"] ?? "")
                     let typeText = (row.values["type"] ?? "").lowercased()
                     guard let type = ["income": TransactionType.income, "expense": .expense,
                         "收入": .income, "支出": .expense, "доход": .income, "расход": .expense][typeText]
-                    else { throw Failure.invalid("row \(row.rowIndex): Type") }
+                    else { throw Failure.invalid(L10n.format("mac.cSV.preview.46eba9c5c6", "\(row.rowIndex)")) }
                     let category = try MacTransactionCRUD.validatedCategory(row.values["category"] ?? "")
                     let date = try parsedDate(row.values["date"] ?? "", field: "row \(row.rowIndex): Date")
                     let rawRate = row.values["exchange_rate"] ?? ""
@@ -158,12 +158,12 @@ enum MacCSV {
         var normalized: [String: CSVImportSectionTable] = [:]
         for (key, table) in sections {
             let normalizedKey = key.filter { !$0.isWhitespace }
-            guard normalized[normalizedKey] == nil else { throw Failure.invalid("Repeated section " + table.sectionTitle) }
+            guard normalized[normalizedKey] == nil else { throw Failure.invalid(L10n.text("mac.cSV.preview.d181659473") + table.sectionTitle) }
             normalized[normalizedKey] = table
         }
         sections = normalized
         if let expectedKind, Set(sections.keys) != [expectedKind.sectionKey] {
-            throw Failure.invalid("请选择\(expectedKind.title)的独立CSV；混合文件请使用旧版完整CSV兼容入口")
+            throw Failure.invalid(L10n.format("mac.cSV.preview.d760426315", "\(expectedKind.title)"))
         }
         try validate(sections)
         let count = sections.values.reduce(0) { $0 + $1.rows.count }
@@ -175,14 +175,14 @@ enum MacCSV {
             }
         }
         if expectedKind != nil, currencies != [try MacCurrency.code(bookCurrency)] {
-            throw Failure.invalid("独立数据文件的本位币必须与当前账本一致；原版历史文件请使用兼容入口并核对本位币")
+            throw Failure.invalid(L10n.text("mac.cSV.preview.c030f4decc"))
         }
         return Preview(sections: sections, count: count, currencies: currencies.sorted(), standardBookCurrency: expectedKind == nil ? nil : bookCurrency, kind: expectedKind, hasStableIDs: !generatedIDs)
     }
 
     static func commit(_ preview: Preview, in context: ModelContext) throws -> FullDataImportCommitResult {
         try MacRecoveryJournal.assertWritable(in:context)
-        guard !context.hasChanges else { throw Failure.invalid("Save or cancel pending edits first") }
+        guard !context.hasChanges else { throw Failure.invalid(L10n.text("mac.cSV.commit.82ac20d190")) }
         if let currency = preview.standardBookCurrency {
             _ = try MacCurrency.ledgerCurrency(in: context, preferred: currency)
         }
@@ -239,9 +239,9 @@ enum MacCSV {
         let day = dayParser
         let datePart = String(value.prefix(10))
         guard datePart.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", options: .regularExpression) != nil,
-              let date = day.date(from: datePart), day.string(from: date) == datePart else { throw Failure.invalid(field + " 日期无效") }
+              let date = day.date(from: datePart), day.string(from: date) == datePart else { throw Failure.invalid(field + L10n.text("mac.cSV.parsedDate.a1ecc86402")) }
         if value == datePart { return date }
-        guard value.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$", options: .regularExpression) != nil else { throw Failure.invalid(field + " 需要YYYY-MM-DD或带时区ISO 8601时间") }
+        guard value.range(of: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$", options: .regularExpression) != nil else { throw Failure.invalid(field + L10n.text("mac.cSV.parsedDate.41d4a47927")) }
         if let date = isoParser.date(from: value) { return date }
         if let date = fractionalISOParser.date(from: value) { return date }
         throw Failure.invalid(field)
@@ -261,21 +261,21 @@ enum MacCSV {
             "loans": ["StartDate", "CreatedAt", "UpdatedAt"], "goals": ["StartDate", "CreatedAt", "UpdatedAt"],
             "financialprofile": ["CreatedAt", "UpdatedAt"], "categories": ["CreatedAt", "UpdatedAt"], "accounts": ["CreatedAt"]]
         for (key, table) in sections {
-            guard let required = numbers[key] else { throw Failure.invalid("Unknown section \(table.sectionTitle)") }
+            guard let required = numbers[key] else { throw Failure.invalid(L10n.format("mac.cSV.validate.0143611a9e", "\(table.sectionTitle)")) }
             var seen = Set<UUID>()
             for row in table.rows {
                 let v = row.values
                 let detail = "\(table.sectionTitle), row \(row.rowIndex)"
                 if key == "goals", let precision = v["TargetDatePrecision"], !precision.isEmpty,
-                   TargetDatePrecision(rawValue: precision) == nil { throw Failure.invalid(detail + ": target date precision") }
+                   TargetDatePrecision(rawValue: precision) == nil { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.1d3be7e5f1")) }
                 if key == "goals", let raw = v["TargetDateValue"], !raw.isEmpty {
                     guard let precision = v["TargetDatePrecision"].flatMap(TargetDatePrecision.init(rawValue:)),
                           !(v["Deadline"] ?? "").isEmpty, GoalTargetTime.components(raw, precision: precision) != nil
-                    else { throw Failure.invalid(detail + ": target date calendar value") }
+                    else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.1c7e1c08ca")) }
                 }
                 for field in ["IsActive", "NotificationsEnabled", "HasCreditedInterest", "IsInterestManuallyEdited", "IncludesCurrentAssets", "IsAccomplished", "IsPaused"] {
                     if let raw = v[field], !["true", "false", "1", "0", "yes", "no"].contains(raw.lowercased()) {
-                        throw Failure.invalid(detail + ": " + field + " 状态无效")
+                        throw Failure.invalid(detail + ": " + field + L10n.text("mac.cSV.validate.181c62eb4a"))
                     }
                 }
                 for (field, range) in [("ReminderDaysBefore", 0...365), ("ReminderHour", 0...23), ("ReminderMinute", 0...59)] {
@@ -305,19 +305,19 @@ enum MacCSV {
                           let base = Double(v["BaseAmount"] ?? ""), base >= 0,
                           let rate = Double(v["ExchangeRateToBase"] ?? ""), rate > 0,
                           let source = v["OriginalCurrency"], let book = v["BaseCurrency"]
-                    else { throw Failure.invalid(detail + ": transaction snapshot") }
+                    else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.d6360b0805")) }
                     if key == "transactions" {
                         do { try MacBankSettlement.validateSavedSnapshot(amount:original,actual:base,source:source,base:book,rate:rate,allowLegacyPrecision:true) }
-                        catch { throw Failure.invalid(detail + ": inconsistent exchange snapshot") }
+                        catch { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.f19c736b64")) }
                     } else {
                         let expected = try MacCurrency.snapshot(amount:original,original:source,base:book,rate:rate)
-                        guard abs(expected.baseAmount - base) < 0.005 else { throw Failure.invalid(detail + ": inconsistent exchange snapshot") }
+                        guard abs(expected.baseAmount - base) < 0.005 else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.f19c736b64")) }
                     }
                 }
                 if key == "recurringtransactions" {
                     guard let interval = Int(v["IntervalValue"] ?? ""), (1...365).contains(interval),
                           RecurringIntervalUnit(rawValue: v["IntervalUnit"] ?? "") != nil
-                    else { throw Failure.invalid(detail + ": recurring interval") }
+                    else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.5e73370af6")) }
                 }
                 if key == "loans" {
                     guard let term = Int(v["TermMonths"] ?? ""), (1...600).contains(term),
@@ -331,9 +331,9 @@ enum MacCSV {
                           let base = Double(v["BasePrincipal"] ?? ""), base > 0,
                           let rate = Double(v["ExchangeRateToBase"] ?? ""), rate > 0, rate <= 1e9,
                           let source = v["Currency"], let book = v["BaseCurrency"]
-                    else { throw Failure.invalid(detail + ": loan schedule") }
+                    else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.826fbd51d4")) }
                     do { try MacBankSettlement.validateSavedSnapshot(amount:principal,actual:base,source:source,base:book,rate:rate,allowLegacyPrecision:true) }
-                    catch { throw Failure.invalid(detail + ": inconsistent loan snapshot") }
+                    catch { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.12cc9f2068")) }
                 }
                 if key == "deposits" {
                     guard let principal = Double(v["Principal"] ?? ""), principal > 0,
@@ -347,17 +347,17 @@ enum MacCSV {
                           let source = v["OriginalCurrency"], source == v["Currency"], let book = v["BaseCurrency"],
                           DepositInterestSettlementMode(rawValue: v["InterestSettlementMode"] ?? "") != nil,
                           try parsedDate(v["StartDate"] ?? "", field: detail) < parsedDate(v["MaturityDate"] ?? "", field: detail)
-                    else { throw Failure.invalid(detail + ": deposit terms") }
+                    else { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.9ad1223c30")) }
                     do {
                         try MacBankSettlement.validateSavedSnapshot(amount:principal,actual:base,source:source,base:book,rate:principalRate,allowLegacyPrecision:true)
                         try MacBankSettlement.validateSavedSnapshot(amount:interest,actual:baseInterest,source:source,base:book,rate:interestRate,allowLegacyPrecision:true)
-                    } catch { throw Failure.invalid(detail + ": inconsistent deposit snapshot") }
+                    } catch { throw Failure.invalid(detail + L10n.text("mac.cSV.validate.d9fa1d9d9e")) }
                 }
                 if key == "goals", (Double(v["TargetAmount"] ?? "") ?? 0) <= 0 {
-                    throw Failure.invalid(detail + ": target amount must be positive")
+                    throw Failure.invalid(detail + L10n.text("mac.cSV.validate.af6e37510a"))
                 }
                 if key == "financialprofile", (Double(v["InitialAssets"] ?? "") ?? -1) < 0 {
-                    throw Failure.invalid(detail + ": initial assets must be nonnegative")
+                    throw Failure.invalid(detail + L10n.text("mac.cSV.validate.5b55acae25"))
                 }
             }
         }

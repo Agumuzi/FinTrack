@@ -57,8 +57,8 @@ enum MacNotifications {
     }
     static func updateRequest(_ release: MacUpdateRelease) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
-        content.title = "FinTrack 有新版本"
-        content.body = "v\(release.version) 已可下载，点击查看更新。"
+        content.title = L10n.text("mac.notifications.updateRequest.aae021ecb2")
+        content.body = L10n.format("mac.notifications.updateRequest.0477a73d85", "\(release.version)")
         content.sound = .default; content.userInfo = ["route":"updates","build":release.build]
         return UNNotificationRequest(identifier:"update-\(release.build)",content:content,trigger:UNTimeIntervalNotificationTrigger(timeInterval:1,repeats:false))
     }
@@ -93,11 +93,11 @@ enum MacNotifications {
         let rules = try context.fetch(FetchDescriptor<RecurringTransaction>())
         for record in deposits where record.deletedAt == nil && record.isActive && record.notificationsEnabled {
             result.append(Plan(id: "deposit-\(record.id)-\(Int64(record.maturityDate.timeIntervalSince1970))", title: record.bankName,
-                body: "存款即将到期，请核对到账与结息。", date: reminder(record.maturityDate, days: record.reminderDaysBefore, hour: record.reminderHour, minute: record.reminderMinute), route: "deposits"))
+                body: L10n.text("mac.notifications.Plan.e03eaf1f66"), date: reminder(record.maturityDate, days: record.reminderDaysBefore, hour: record.reminderHour, minute: record.reminderMinute), route: "deposits"))
         }
         for rule in rules where enabled("v2_remind_recurring") && rule.deletedAt == nil && rule.isActive && rule.notificationsEnabled && (rule.endDate == nil || rule.nextExecutionDate <= rule.endDate!) {
             result.append(Plan(id: "recurring-\(rule.id)-\(Int64(rule.nextExecutionDate.timeIntervalSince1970))", title: rule.title,
-                body: "周期收支计划即将发生，请核对账目。", date: reminder(rule.nextExecutionDate, days: rule.reminderDaysBefore, hour: rule.reminderHour, minute: rule.reminderMinute), route: "recurring"))
+                body: L10n.text("mac.notifications.Plan.22c6250f3b"), date: reminder(rule.nextExecutionDate, days: rule.reminderDaysBefore, hour: rule.reminderHour, minute: rule.reminderMinute), route: "recurring"))
         }
         let rows = try context.fetch(FetchDescriptor<Transaction>())
         let loans = try context.fetch(FetchDescriptor<LoanRule>())
@@ -110,7 +110,7 @@ enum MacNotifications {
             let goals = try context.fetch(FetchDescriptor<Goal>())
             for goal in goals where goal.deletedAt == nil && !goal.isPaused && !goal.isAccomplished && !goal.isCompleted(currentNetWorth: net, baselineNetWorth: Goal.baselineNetWorth(from: profile)) {
                 if let target = goal.targetTime.planningBoundary() {
-                    result.append(Plan(id: "goal-\(goal.id)-\(Int64(target.timeIntervalSince1970))", title: goal.title, body: "目标临近期望时间，请查看进度。", date: reminder(target, days: 30, hour: 9, minute: 0), route: "goals"))
+                    result.append(Plan(id: "goal-\(goal.id)-\(Int64(target.timeIntervalSince1970))", title: goal.title, body: L10n.text("mac.notifications.Plan.1c3cc27a3d"), date: reminder(target, days: 30, hour: 9, minute: 0), route: "goals"))
                 }
             }
         }
@@ -122,7 +122,7 @@ enum MacNotifications {
                 let ratio = snapshot.spent(budget) / budget.amount
                 if ratio >= 0.8 {
                     let level = ratio >= 1 ? 100 : 80
-                    result.append(Plan(id: "budget-\(budget.id)-\(budget.month)-\(level)", title: "预算提醒", body: "本月一项预算已使用 \(level)% 或以上。", date: now, route: "budgets"))
+                    result.append(Plan(id: "budget-\(budget.id)-\(budget.month)-\(level)", title: L10n.text("mac.notifications.Plan.865635c395"), body: L10n.format("mac.notifications.Plan.18cb8b5ff7", "\(level)"), date: now, route: "budgets"))
                 }
             }
         }

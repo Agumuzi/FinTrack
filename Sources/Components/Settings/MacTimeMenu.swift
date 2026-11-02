@@ -3,6 +3,7 @@ import SwiftUI
 /// Time is edited through the same card menus as other choices, without a
 /// platform date-field stepper competing with the application's design system.
 struct MacTimeMenu: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
     @Binding var date: Date
     var identifier = "timeChoice"
@@ -25,15 +26,15 @@ struct MacTimeMenu: View {
         }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(identifier).accessibilityValue(MacDisplayPreferences.time(date))
             .popover(isPresented: $showing) {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("选择时间").appFont(.section, weight: .semibold)
+                    Text(L10n.text("mac.timeMenu.body.3b8e6032ab")).appFont(.section, weight: .semibold)
                     HStack(spacing: 10) {
-                        MacSettingsMenu(selection: $hour, options: (0...23).map { (String(format: "%02d 时", $0), $0) }).frame(width: 110).accessibilityIdentifier(identifier + "Hour")
+                        MacSettingsMenu(selection: $hour, options: (0...23).map { (String(format: L10n.text("mac.timeMenu.MacSettingsMenu.5743e995d3"), $0), $0) }).frame(width: 110).accessibilityIdentifier(identifier + "Hour")
                         Text(":").foregroundStyle(.secondary)
-                        MacSettingsMenu(selection: $minute, options: (0...59).map { (String(format: "%02d 分", $0), $0) }).frame(width: 110).accessibilityIdentifier(identifier + "Minute")
+                        MacSettingsMenu(selection: $minute, options: (0...59).map { (String(format: L10n.text("mac.timeMenu.MacSettingsMenu.e370c4e9dd"), $0), $0) }).frame(width: 110).accessibilityIdentifier(identifier + "Minute")
                     }
                     HStack {
-                        Button("取消") { showing = false }; Spacer()
-                        Button("完成") { date = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date; showing = false }.keyboardShortcut(.defaultAction)
+                        Button(L10n.text("mac.timeMenu.body.2cd0f3be87")) { showing = false }; Spacer()
+                        Button(L10n.text("mac.timeMenu.body.c0b3fbff51")) { date = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date; showing = false }.keyboardShortcut(.defaultAction)
                     }
                 }.padding(18).background(MacPopoverKeyboardActions(cancel: { showing = false }, done: { date = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date; showing = false }).frame(width: 0, height: 0))
             }

@@ -5,6 +5,7 @@ import Charts
 import UniformTypeIdentifiers
 
 struct MacCurrencySettingsView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var wide: Bool
     @ObservedObject private var monitor = MacFXApplication.shared.monitor
     @ObservedObject private var query = MacFXApplication.shared.query
@@ -47,12 +48,12 @@ struct MacCurrencySettingsView: View {
                         Button { section = name } label: {
                             HStack(spacing:8) {
                                 Image(systemName:sectionIcon(name)).appIconFont(19).accessibilityHidden(true)
-                                Text(name).appFont(.body,weight:.semibold).lineLimit(1)
+                                Text(L10n.builtIn(name)).appFont(.body,weight:.semibold).lineLimit(1)
                             }.padding(.horizontal,8).frame(maxWidth:.infinity,minHeight:58)
                                 .foregroundStyle(section == name ? MacUI.accent : .primary)
                                 .background(section == name ? MacUI.accent.opacity(0.1) : MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:10))
                                 .overlay(RoundedRectangle(cornerRadius:10).strokeBorder(section == name ? MacUI.accent.opacity(0.35) : .gray.opacity(0.14)))
-                        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(name).accessibilityIdentifier("settingsSegment-" + name).accessibilityValue(section == name ? "已选中" : "未选中")
+                        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityLabel(L10n.builtIn(name)).accessibilityIdentifier("settingsSegment-" + name).accessibilityValue(section == name ? L10n.text("mac.currencySettingsView.ForEach.a737fd72b0") : L10n.text("mac.currencySettingsView.ForEach.0e0c21de69"))
                     }
                 }.accessibilityElement(children:.contain).accessibilityIdentifier("fxSettingsSections")
                     .appPadding(.horizontal,22).appPadding(.bottom,14)
@@ -86,10 +87,10 @@ struct MacCurrencySettingsView: View {
         }
         .sheet(item: $editingSource) { MacFXSourceEditor(source: $0, from: quoteBase, to: selected == quoteBase ? "CNY" : selected) }
         .sheet(isPresented: $showRebase) { MacCurrencyRebaseView() }
-        .alert("删除自定义数据源？", isPresented: Binding(get: { removingSource != nil }, set: { if !$0 { removingSource = nil } })) {
-            Button("取消", role: .cancel) { removingSource = nil }
-            Button("删除", role: .destructive) { if let removingSource { Task {do {try await MacFXService.removeAsync(removingSource);self.removingSource=nil}catch{self.error=error.localizedDescription}} } }
-        } message: { Text("同时移除对应 API Key，历史交易与报价保持不变。") }
+        .alert(L10n.text("mac.currencySettingsView.body.ce6d2a9642"), isPresented: Binding(get: { removingSource != nil }, set: { if !$0 { removingSource = nil } })) {
+            Button(L10n.text("mac.currencySettingsView.body.2cd0f3be87"), role: .cancel) { removingSource = nil }
+            Button(L10n.text("mac.currencySettingsView.body.2f9daa8289"), role: .destructive) { if let removingSource { Task {do {try await MacFXService.removeAsync(removingSource);self.removingSource=nil}catch{self.error=error.localizedDescription}} } }
+        } message: { Text(L10n.text("mac.currencySettingsView.body.51c5b22f4f")) }
     }
     private func consumeSectionRequest() {
         guard let requested = query.settingsSectionRequest else { return }
@@ -100,31 +101,31 @@ struct MacCurrencySettingsView: View {
         switch name { case "通用":"globe"; case "记账":"book.closed"; case "菜单栏":"menubar.rectangle"; case "数据源":"network"; default:"clock.arrow.circlepath" }
     }
     private var accountingCard: some View {
-        MacSettingsCard(title:"记账汇率",icon:"book.closed",subtitle:"主窗口、快速记账及其他记账场景使用，不影响菜单栏换算。") {
+        MacSettingsCard(title:L10n.text("mac.currencySettingsView.accountingCard.77084c2fe4"),icon:"book.closed",subtitle:L10n.text("mac.currencySettingsView.accountingCard.b8f9861d55")) {
             MacFXScenarioSourcePicker(scenario:.accounting)
             HStack {
-                Text("获取时核验交易日期，保存前仍可手动调整金额与汇率。").appFont(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("mac.currencySettingsView.accountingCard.96604e0c09")).appFont(.caption).foregroundStyle(.secondary)
                 Spacer(minLength:12)
-                Button("管理数据源") { section = "数据源" }.accessibilityIdentifier("fxAccountingManageSources")
+                Button(L10n.text("mac.currencySettingsView.accountingCard.715ced418f")) { section = L10n.text("mac.currencySettingsView.accountingCard.186be2232e") }.accessibilityIdentifier("fxAccountingManageSources")
             }
         }.accessibilityElement(children:.contain).accessibilityIdentifier("fxAccountingSettingsCard")
     }
     private func menuSettings(height:CGFloat) -> some View {
         VStack(alignment:.leading,spacing:16) {
-            MacSettingsCard(title:"菜单栏汇率",icon:"menubar.rectangle",subtitle:"用于汇率列表和换算；快速记账仍使用记账设置。") {
+            MacSettingsCard(title:L10n.text("mac.currencySettingsView.menuSettings.16608b170f"),icon:"menubar.rectangle",subtitle:L10n.text("mac.currencySettingsView.menuSettings.4f2caa744f")) {
                 MacFXScenarioSourcePicker(scenario:.menuBar)
                 HStack {
                     MacFXLastUpdatedView(service:monitor)
-                    Button("更新菜单栏汇率",systemImage:"arrow.clockwise") { Task { await refresh() } }.disabled(busy).accessibilityIdentifier("settingsRefreshRates")
+                    Button(L10n.text("mac.currencySettingsView.menuSettings.e20e7c296d"),systemImage:"arrow.clockwise") { Task { await refresh() } }.disabled(busy).accessibilityIdentifier("settingsRefreshRates")
                 }
             }.accessibilityElement(children:.contain).accessibilityIdentifier("fxMenuSettingsCard")
             VStack(alignment:.leading,spacing:0) {
                 Button { menuOptionsExpanded.toggle() } label: {
                     HStack {
-                        Label("显示与更新",systemImage:"slider.horizontal.3").appFont(.body,weight:.semibold)
+                        Label(L10n.text("mac.currencySettingsView.menuSettings.5977e70b01"),systemImage:"slider.horizontal.3").appFont(.body,weight:.semibold)
                         Spacer(); Image(systemName:menuOptionsExpanded ? "chevron.up" : "chevron.down").appIconFont(13)
                     }.frame(minHeight:30).contentShape(Rectangle())
-                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxMenuPreferencesToggle").accessibilityValue(menuOptionsExpanded ? "已展开" : "已收起")
+                }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("fxMenuPreferencesToggle").accessibilityValue(menuOptionsExpanded ? L10n.text("mac.currencySettingsView.menuSettings.df647b73b9") : L10n.text("mac.currencySettingsView.menuSettings.e64447db76"))
                 if menuOptionsExpanded { MacFXPreferencesView(section:.display,includeDirectoryAndSources:false,includeDisplayLists:false).padding(.top,12) }
             }.padding(16).background(MacOverviewStyle.card,in:RoundedRectangle(cornerRadius:13)).accessibilityElement(children:.contain).accessibilityIdentifier("fxMenuPreferencesGroup")
             MacFXDisplaySettings(availableHeight:min(height,470))
@@ -132,17 +133,17 @@ struct MacCurrencySettingsView: View {
     }
     private var directoryAddForm: some View {
         VStack(alignment:.leading,spacing:12) {
-            Text("添加货币").appFont(.section,weight:.semibold)
-            Text("输入三位英文字母代码，添加到统一货币目录。").appFont(.caption).foregroundStyle(.secondary)
+            Text(L10n.text("mac.currencySettingsView.directoryAddForm.e23aee63c4")).appFont(.section,weight:.semibold)
+            Text(L10n.text("mac.currencySettingsView.directoryAddForm.540feb7595")).appFont(.caption).foregroundStyle(.secondary)
             HStack(spacing:10) {
                 MacCurrencyFlag(code:newCurrency.uppercased(),width:24).fixedSize()
-                TextField("货币代码，如 CAD",text:$newCurrency).textFieldStyle(MacSettingsFieldStyle()).accessibilityIdentifier("fxDirectoryCustomCode")
+                TextField(L10n.text("mac.currencySettingsView.directoryAddForm.37c5e6b8cb"),text:$newCurrency).textFieldStyle(MacSettingsFieldStyle()).accessibilityIdentifier("fxDirectoryCustomCode")
             }
             if let currencyAddError { Text(currencyAddError).appFont(.caption).foregroundStyle(.red) }
             HStack {
-                Button("取消") { addingCurrency = false; newCurrency = ""; currencyAddError = nil }.accessibilityIdentifier("fxDirectoryCancel")
+                Button(L10n.text("mac.currencySettingsView.directoryAddForm.2cd0f3be87")) { addingCurrency = false; newCurrency = ""; currencyAddError = nil }.accessibilityIdentifier("fxDirectoryCancel")
                 Spacer()
-                Button("添加") {
+                Button(L10n.text("mac.currencySettingsView.directoryAddForm.7a8a11ead5")) {
                     do {
                         let code = try MacCurrency.code(newCurrency)
                         try MacSettingsStore.save(MacCurrencyDirectory.ordered(codes + [code], base: baseCurrency),key:"v2_currencies")
@@ -153,15 +154,15 @@ struct MacCurrencySettingsView: View {
         }.appFont(.body).padding(18).frame(width:340)
     }
     private var currencyCard: some View {
-        MacSettingsCard(title:"货币目录",icon:"banknote",subtitle:"记账和查询使用的统一货币目录。",action:AnyView(Button("添加货币",systemImage:"plus") { addingCurrency = true }.accessibilityIdentifier("settingsCurrencyAdd").popover(isPresented:$addingCurrency) { directoryAddForm })) {
+        MacSettingsCard(title:L10n.text("mac.currencySettingsView.currencyCard.441d6be316"),icon:"banknote",subtitle:L10n.text("mac.currencySettingsView.currencyCard.f5bf343017"),action:AnyView(Button(L10n.text("mac.currencySettingsView.AnyView.e23aee63c4"),systemImage:"plus") { addingCurrency = true }.accessibilityIdentifier("settingsCurrencyAdd").popover(isPresented:$addingCurrency) { directoryAddForm })) {
             HStack {
-                Text("管理可选币种；菜单栏显示另行设置。").appFont(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("mac.currencySettingsView.currencyCard.d1f6c31961")).appFont(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(directoryCodes.count) 个币种").appFont(.caption).foregroundStyle(.secondary)
+                Text(L10n.format("mac.currencySettingsView.currencyCard.1244ace08a", Int64(directoryCodes.count))).appFont(.caption).foregroundStyle(.secondary)
             }
             HStack {
-                Text("货币"); Spacer()
-                Text("状态").frame(width:max(80,MacUI.fontTier.bodySize * 4.5)); Color.clear.frame(width:28,height:1)
+                Text(L10n.text("mac.currencySettingsView.currencyCard.04ee13cd1d")); Spacer()
+                Text(L10n.text("mac.currencySettingsView.currencyCard.6320b4a872")).frame(width:max(80,MacUI.fontTier.bodySize * 4.5)); Color.clear.frame(width:28,height:1)
             }.appFont(.caption).foregroundStyle(.secondary).padding(.horizontal,10).frame(minHeight:32)
             VStack(spacing:0) {
                 ForEach(directoryCodes,id:\.self) { code in
@@ -175,12 +176,12 @@ struct MacCurrencySettingsView: View {
     }
     private func saveDirectory(_ order: [String]) { do { try MacSettingsStore.save(MacCurrencyDirectory.ordered(order, base: baseCurrency), key: "v2_currencies") } catch { self.error = MacLocalization.error(error) } }
     private var bookCurrencyCard: some View {
-        MacSettingsCard(title:"账本本位币",icon:"books.vertical",subtitle:"与查询参考币种分别管理。") {
+        MacSettingsCard(title:L10n.text("mac.currencySettingsView.bookCurrencyCard.abf35c9ecc"),icon:"books.vertical",subtitle:L10n.text("mac.currencySettingsView.bookCurrencyCard.6d1581d8e3")) {
             HStack {
                 MacCurrencyFlag(code:baseCurrency,width:24)
                 Text(baseCurrency).appFont(.body,weight:.semibold)
                 Spacer()
-                Button("更改账本币种…") { showRebase = true }.accessibilityIdentifier("fxChangeBookCurrency")
+                Button(L10n.text("mac.currencySettingsView.bookCurrencyCard.c029a1ca4f")) { showRebase = true }.accessibilityIdentifier("fxChangeBookCurrency")
             }
         }.accessibilityElement(children:.contain).accessibilityIdentifier("fxBookCurrencyCard")
     }
@@ -195,7 +196,7 @@ struct MacCurrencySettingsView: View {
             .background(selected == code ? MacSettingsVisual.accent.opacity(0.045) : .clear)
     }
     private func currencyChoice(_ code: String) -> some View {
-        Button { selected = code; section = "历史记录" } label: {
+        Button { selected = code; section = L10n.text("mac.currencySettingsView.currencyChoice.5467922dce") } label: {
             HStack(spacing:10) {
                 MacCurrencyFlag(code:code,width:26).fixedSize()
                 Text(code).appFont(.body,weight:.semibold).lineLimit(1).frame(width:max(48,MacUI.fontTier.bodySize * 3),alignment:.leading)
@@ -205,22 +206,22 @@ struct MacCurrencySettingsView: View {
         }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsCurrency-" + code)
     }
     private func currencyStatus(_ code: String) -> some View {
-        Text(code == baseCurrency ? "账本币种" : disabled.contains(code) ? "未启用" : "使用中")
+        Text(code == baseCurrency ? L10n.text("mac.currencySettingsView.currencyStatus.811a5f783e") : disabled.contains(code) ? L10n.text("mac.currencySettingsView.currencyStatus.f95ea7f4c0") : L10n.text("mac.currencySettingsView.currencyStatus.fa48e89389"))
             .appFont(.caption, weight: .medium, design: .default).foregroundStyle(disabled.contains(code) ? Color.secondary : Color.green)
             .appPadding(.horizontal, 8).appPadding(.vertical, 4)
             .background(disabled.contains(code) ? Color.gray.opacity(0.08) : Color.green.opacity(0.1), in: Capsule())
     }
     private func currencyActions(_ code: String) -> some View {
         Menu {
-            Button(disabled.contains(code) ? "启用货币" : "停用货币") { toggleCurrency(code) }.disabled(code == baseCurrency)
-            Button("从列表移除", role: .destructive) { removeCurrency(code) }.disabled(code == baseCurrency)
+            Button(disabled.contains(code) ? L10n.text("mac.currencySettingsView.Menu.a574f875b0") : L10n.text("mac.currencySettingsView.Menu.b55dc6bab6")) { toggleCurrency(code) }.disabled(code == baseCurrency)
+            Button(L10n.text("mac.currencySettingsView.Menu.e29e4fe7be"), role: .destructive) { removeCurrency(code) }.disabled(code == baseCurrency)
         } label: { Image(systemName: "ellipsis").appIconFont(16).frame(width: MacUI.space(28), height: MacUI.space(28)) }
             .menuStyle(.borderlessButton).fixedSize()
     }
     private var sourcesCard: some View {
-        MacSettingsCard(title: "自定义数据源", icon: "network", action: AnyView(Button("添加自定义 API", systemImage: "plus") { editingSource = MacFXTemplate.twelveData.source() }.accessibilityIdentifier("settingsFXAdd")), compactHeader: true) {
+        MacSettingsCard(title: L10n.text("mac.currencySettingsView.sourcesCard.c17f50d78f"), icon: "network", action: AnyView(Button(L10n.text("mac.currencySettingsView.AnyView.ae3676ce6b"), systemImage: "plus") { editingSource = MacFXTemplate.twelveData.source() }.accessibilityIdentifier("settingsFXAdd")), compactHeader: true) {
             VStack(spacing: MacUI.space(0)) {
-                if sources.isEmpty { Text("可选扩展。无需添加自定义API，系统数据源也能提供汇率。").appFont(.caption).foregroundStyle(.secondary).padding(.vertical,12) }
+                if sources.isEmpty { Text(L10n.text("mac.currencySettingsView.sourcesCard.203e0c4ddf")).appFont(.caption).foregroundStyle(.secondary).padding(.vertical,12) }
                 ForEach(Array(sources.enumerated()), id: \.element.id) { index, source in
                     sourceRow(source, index: index)
                     Divider()
@@ -231,18 +232,18 @@ struct MacCurrencySettingsView: View {
     private func sourceRow(_ source: MacFXSource, index: Int) -> some View {
 HStack(spacing: MacUI.space(8)) {
                         MacFXSourceImage(source: source, size: 29)
-                        Button { editingSource = source } label: { VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(source.name).appFont(.body, weight: .semibold, design: .default).lineLimit(1); Text(index < 2 && MacSettingsVisual.preview ? "官方汇率数据 · 演示" : "自定义 API").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()) }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsFXSource-" + source.name)
-                        Text(monitor.quotes.filter { $0.identity.sourceID == source.id.uuidString }.max { $0.retrievedAt < $1.retrievedAt }.map { MacDateDisplay.string($0.retrievedAt) + "\n" + MacDisplayPreferences.time($0.retrievedAt) } ?? "尚未更新").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(70))
-                        Text(source.enabled ? "启用" : "停用").appFont(.caption, weight: .medium, design: .default).foregroundStyle(source.enabled ? Color.green : Color.secondary).appPadding(5).background(source.enabled ? Color.green.opacity(0.09) : .gray.opacity(0.05), in: Capsule())
-                        Toggle("启用" + source.name, isOn: Binding(get: { source.enabled }, set: { toggle(source, enabled: $0) })).labelsHidden().toggleStyle(.switch).controlSize(.small).tint(.blue).accessibilityIdentifier("fxEnable-" + source.name)
-                        Menu { Button("编辑") { editingSource = source }; Button("删除", role: .destructive) { removingSource = source } } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
+                        Button { editingSource = source } label: { VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(source.name).appFont(.body, weight: .semibold, design: .default).lineLimit(1); Text(index < 2 && MacSettingsVisual.preview ? L10n.text("mac.currencySettingsView.sourceRow.57e316acb2") : L10n.text("mac.currencySettingsView.sourceRow.cadf64cf74")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()) }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("settingsFXSource-" + source.name)
+                        Text(monitor.quotes.filter { $0.identity.sourceID == source.id.uuidString }.max { $0.retrievedAt < $1.retrievedAt }.map { MacDateDisplay.string($0.retrievedAt) + "\n" + MacDisplayPreferences.time($0.retrievedAt) } ?? L10n.text("mac.currencySettingsView.sourceRow.bee4c96edd")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary).frame(width: MacUI.space(70))
+                        Text(source.enabled ? L10n.text("mac.currencySettingsView.sourceRow.f4f0ead111") : L10n.text("mac.currencySettingsView.sourceRow.4e6fd0e28c")).appFont(.caption, weight: .medium, design: .default).foregroundStyle(source.enabled ? Color.green : Color.secondary).appPadding(5).background(source.enabled ? Color.green.opacity(0.09) : .gray.opacity(0.05), in: Capsule())
+                        Toggle(L10n.text("mac.currencySettingsView.sourceRow.f4f0ead111") + source.name, isOn: Binding(get: { source.enabled }, set: { toggle(source, enabled: $0) })).labelsHidden().toggleStyle(.switch).controlSize(.small).tint(.blue).accessibilityIdentifier("fxEnable-" + source.name)
+                        Menu { Button(L10n.text("mac.currencySettingsView.Menu.0518365699")) { editingSource = source }; Button(L10n.text("mac.currencySettingsView.Menu.2f9daa8289"), role: .destructive) { removingSource = source } } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize()
                     }.frame(minHeight: MacUI.space(49))
     }
     private var historyCard: some View {
-        MacSettingsCard(title:"已保存的报价",icon:"chart.xyaxis.line",subtitle:"查看已保存报价。已保存账目继续使用各自的金额快照。") {
+        MacSettingsCard(title:L10n.text("mac.currencySettingsView.historyCard.c6bbc7044e"),icon:"chart.xyaxis.line",subtitle:L10n.text("mac.currencySettingsView.historyCard.7f18453b63")) {
             VStack(alignment:.leading,spacing:12) {
                 HStack {
-                    Text("参考币种").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("mac.currencySettingsView.historyCard.42c9eb8c53")).appFont(.caption).foregroundStyle(.secondary)
                     MacCurrencyMenu(selection:$quoteBase,codes:codes,identifier:"currencyHistoryBaseMenu")
                     Spacer()
                 }
@@ -260,19 +261,19 @@ HStack(spacing: MacUI.space(8)) {
             if history.isEmpty {
                 VStack(spacing:10) {
                     Image(systemName:"chart.xyaxis.line").appIconFont(32).foregroundStyle(.secondary).accessibilityHidden(true)
-                    Text("暂无已保存报价").appFont(.body,weight:.semibold)
-                    Text("新的历史走势可在汇率列表卡片中展开查看。").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("mac.currencySettingsView.historyCard.7d033e7470")).appFont(.body,weight:.semibold)
+                    Text(L10n.text("mac.currencySettingsView.historyCard.4d1cb3b6ea")).appFont(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth:.infinity,minHeight:220).accessibilityElement(children:.contain).accessibilityIdentifier("fxHistoryEmpty")
             } else {
                 Chart(history) { point in
-                    AreaMark(x:.value("日期",point.retrievedAt),yStart:.value("基线",minimum * Double(monitor.configuration.displayUnits) * 0.97),yEnd:.value("汇率",point.rate * Double(monitor.configuration.displayUnits))).foregroundStyle(LinearGradient(colors:[.red.opacity(0.2),.red.opacity(0.01)],startPoint:.top,endPoint:.bottom))
-                    LineMark(x:.value("日期",point.retrievedAt),y:.value("汇率",point.rate * Double(monitor.configuration.displayUnits))).foregroundStyle(.red).lineStyle(StrokeStyle(lineWidth:1.6))
+                    AreaMark(x:.value(L10n.text("mac.currencySettingsView.AreaMark.70d0c1b336"),point.retrievedAt),yStart:.value(L10n.text("mac.currencySettingsView.AreaMark.a7ac587ab5"),minimum * Double(monitor.configuration.displayUnits) * 0.97),yEnd:.value(L10n.text("mac.currencySettingsView.AreaMark.57ef2c45ef"),point.rate * Double(monitor.configuration.displayUnits))).foregroundStyle(LinearGradient(colors:[.red.opacity(0.2),.red.opacity(0.01)],startPoint:.top,endPoint:.bottom))
+                    LineMark(x:.value(L10n.text("mac.currencySettingsView.LineMark.70d0c1b336"),point.retrievedAt),y:.value(L10n.text("mac.currencySettingsView.LineMark.57ef2c45ef"),point.rate * Double(monitor.configuration.displayUnits))).foregroundStyle(.red).lineStyle(StrokeStyle(lineWidth:1.6))
                 }.chartYScale(domain:minimum * Double(monitor.configuration.displayUnits) * 0.97...maximum * Double(monitor.configuration.displayUnits) * 1.03).chartXAxis { AxisMarks(values:.stride(by:.month)) { _ in AxisValueLabel(format:.dateTime.month(.twoDigits).day()) } }.frame(minHeight:220)
                 HStack(spacing:0) {
-                    historyMetric(MacFXMath.formatted(minimum * Double(monitor.configuration.displayUnits),digits:monitor.configuration.rateDigits),"区间最低")
+                    historyMetric(MacFXMath.formatted(minimum * Double(monitor.configuration.displayUnits),digits:monitor.configuration.rateDigits),L10n.text("mac.currencySettingsView.historyMetric.47d30e252c"))
                     Divider()
-                    historyMetric(MacFXMath.formatted(maximum * Double(monitor.configuration.displayUnits),digits:monitor.configuration.rateDigits),"区间最高")
-                    Divider(); historyMetric(change,"区间变化")
+                    historyMetric(MacFXMath.formatted(maximum * Double(monitor.configuration.displayUnits),digits:monitor.configuration.rateDigits),L10n.text("mac.currencySettingsView.historyMetric.e215292fd2"))
+                    Divider(); historyMetric(change,L10n.text("mac.currencySettingsView.historyMetric.3e4e456d32"))
                 }.frame(height:64).padding(8).background(.gray.opacity(0.04),in:RoundedRectangle(cornerRadius:8))
             }
         }.accessibilityElement(children:.contain).accessibilityIdentifier("fxHistoryRecordsCard")
@@ -292,6 +293,7 @@ HStack(spacing: MacUI.space(8)) {
 }
 
 struct MacFXSourceEditor: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @Environment(\.dismiss) private var dismiss
     @State var source: MacFXSource
     var from: String
@@ -303,37 +305,37 @@ struct MacFXSourceEditor: View {
     @State private var busy = false
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(15)) {
-            Text("自定义汇率 API").appFont(.dialogTitle, weight: .semibold)
+            Text(L10n.text("mac.currencySettingsView.body.cb986957fd")).appFont(.dialogTitle, weight: .semibold)
             HStack(spacing: MacUI.space(14)) {
                 MacFXSourceImage(source: source, size: 48)
-                MacImageImportControl(data: Binding(get: { source.imageData ?? Data() }, set: { source.imageData = $0.isEmpty ? nil : $0 }), cropTitle: "裁切数据源图片", label: source.name, identifier: "fxSourceImage")
+                MacImageImportControl(data: Binding(get: { source.imageData ?? Data() }, set: { source.imageData = $0.isEmpty ? nil : $0 }), cropTitle: L10n.text("mac.currencySettingsView.MacImageImportControl.629844a140"), label: source.name, identifier: "fxSourceImage")
                 Spacer()
             }
-            MacSettingsRow(label: "数据源模板", labelWidth: 100) {
+            MacSettingsRow(label: L10n.text("mac.currencySettingsView.body.d8f720d148"), labelWidth: 100) {
                 MacSettingsMenu(selection: $template, options: MacFXTemplate.allCases.map { ($0.title, $0) }).accessibilityIdentifier("fxTemplateMenu")
             }
             if template == .custom {
-                TextField("名称", text: $source.name).accessibilityIdentifier("fxSourceName")
-                TextField("HTTPS URL 模板", text: $source.urlTemplate).accessibilityIdentifier("fxSourceURL")
-                TextField("汇率 JSON 路径，如 rates.{quote}", text: $source.ratePath).accessibilityIdentifier("fxSourcePath")
-                TextField("报价日期 JSON 路径（历史汇率必填）", text: $source.datePath).accessibilityIdentifier("fxSourceDatePath")
-                TextField("日级报价时区，如 UTC；未知可留空", text: Binding(get: { source.dateTimeZoneID ?? "" }, set: { source.dateTimeZoneID = $0.isEmpty ? nil : $0 })).accessibilityIdentifier("fxSourceTimeZone")
-                Text("占位符：{base}、{quote}、{baseLower}、{quoteLower}、{date}、{key}。汇率方向：1 base = rate quote。").appFont(.caption).foregroundStyle(.secondary)
+                TextField(L10n.text("mac.currencySettingsView.body.d44e9b3d3b"), text: $source.name).accessibilityIdentifier("fxSourceName")
+                TextField(L10n.text("mac.currencySettingsView.body.9c258cf3d3"), text: $source.urlTemplate).accessibilityIdentifier("fxSourceURL")
+                TextField(L10n.text("mac.currencySettingsView.body.cde0315ba5"), text: $source.ratePath).accessibilityIdentifier("fxSourcePath")
+                TextField(L10n.text("mac.currencySettingsView.body.21c36fa5f9"), text: $source.datePath).accessibilityIdentifier("fxSourceDatePath")
+                TextField(L10n.text("mac.currencySettingsView.body.69bff92570"), text: Binding(get: { source.dateTimeZoneID ?? "" }, set: { source.dateTimeZoneID = $0.isEmpty ? nil : $0 })).accessibilityIdentifier("fxSourceTimeZone")
+                Text(L10n.text("mac.currencySettingsView.body.a8d6a42f38")).appFont(.caption).foregroundStyle(.secondary)
             } else {
-                Text(template == .twelveData ? "填写 Twelve Data 的 API Key 即可使用。" : "填写 Open Exchange Rates 的 App ID 即可使用，支持任意基准币种。")
+                Text(template == .twelveData ? L10n.text("mac.currencySettingsView.body.f1130ec972") : L10n.text("mac.currencySettingsView.body.dd155b795d"))
                     .appFont(.caption).foregroundStyle(.secondary)
             }
-            SecureField(template == .openExchangeRates ? "App ID（保存到钥匙串）" : "API Key（保存到钥匙串）", text: $key).accessibilityIdentifier("fxSourceKey")
-            Text("密钥保存在系统钥匙串。首次迁移旧密钥时可能需要确认一次，此后普通版本更新会沿用授权。")
+            SecureField(template == .openExchangeRates ? L10n.text("mac.currencySettingsView.SecureField.91d1fe9a45") : L10n.text("mac.currencySettingsView.SecureField.d03bad5bcd"), text: $key).accessibilityIdentifier("fxSourceKey")
+            Text(L10n.text("mac.currencySettingsView.body.6f8dba3fcd"))
                 .appFont(.caption).foregroundStyle(.secondary)
-            Toggle("启用此数据源", isOn: $source.enabled)
+            Toggle(L10n.text("mac.currencySettingsView.body.197b44d648"), isOn: $source.enabled)
             if let result { Text(result).foregroundStyle(.green).accessibilityIdentifier("fxConnectionResult") }
             if let error { Text(error).foregroundStyle(.red).accessibilityIdentifier("fxSourceError") }
             HStack {
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button(busy ? "测试中…" : "连接测试") { Task { await test() } }.disabled(busy).accessibilityIdentifier("fxConnectionTest")
+                Button(L10n.text("mac.currencySettingsView.body.2cd0f3be87")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(busy ? L10n.text("mac.currencySettingsView.body.105a9082c3") : L10n.text("mac.currencySettingsView.body.200f465659")) { Task { await test() } }.disabled(busy).accessibilityIdentifier("fxConnectionTest")
                 Spacer()
-                Button("保存") { Task { busy=true;defer{busy=false};do { if template != .custom && key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw MacSettingsFailure.invalid("请填写 API Key / App ID") }; try await MacFXService.saveAsync(source, key: key); dismiss() } catch { self.error = MacLocalization.error(error) } } }.disabled(busy).accessibilityIdentifier("fxSourceSave")
+                Button(L10n.text("mac.currencySettingsView.body.a3030bf8f1")) { Task { busy=true;defer{busy=false};do { if template != .custom && key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw MacSettingsFailure.invalid(L10n.text("mac.currencySettingsView.Task.e0557bf3ba")) }; try await MacFXService.saveAsync(source, key: key); dismiss() } catch { self.error = MacLocalization.error(error) } } }.disabled(busy).accessibilityIdentifier("fxSourceSave")
             }
         }.appPadding(26).appDialog(width: 570)
         .task { template = source.provider.flatMap(MacFXTemplate.init(rawValue:)) ?? .custom; busy=true;defer{busy=false};do {key=try await MacFXSecrets.readAsync(source.id,retryAuthorization:true)}catch{self.error=error.localizedDescription} }
@@ -350,7 +352,7 @@ struct MacFXSourceEditor: View {
             try source.validate()
             let data = try await MacFXService.requestData(source, from: from, to: to, date: Date(), keyOverride: key)
             let (rate, _) = try MacFXService.decode(data, source: source, from: from, to: to, date: nil, preserveRawRate: true)
-            result = "连接成功：1 \(from) = \(rate) \(to)"
+            result = L10n.format("mac.currencySettingsView.test.2708d7a304", "\(from)", "\(rate)", "\(to)")
         }
         catch { self.error = MacLocalization.error(error) }
     }

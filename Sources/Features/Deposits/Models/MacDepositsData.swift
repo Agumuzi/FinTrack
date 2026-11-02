@@ -57,25 +57,39 @@ enum MacDepositsData {
     }
     static func mode(_ deposit: DepositRecord) -> String {
         switch deposit.typedInterestSettlementMode {
-        case .monthly: "每月付息"
-        case .monthlyCompound: "每月复利 · 到期结息"
-        case .maturity: "到期结息"
+        case .monthly: L10n.text("mac.depositsData.mode.02fe877b1a")
+        case .monthlyCompound: L10n.text("mac.depositsData.mode.d3b39619d1")
+        case .maturity: L10n.text("mac.depositsData.mode.ea527e41dd")
         }
     }
     struct ReceiptAudit {
         let receipts: [Transaction]
         let unverifiedCount: Int
         var pendingCount: Int { receipts.filter { ($0.note ?? "").contains("[FTEstimated]") }.count }
+        var partialCount: Int { receipts.filter { ($0.note ?? "").contains("[FTPartial]") && !($0.note ?? "").contains("[FTEstimated]") }.count }
         var postedTotal: Double { FinancialPrecision.roundAmountForStorage(receipts.reduce(0) { $0 + $1.originalAmount }) }
         var total: Double { FinancialPrecision.roundAmountForStorage(receipts.filter { !($0.note ?? "").contains("[FTEstimated]") }.reduce(0) { $0 + $1.originalAmount }) }
     }
     /// Require stable identity, schedule/date/amount and the stored FX snapshot.
     /// Ambiguous or damaged receipts stay visible as an anomaly, outside totals.
-    static func audit(_ deposit: DepositRecord, transactions: [Transaction]) -> ReceiptAudit {
+    static func receiptIdentity(_ note: String?) -> (depositID: UUID, marker: String)? {
+        let parts = (note ?? "").components(separatedBy: "[FTDep:")
+        guard parts.count == 2, let end = parts[1].firstIndex(of: "]") else { return nil }
+        let body = String(parts[1][..<end]), fields = body.split(separator: ":")
+        guard fields.count == 3, let id = UUID(uuidString: String(fields[0])), Int64(fields[1]) != nil,
+              fields[2] == "MP" || fields[2] == "MAT" else { return nil }
+        return (id, "[FTDep:" + body + "]")
+    }
+    static func audit(_ deposit: DepositRecord, transactions: [Transaction],
+                      periods: [MacDepositTerms.Period]? = nil, allowsActualReceiptDate: Bool = false) -> ReceiptAudit {
         let prefix = "[FTDep:\(deposit.id.uuidString):"
         let candidates = transactions.filter { $0.deletedAt == nil && ($0.note ?? "").contains(prefix) }
-        let schedule = MacDepositScheduleView.rows(for: deposit)
+        let schedule = periods ?? MacDepositTerms.schedule(deposit)
         let monthly = deposit.typedInterestSettlementMode == .monthly
+        let periodsByMarker = Dictionary(schedule.map {
+            (MacDepositSettlement.receiptMarker(depositID: deposit.id, date: $0.date, monthly: monthly), $0)
+        }, uniquingKeysWith: { first, _ in first })
+        let grouped = Dictionary(grouping: candidates, by: { receiptIdentity($0.note)?.marker ?? "" })
         var verified: [Transaction] = []
         for entry in candidates {
             guard entry.typedType == .income, entry.originalCurrency == deposit.originalCurrency,
@@ -85,11 +99,11 @@ enum MacDepositsData {
                   entry.exchangeRateToBase.isFinite, entry.exchangeRateToBase > 0,
                   entry.baseAmount == FinancialPrecision.roundAmountForStorage(entry.originalAmount * entry.exchangeRateToBase),
                   entry.amount == entry.baseAmount,
-                  let period = schedule.first(where: {
-                      let marker = MacDepositSettlement.receiptMarker(depositID: deposit.id, date: $0.date, monthly: monthly)
-                      return (entry.note ?? "").contains(marker) && entry.date == $0.date && (abs(entry.originalAmount - $0.interest) < 0.005 || (entry.note ?? "").contains("[FTVerified]"))
-                  }),
-                  candidates.filter({ ($0.note ?? "").contains(MacDepositSettlement.receiptMarker(depositID: deposit.id, date: period.date, monthly: monthly)) }).count == 1
+                  let identity = receiptIdentity(entry.note),
+                  let period = periodsByMarker[identity.marker],
+                  (allowsActualReceiptDate || entry.date == period.date),
+                  (abs(entry.originalAmount - period.interest) < 0.005 || (entry.note ?? "").contains("[FTVerified]")),
+                  grouped[identity.marker]?.count == 1
             else { continue }
             verified.append(entry)
         }

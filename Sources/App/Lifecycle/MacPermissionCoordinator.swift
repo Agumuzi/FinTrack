@@ -11,7 +11,7 @@ final class MacPermissionCoordinator: ObservableObject {
     static let introKey = "v142_permission_intro_seen"
     @Published var presented = false
     @Published private(set) var notificationStatus: UNAuthorizationStatus = .notDetermined
-    @Published private(set) var notificationText = "尚未开启"
+    @Published private(set) var notificationText = L10n.text("mac.permissionCoordinator.notificationText.cb14844ee3")
     @Published private(set) var accessibilityEnabled = false
     @Published private(set) var message: String?
     @Published private(set) var requesting = false
@@ -25,16 +25,16 @@ final class MacPermissionCoordinator: ObservableObject {
             let granted = ProcessInfo.processInfo.environment["FINTRACK_PERMISSION_FIXTURE"] == "granted"
             notificationStatus = granted ? .authorized : .notDetermined; accessibilityEnabled = granted
             #endif
-            notificationText = "隔离测试：不更改系统权限"; return
+            notificationText = L10n.text("mac.permissionCoordinator.refresh.10aa7e5bbc"); return
         }
         notificationStatus = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         switch notificationStatus {
-        case .authorized,.provisional,.ephemeral: notificationText = "已允许"
-        case .denied: notificationText = "已关闭，可在系统设置中开启"
-        case .notDetermined: notificationText = "尚未开启"
-        @unknown default: notificationText = "需要检查系统设置"
+        case .authorized,.provisional,.ephemeral: notificationText = L10n.text("mac.permissionCoordinator.refresh.75d889ac43")
+        case .denied: notificationText = L10n.text("mac.permissionCoordinator.refresh.70036646ae")
+        case .notDetermined: notificationText = L10n.text("mac.permissionCoordinator.refresh.cb14844ee3")
+        @unknown default: notificationText = L10n.text("mac.permissionCoordinator.refresh.01debe0d2d")
         }
-        if !Self.notificationsEnabled { notificationText += " · 本应用通知已关闭" }
+        if !Self.notificationsEnabled { notificationText += L10n.text("mac.permissionCoordinator.refresh.f02fa8bde3") }
         accessibilityEnabled = AXIsProcessTrusted()
         MacAppServices.shared.refreshLoginStatus()
     }
@@ -47,12 +47,12 @@ final class MacPermissionCoordinator: ObservableObject {
     func open() { MacApplicationRuntime.shared.showMain(); Task { await refresh(); presented = true } }
     func finish() { MacPreferences.defaults.set(true,forKey:Self.introKey); presented = false }
     func requestNotifications() async throws {
-        guard !MacPreferences.isTesting else { message = "测试副本不修改系统通知权限。"; return }
+        guard !MacPreferences.isTesting else { message = L10n.text("mac.permissionCoordinator.requestNotifications.ed82159326"); return }
         guard !requesting else { return }; requesting = true; defer { requesting = false }
         do {
             let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.sound,.badge])
             await refresh()
-            guard allowed else { throw MacSettingsFailure.invalid("系统通知未获允许，您可以稍后在系统设置中开启。") }
+            guard allowed else { throw MacSettingsFailure.invalid(L10n.text("mac.permissionCoordinator.requestNotifications.12a7fc4301")) }
             message = nil
         } catch { message = error.localizedDescription; throw error }
     }
@@ -73,7 +73,7 @@ final class MacPermissionCoordinator: ObservableObject {
     func setNotificationsEnabled(_ enabled: Bool) {
         MacPreferences.defaults.set(enabled, forKey: "notifications_enabled"); objectWillChange.send()
         if !enabled { MacNotifications.disableAll(); return }
-        guard !MacPreferences.isTesting else { message = "隔离测试不修改系统授权。"; return }
+        guard !MacPreferences.isTesting else { message = L10n.text("mac.permissionCoordinator.setNotificationsEnabled.b5b79d19db"); return }
         Task {
             await refresh()
             guard Self.notificationsEnabled else { return }
@@ -86,7 +86,7 @@ final class MacPermissionCoordinator: ObservableObject {
         MacPreferences.defaults.set(enabled, forKey: "selection_conversion_enabled"); objectWillChange.send()
         MacSelectionConversion.shared.configure()
         if !enabled { MacSelectionConversion.shared.dismiss(); return }
-        guard !MacPreferences.isTesting else { message = "隔离测试不修改系统授权。"; return }
+        guard !MacPreferences.isTesting else { message = L10n.text("mac.permissionCoordinator.setSelectionEnabled.b5b79d19db"); return }
         if !AXIsProcessTrusted() { openAccessibilitySettings() }
         Task { await refresh() }
     }
@@ -117,6 +117,7 @@ struct MacPermissionSheetPresenter: ViewModifier {
 }
 
 struct MacPermissionsGuide: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject private var permissions = MacPermissionCoordinator.shared
     @ObservedObject private var services = MacAppServices.shared
     @AppStorage("v141_background") private var background = true
@@ -125,44 +126,44 @@ struct MacPermissionsGuide: View {
             HStack(spacing: 12) {
                 MacBrandIcon(size: 44)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("启动与权限设置").appFont(.dialogTitle, weight: .semibold)
-                    Text("开启所需功能，授权后状态会自动更新。").appFont(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("mac.permissionCoordinator.MacFormShell.b178f5419e")).appFont(.dialogTitle, weight: .semibold)
+                    Text(L10n.text("mac.permissionCoordinator.MacFormShell.8d683e96ab")).appFont(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
             }
         } fields: {
             VStack(spacing: 10) {
                 VStack(spacing: 0) {
-                    row("系统通知", icon: "bell", detail: "账目、预算、目标和软件更新共用通知。", active: permissions.notificationsActive, status: notificationStatus, id: "guideNotifications", value: Binding(get: { permissions.notificationsActive }, set: { permissions.setNotificationsEnabled($0) }))
+                    row(L10n.text("mac.permissionCoordinator.row.94b7513ead"), icon: "bell", detail: L10n.text("mac.permissionCoordinator.row.90d358efc9"), active: permissions.notificationsActive, status: notificationStatus, id: "guideNotifications", value: Binding(get: { permissions.notificationsActive }, set: { permissions.setNotificationsEnabled($0) }))
                     Divider()
-                    row("后台运行", icon: "app.badge", detail: "关闭主窗口后继续运行，无需额外系统授权。", active: background, status: background ? "已开启" : "已关闭", id: "guideBackground", value: $background)
+                    row(L10n.text("mac.permissionCoordinator.row.517484e7f2"), icon: "app.badge", detail: L10n.text("mac.permissionCoordinator.row.91b6acebf8"), active: background, status: background ? L10n.text("mac.permissionCoordinator.row.8a4ef3e48e") : L10n.text("mac.permissionCoordinator.row.6744b4c6a9"), id: "guideBackground", value: $background)
                     Divider()
-                    row("开机登录后启动", icon: "power", detail: "登录 Mac 后自动启动 FinTrack。", active: services.loginEnabled, status: services.loginEnabled ? "已开启" : (services.loginMessage ?? "已关闭"), id: "guideLogin", value: Binding(get: { services.loginEnabled }, set: { permissions.setLoginEnabled($0) }))
+                    row(L10n.text("mac.permissionCoordinator.row.9021894921"), icon: "power", detail: L10n.text("mac.permissionCoordinator.row.4470027d76"), active: services.loginEnabled, status: services.loginEnabled ? L10n.text("mac.permissionCoordinator.row.8a4ef3e48e") : (services.loginMessage ?? L10n.text("mac.permissionCoordinator.row.6744b4c6a9")), id: "guideLogin", value: Binding(get: { services.loginEnabled }, set: { permissions.setLoginEnabled($0) }))
                     Divider()
-                    row("选区金额换算", icon: "text.cursor", detail: "读取其他应用选中的金额并快速换算。", active: permissions.selectionActive, status: selectionStatus, id: "guideAccessibility", value: Binding(get: { permissions.selectionActive }, set: { permissions.setSelectionEnabled($0) }))
+                    row(L10n.text("mac.permissionCoordinator.row.03a46977ef"), icon: "text.cursor", detail: L10n.text("mac.permissionCoordinator.row.8a6a53c0fe"), active: permissions.selectionActive, status: selectionStatus, id: "guideAccessibility", value: Binding(get: { permissions.selectionActive }, set: { permissions.setSelectionEnabled($0) }))
                 }.padding(.horizontal, 14).background(MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 12))
                 if let message = permissions.message { Text(message).appFont(.caption).foregroundStyle(.orange) }
-                Text("开启需要授权的功能时会前往系统设置。关闭会立即停用本应用功能；通知和辅助功能的系统授权需在 macOS 中撤销。").appFont(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("mac.permissionCoordinator.MacFormShell.782c40df93")).appFont(.caption).foregroundStyle(.secondary)
             }
         } footer: {
             HStack {
-                Button("稍后设置", role: .cancel) { permissions.finish() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("permissionsLater")
+                Button(L10n.text("mac.permissionCoordinator.MacFormShell.882574c28e"), role: .cancel) { permissions.finish() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("permissionsLater")
                 Spacer()
-                Button("完成") { permissions.finish() }.buttonStyle(MacStandardButtonStyle(primary: true)).keyboardShortcut(.defaultAction).accessibilityIdentifier("permissionsDone")
+                Button(L10n.text("mac.permissionCoordinator.MacFormShell.c0b3fbff51")) { permissions.finish() }.buttonStyle(MacStandardButtonStyle(primary: true)).keyboardShortcut(.defaultAction).accessibilityIdentifier("permissionsDone")
             }
         }.task {
             while !Task.isCancelled { await permissions.refresh(); do { try await Task.sleep(for: .seconds(1)) } catch { break } }
         }.accessibilityElement(children: .contain)
     }
     private var notificationStatus: String {
-        if permissions.notificationsActive { return "已开启 · 系统已授权" }
-        if !MacPermissionCoordinator.notificationsEnabled { return "已停用通知" + ([.authorized, .provisional].contains(permissions.notificationStatus) ? " · 系统授权仍保留" : "") }
-        return "尚未获得系统授权"
+        if permissions.notificationsActive { return L10n.text("mac.permissionCoordinator.notificationStatus.a4024d23cf") }
+        if !MacPermissionCoordinator.notificationsEnabled { return L10n.text("mac.permissionCoordinator.notificationStatus.8f185d03d1") + ([.authorized, .provisional].contains(permissions.notificationStatus) ? L10n.text("mac.permissionCoordinator.notificationStatus.9cee6c93b4") : "") }
+        return L10n.text("mac.permissionCoordinator.notificationStatus.d7ed177c2d")
     }
     private var selectionStatus: String {
-        if permissions.selectionActive { return "已开启 · 辅助功能已授权" }
-        if !MacPermissionCoordinator.selectionEnabled { return "已停用选区读取" + (permissions.accessibilityEnabled ? " · 系统授权仍保留" : "") }
-        return "尚未获得辅助功能授权"
+        if permissions.selectionActive { return L10n.text("mac.permissionCoordinator.selectionStatus.a560b9ff5d") }
+        if !MacPermissionCoordinator.selectionEnabled { return L10n.text("mac.permissionCoordinator.selectionStatus.c1c5e533c4") + (permissions.accessibilityEnabled ? L10n.text("mac.permissionCoordinator.selectionStatus.9cee6c93b4") : "") }
+        return L10n.text("mac.permissionCoordinator.selectionStatus.e5b00fa1e4")
     }
     private func row(_ title: String, icon: String, detail: String, active: Bool, status: String, id: String, value: Binding<Bool>) -> some View {
         HStack(alignment: .center, spacing: 12) {

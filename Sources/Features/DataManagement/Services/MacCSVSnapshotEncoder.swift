@@ -215,7 +215,7 @@ nonisolated enum MacCSVSnapshotEncoder {
         })
 
         if let section {
-            guard let index=sections.firstIndex(of:sectionHeader(section)) else {throw MacSettingsFailure.invalid("导出类型缺失")}
+            guard let index=sections.firstIndex(of:sectionHeader(section)) else {throw MacSettingsFailure.invalid(L10n.text("mac.cSVSnapshotEncoder.encode.c2bee0e58c"))}
             let end=sections[(index+1)...].firstIndex(where:{$0.hasPrefix("\"Section\",\"")}) ?? sections.endIndex
             var rows=Array(sections[(index+1)..<end])
             while rows.last == "" {rows.removeLast()}

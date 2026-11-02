@@ -9,7 +9,7 @@ nonisolated enum MacBackupLimits {
 
     static func checkNativeSize(_ count: Int) throws {
         guard count <= nativeBytes else {
-            throw MacSettingsFailure.invalid("完整备份超过 256 MiB 安全上限，未更改账本。请退出应用后保留整个账本目录的副本，再安排大账本恢复；请勿删除原库。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.backupLimits.checkNativeSize.84c9780b21"))
         }
     }
 }

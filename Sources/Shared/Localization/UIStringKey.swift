@@ -1,6 +1,6 @@
 import Foundation
 
-enum UIStringKey {
+nonisolated enum UIStringKey {
     enum Common {
         static let add = "common.add"
         static let all = "common.all"
@@ -768,7 +768,7 @@ enum UIStringKey {
     }
 }
 
-enum UIStringCatalogKeyResolver {
+nonisolated enum UIStringCatalogKeyResolver {
     static func resolve(_ key: String) -> String {
         switch key {
         // Common

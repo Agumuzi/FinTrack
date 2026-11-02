@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MacCurrencyRebaseView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     var initialCurrency: String? = nil
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -18,17 +19,17 @@ struct MacCurrencyRebaseView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             Text("Change book currency").appFont(.dialogTitle, weight: .semibold)
-            Text("将按原币金额重算现有账目（包括手动本币金额）、金融规则、目标、初始资产与月度预算；准备阶段不写入，确认时先创建原生完整备份。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-            MacSettingsRow(label: "当前本位币", labelWidth: 100) { Text(reference).frame(maxWidth: .infinity, alignment: .leading) }
-            MacSettingsRow(label: "换算为", labelWidth: 100) { MacBookCurrencyChoice(currency: $currency) }
-            DisclosureGroup("手动指定已核实汇率（可选）") {
+            Text(L10n.text("mac.currencyRebaseView.body.ec540c616d")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+            MacSettingsRow(label: L10n.text("mac.currencyRebaseView.body.3ba33de97d"), labelWidth: 100) { Text(reference).frame(maxWidth: .infinity, alignment: .leading) }
+            MacSettingsRow(label: L10n.text("mac.currencyRebaseView.body.c98f12c978"), labelWidth: 100) { MacBookCurrencyChoice(currency: $currency) }
+            DisclosureGroup(L10n.text("mac.currencyRebaseView.DisclosureGroup.2be96d3f4e")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("留空时按每笔记录的日期获取汇率。手动汇率会覆盖对应原币的全部记录。")
+                    Text(L10n.text("mac.currencyRebaseView.DisclosureGroup.19ae306beb"))
                         .appFont(.caption).foregroundStyle(.secondary)
                     ForEach(sources.filter { $0 != currency.uppercased() }, id: \.self) { source in
                         HStack {
                             Text("1 " + source + " =").frame(width: 80)
-                            TextField("汇率", text: Binding(get: { manual[source] ?? "" }, set: { manual[source] = $0; invalidate() }))
+                            TextField(L10n.text("mac.currencyRebaseView.ForEach.57ef2c45ef"), text: Binding(get: { manual[source] ?? "" }, set: { manual[source] = $0; invalidate() }))
                             Text(currency.uppercased()).foregroundStyle(.secondary)
                         }
                     }

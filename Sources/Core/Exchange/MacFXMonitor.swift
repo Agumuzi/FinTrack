@@ -16,12 +16,12 @@ nonisolated enum MacFXNetworkFailure: LocalizedError {
     case http(Int, retryAfter: TimeInterval?), unavailable, invalid, cooling
     var errorDescription: String? {
         switch self {
-        case .http(401, _): "访问未获授权（401），请检查 API Key"
-        case .http(429, _): "数据源限流（429），稍后重试"
-        case .http(let code, _): "数据源返回 HTTP \(code)"
-        case .unavailable: "网络不可用或请求超时"
-        case .invalid: "数据源没有返回可核验的报价"
-        case .cooling: "数据源冷却中，请稍后更新"
+        case .http(401, _): L10n.text("mac.fXMonitor.errorDescription.e02d86cde3")
+        case .http(429, _): L10n.text("mac.fXMonitor.errorDescription.14bf53d47c")
+        case .http(let code, _): L10n.format("mac.fXMonitor.errorDescription.bff7f1c370", "\(code)")
+        case .unavailable: L10n.text("mac.fXMonitor.errorDescription.2f82ba3bfc")
+        case .invalid: L10n.text("mac.fXMonitor.errorDescription.06d513c63c")
+        case .cooling: L10n.text("mac.fXMonitor.errorDescription.59d2e9314c")
         }
     }
 }
@@ -34,7 +34,7 @@ final class MacFXMonitor: ObservableObject {
     @Published private(set) var errors: [MacFXPair: String] = [:]
     @Published private(set) var warnings: [MacFXPair: String] = [:]
     @Published private(set) var busy = false
-    @Published private(set) var status = "等待更新"
+    @Published private(set) var status = L10n.text("mac.fXMonitor.status.2ceedd12ee")
     @Published private(set) var revision = 0
     private(set) var quoteRequestCount = 0
     var providerList: () -> [MacFXProvider]
@@ -107,7 +107,7 @@ final class MacFXMonitor: ObservableObject {
             return all.filter { $0.id == config.sourcePolicy } + all.filter { MacFXSourceScope.isSystem($0.id) }
         }
     }
-    func sourceName(_ quote: MacFXEvidenceQuote) -> String { providerList().first { $0.id == quote.identity.sourceID }?.name ?? "旧来源缓存" }
+    func sourceName(_ quote: MacFXEvidenceQuote) -> String { providerList().first { $0.id == quote.identity.sourceID }?.name ?? L10n.text("mac.fXMonitor.sourceName.d2a3e4aa31") }
     func historyProvider(_ pair: MacFXPair) -> MacFXProvider? {
         // Chart history is a separate daily reference, never a live-price baseline.
         let all = providerList().filter { MacFXSourceScope.isSystem($0.id) && $0.supportsHistory }
@@ -231,7 +231,7 @@ final class MacFXMonitor: ObservableObject {
             return
         }
         if let lastAttempt, now().timeIntervalSince(lastAttempt) < 2 {
-            pending = []; status = "更新冷却中，请稍后重试"; return
+            pending = []; status = L10n.text("mac.fXMonitor.refresh.358383c397"); return
         }
         lastAttempt = now(); busy = true
         let task = Task { [weak self] in
@@ -274,17 +274,17 @@ final class MacFXMonitor: ObservableObject {
                 if nextCache.accept(returned, now: now(), calendar: calendar) {
                     accepted.append(returned)
                     successes += 1; cachedPairs.remove(pair); errors[pair] = nil
-                    warnings[pair] = failures.isEmpty ? nil : "自定义来源暂不可用，已使用系统数据源"
+                    warnings[pair] = failures.isEmpty ? nil : L10n.text("mac.fXMonitor.performRefresh.8357d1458e")
                     if !capturedConfig.automatic { baselines.append((pair, returned)) }
-                } else { warnings[pair] = "旧报价未覆盖较新的有效值" }
-            } else { errors[pair] = "暂未取得有效汇率，请检查网络或稍后更新" }
+                } else { warnings[pair] = L10n.text("mac.fXMonitor.performRefresh.e43059364a") }
+            } else { errors[pair] = L10n.text("mac.fXMonitor.performRefresh.8740a97cf8") }
         }
         if requestGeneration == generation {
             // Publish the complete current-rate batch before optional daily baselines.
             var merged = cache
             for value in accepted { _ = merged.accept(value, now: now(), calendar: calendar) }
             cache = merged
-            revision += 1; status = successes > 0 ? "已更新 \(successes) 个汇率" : "未取得新报价，保留有效缓存"
+            revision += 1; status = successes > 0 ? L10n.format("mac.fXMonitor.performRefresh.dc81e178bd", "\(successes)") : L10n.text("mac.fXMonitor.performRefresh.50d5337687")
             persist(cache)
             for (pair, current) in baselines {
                 guard requestGeneration == generation else { break }

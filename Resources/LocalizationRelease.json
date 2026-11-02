@@ -1,0 +1,14 @@
+{
+  "catalogVersion": "fintrack-v1.5",
+  "languages": [
+    {
+      "id": "en",
+      "nativeName": "English"
+    },
+    {
+      "id": "zh-Hans",
+      "nativeName": "简体中文"
+    }
+  ],
+  "schemaVersion": 1
+}

@@ -30,12 +30,12 @@ enum MacRecoveryJournal {
         var values: [String: Any] = [:]
         for key in preferenceKeys { if let value = MacPreferences.defaults.object(forKey: key) { values[key] = value } }
         let data = try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
-        guard data.count <= MacBackupLimits.preferencesBytes else { throw MacSettingsFailure.invalid("设置快照超过安全上限，未更改账本。") }
+        guard data.count <= MacBackupLimits.preferencesBytes else { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.preferences.be961dbc5f")) }
         return data
     }
     private static func restorePreferences(_ data: Data) throws {
         guard let values = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              Set(values.keys).isSubset(of: Set(preferenceKeys)) else { throw MacSettingsFailure.invalid("恢复设置记录无效") }
+              Set(values.keys).isSubset(of: Set(preferenceKeys)) else { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.restorePreferences.6d5253582f")) }
         for key in preferenceKeys { MacPreferences.defaults.removeObject(forKey: key) }
         for (key, value) in values { MacPreferences.defaults.set(value, forKey: key) }
     }
@@ -63,19 +63,19 @@ enum MacRecoveryJournal {
     }
     static func assertWritable(in context: ModelContext, allowSnapshotRead:Bool = false) throws {
         if !allowSnapshotRead,MacDataOperationState.shared.status != nil,!MacDataOperationState.shared.committing {
-            throw MacSettingsFailure.invalid("数据文件正在处理中，请完成后再保存账目。当前输入尚未保存。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.assertWritable.005dc8ff4d"))
         }
         if depth == 0 && !recovering,let file=location(in:context),FileManager.default.fileExists(atPath:file.path) {
-            throw MacSettingsFailure.invalid("上次操作尚未完成恢复，暂不能写入账本。请退出并重新打开应用。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.assertWritable.2ccd160c3c"))
         }
     }
     private static func begin(in context: ModelContext) throws -> Ticket {
         try assertWritable(in:context)
-        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid("自动入账正在处理中，请稍后再操作。") }
-        guard !context.hasChanges else { throw MacSettingsFailure.invalid("请先保存或取消当前编辑，再执行此操作。") }
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.742dd2f5de")) }
+        guard !context.hasChanges else { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.33d8f21fd1")) }
         let file = location(in: context)
         if let file, FileManager.default.fileExists(atPath: file.path) {
-            throw MacSettingsFailure.invalid("上次操作尚未完成恢复，请退出并重新打开应用后再操作。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.c372ecc6b2"))
         }
         let snapshot = try MacNativeBackup.create(in: context)
         let payload = try MacNativeBackup.preview(snapshot, validateFinancial: false), settings = try preferences()
@@ -85,9 +85,9 @@ enum MacRecoveryJournal {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.withoutEscapingSlashes]
             let data = try encoder.encode(record)
-            guard data.count <= MacBackupLimits.journalBytes else { throw MacSettingsFailure.invalid("恢复记录超过安全上限，未更改账本。") }
+            guard data.count <= MacBackupLimits.journalBytes else { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.19aebcdf70")) }
             let free = try file.deletingLastPathComponent().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
-            if let free, free < Int64(data.count) * 2 + 64 * 1024 * 1024 { throw MacSettingsFailure.invalid("磁盘可用空间不足以保留恢复记录，未更改账本。") }
+            if let free, free < Int64(data.count) * 2 + 64 * 1024 * 1024 { throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.c42f047385")) }
             try data.write(to: file, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
             try synchronize(file)
@@ -96,7 +96,7 @@ enum MacRecoveryJournal {
     }
     private static func finish(_ ticket: Ticket) throws {
         guard MacPreferences.defaults.synchronize() else {
-            throw MacSettingsFailure.invalid("设置尚未安全保存，操作已取消。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.finish.4f3cd5bd15"))
         }
         if let file = ticket.file { try FileManager.default.removeItem(at: file) }
     }
@@ -133,7 +133,7 @@ enum MacRecoveryJournal {
         catch {
             let original = error
             do { try rollback(ticket, in: context, alwaysRestore: false) }
-            catch { MacLedgerAccess.shared.quarantineRecovery();throw MacSettingsFailure.invalid("操作未完成，恢复记录已保留。请退出后重新打开应用恢复账本。") }
+            catch { MacLedgerAccess.shared.quarantineRecovery();throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.perform.38bf924e17")) }
             throw original
         }
     }
@@ -151,7 +151,7 @@ enum MacRecoveryJournal {
         let record = try JSONDecoder().decode(Record.self, from: data)
         guard record.version == 1, record.store == file.deletingPathExtension().standardizedFileURL.path,
               record.sha256 == MacNativeBackup.digest(record.snapshot + record.preferences) else {
-            throw MacSettingsFailure.invalid("操作恢复记录校验未通过。原账本与恢复记录均已保留，请先安排安全恢复。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.recoverIfNeeded.b346365071"))
         }
         let payload = try MacNativeBackup.preview(record.snapshot, validateFinancial: false)
         try rollback(Ticket(file: file, snapshot: record.snapshot, preferences: record.preferences, database: try database(payload)), in: context, alwaysRestore: true)

@@ -5,7 +5,7 @@ import CoreText
 enum MacInterfaceFonts {
     static let preferenceKey = "v13_interface_font"
     static var selectedName: String { MacPreferences.defaults.string(forKey: preferenceKey) ?? "" }
-    static var displayName: String { selectedName.isEmpty ? "系统字体" : NSFont(name: selectedName, size: 16)?.displayName ?? selectedName }
+    static var displayName: String { selectedName.isEmpty ? L10n.text("mac.interfaceFonts.displayName.96a2a0bc3c") : NSFont(name: selectedName, size: 16)?.displayName ?? selectedName }
     static var unavailable: Bool { !selectedName.isEmpty && NSFont(name: selectedName, size: 16) == nil }
     static func controlHeight(_ minimum: CGFloat = 40) -> CGFloat {
         let face = font(size: MacUI.fontTier.bodySize)
@@ -32,7 +32,7 @@ final class MacInterfaceFontPanel: NSObject, NSFontChanging {
         manager.setSelectedFont(MacInterfaceFonts.font(size: MacUI.fontTier.bodySize), isMultiple: false)
         guard let panel = manager.fontPanel(true) else { return }
         panel.worksWhenModal = true
-        panel.title = "显示字体"
+        panel.title = L10n.text("mac.interfaceFonts.open.833017e384")
         if !panel.isVisible { panel.center() }
         manager.orderFrontFontPanel(nil)
         panel.makeKeyAndOrderFront(nil)
@@ -46,23 +46,24 @@ final class MacInterfaceFontPanel: NSObject, NSFontChanging {
 }
 
 struct MacInterfaceFontSettings: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var selectedName = ""
     @State private var error: String?
     var body: some View {
-        MacSettingsCard(title: "显示字体", icon: "textformat", subtitle: "从 macOS 字体库选择，字号由下方三档设置统一控制。", headerColor: .blue) {
+        MacSettingsCard(title: L10n.text("mac.interfaceFonts.body.833017e384"), icon: "textformat", subtitle: L10n.text("mac.interfaceFonts.body.bbd36330c3"), headerColor: .blue) {
             HStack(spacing: 12) {
                 Text(MacInterfaceFonts.displayName).appFont(.body, weight: .medium).lineLimit(1).truncationMode(.middle).accessibilityIdentifier("interfaceFontName")
                 Spacer(minLength: 12)
-                Button("选择字体…") { MacInterfaceFontPanel.shared.open() }.accessibilityIdentifier("chooseInterfaceFont")
+                Button(L10n.text("mac.interfaceFonts.body.172ba33040")) { MacInterfaceFontPanel.shared.open() }.accessibilityIdentifier("chooseInterfaceFont")
             }
-            Text("中文预览 · FinTrack · 1,234,567.89").appFont(.section).monospacedDigit().accessibilityIdentifier("interfaceFontPreview")
-            if MacInterfaceFonts.unavailable { Text("当前字体未安装，暂时使用系统字体。").appFont(.caption).foregroundStyle(.secondary) }
+            Text(L10n.text("mac.interfaceFonts.body.b6476a8510")).appFont(.section).monospacedDigit().accessibilityIdentifier("interfaceFontPreview")
+            if MacInterfaceFonts.unavailable { Text(L10n.text("mac.interfaceFonts.body.2425a5d37b")).appFont(.caption).foregroundStyle(.secondary) }
             HStack {
-                Button("打开字体册") {
-                    if !NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Font Book.app")) { error = "无法打开字体册，请从应用程序中打开。" }
+                Button(L10n.text("mac.interfaceFonts.body.3eba7eb18f")) {
+                    if !NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Font Book.app")) { error = L10n.text("mac.interfaceFonts.body.9c4522837d") }
                 }.accessibilityIdentifier("openFontBook")
                 Spacer()
-                Button("恢复系统字体") { selectedName = ""; NSFontManager.shared.setSelectedFont(.systemFont(ofSize: MacUI.fontTier.bodySize), isMultiple: false) }.disabled(selectedName.isEmpty).accessibilityIdentifier("resetInterfaceFont")
+                Button(L10n.text("mac.interfaceFonts.body.33e4911360")) { selectedName = ""; NSFontManager.shared.setSelectedFont(.systemFont(ofSize: MacUI.fontTier.bodySize), isMultiple: false) }.disabled(selectedName.isEmpty).accessibilityIdentifier("resetInterfaceFont")
             }
             if let error { Text(error).appFont(.caption).foregroundStyle(.secondary) }
         }

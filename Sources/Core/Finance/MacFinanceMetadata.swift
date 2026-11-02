@@ -27,7 +27,7 @@ enum MacFinanceNotes {
         if value.hasPrefix("Loan installment ") {
             value = value.replacingOccurrences(of: "Loan installment ", with: "还款期次 ").replacingOccurrences(of: "Principal:", with: "本金：").replacingOccurrences(of: "Interest:", with: "利息：")
         }
-        return value.replacingOccurrences(of: #"\[FT(?:Dep|Rec|Loan):[^\]]+\]|\[FT(?:Estimated|Verified)\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.replacingOccurrences(of: #"\[FT(?:Dep|Rec|Loan):[^\]]+\]|\[FT(?:Estimated|Verified|Partial)\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     static func replacing(_ old: String?, with userNote: String) -> String? {
         let clean = userNote.trimmingCharacters(in: .whitespacesAndNewlines)

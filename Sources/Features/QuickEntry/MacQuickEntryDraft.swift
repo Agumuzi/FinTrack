@@ -70,7 +70,7 @@ final class MacQuickEntryDraft: ObservableObject {
             guard result.identity.purpose == .accountingDay, result.identity.requested == .day(day), result.identity.pair == (try MacFXPair(base:source,quote:base)) else { throw MacFXContractFailure.invalidEvidence }
             quoteBase = base
             rate = String(format: "%.6f", result.unitRate)
-            quoteMessage = "交易日 " + day + " · " + MacFXApplication.shared.sourceLabel(result.identity.sourceID) + "，请核对银行结算。"
+            quoteMessage = L10n.text("mac.quickEntryDraft.fetchRate.2344fc5d1d") + day + " · " + MacFXApplication.shared.sourceLabel(result.identity.sourceID) + L10n.text("mac.quickEntryDraft.fetchRate.904ab61160")
         } catch {
             guard token == requestID else { return }
             self.error = MacLocalization.error(error)
@@ -87,10 +87,10 @@ final class MacQuickEntryDraft: ObservableObject {
             // while this draft was hidden must never recreate a stale selection.
             let categories = try context.fetch(FetchDescriptor<FinTrackMac.Category>())
             guard let id = categoryID, let category = categories.first(where: { $0.id == id && $0.deletedAt == nil && $0.type == type.rawValue }) else {
-                throw MacSettingsFailure.invalid("分类已变更，请重新选择有效分类。")
+                throw MacSettingsFailure.invalid(L10n.text("mac.quickEntryDraft.save.3b89fff101"))
             }
             guard source == base || quoteBase == nil || quoteBase == base else {
-                throw MacSettingsFailure.invalid("账本本位币已变化，请重新核对汇率或本币记账金额。草稿尚未保存。")
+                throw MacSettingsFailure.invalid(L10n.text("mac.quickEntryDraft.save.540d82ec81"))
             }
             let resolvedRate: Double
             if source == base { resolvedRate = 1 }
@@ -106,7 +106,7 @@ final class MacQuickEntryDraft: ObservableObject {
             rate = MacBankSettlement.reusableRateText(saved.exchangeRateToBase)
             useBankAmount = false; bankAmount = ""
             requestID = UUID(); fetching = false; quoteMessage = nil
-            savedMessage = "已保存"; draftID = UUID()
+            savedMessage = L10n.text("mac.quickEntryDraft.save.1bd91a7d0c"); draftID = UUID()
             return saved.id
         } catch { self.error = MacLocalization.error(error); throw error }
     }

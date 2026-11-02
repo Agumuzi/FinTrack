@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MacRecurringScheduleView: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let rule: RecurringTransaction
     @Environment(\.dismiss) private var dismiss
     private struct Row: Identifiable { let id: Int; let date: Date }
@@ -18,17 +19,17 @@ struct MacRecurringScheduleView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             Text(rule.title).appFont(.dialogTitle, weight: .semibold)
-            Text("后续计划 · 最多 24 次").appFont(.section, weight: .semibold)
-            Text("计划不代表已入账。暂停规则的日期仅供参考；结束日期以最后允许发生的计划为准。").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+            Text(L10n.text("mac.recurringScheduleView.body.09737664cc")).appFont(.section, weight: .semibold)
+            Text(L10n.text("mac.recurringScheduleView.body.0a4a9bc342")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
             if RecurringIntervalUnit(rawValue: rule.intervalUnit) == nil || !(1...365).contains(rule.intervalValue) {
-                Text("频率无效，请先核对规则。").foregroundStyle(.orange)
+                Text(L10n.text("mac.recurringScheduleView.body.c9a48c0867")).foregroundStyle(.orange)
             } else {
                 Table(rows) {
-                    TableColumn("计划日期") { Text(MacDateDisplay.string($0.date)) }
-                    TableColumn("每次原币金额") { _ in Text("\(MacOverviewStyle.money(rule.originalAmount)) \(rule.originalCurrency)") }
+                    TableColumn(L10n.text("mac.recurringScheduleView.TableColumn.011247215d")) { Text(MacDateDisplay.string($0.date)) }
+                    TableColumn(L10n.text("mac.recurringScheduleView.TableColumn.380a85189a")) { _ in Text("\(MacOverviewStyle.money(rule.originalAmount)) \(rule.originalCurrency)") }
                 }.accessibilityIdentifier("recurringScheduleTable")
             }
-            HStack { Spacer(); Button("关闭") { dismiss() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("recurringCloseSchedule") }
+            HStack { Spacer(); Button(L10n.text("mac.recurringScheduleView.body.3fd47edce4")) { dismiss() }.keyboardShortcut(.cancelAction).accessibilityIdentifier("recurringCloseSchedule") }
         }.appPadding(24).appPanel(width: 580, height: 520)
     }
 }

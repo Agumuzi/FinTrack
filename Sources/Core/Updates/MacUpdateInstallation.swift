@@ -13,7 +13,7 @@ nonisolated enum MacUpdateInstallation {
         let token = UUID().uuidString, helper = root.appendingPathComponent("install.sh"), ticket = root.appendingPathComponent("launch.json")
         guard !FileManager.default.fileExists(atPath: root.appendingPathComponent("install.lock").path),
               !FileManager.default.fileExists(atPath: root.appendingPathComponent("FinTrack-previous.app").path) else {
-            throw MacSettingsFailure.invalid("此安装任务已经启动，请勿重复安装。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.updateInstallation.writeHelper.0f93d59b1b"))
         }
         try JSONEncoder().encode(Ticket(token: token, target: target.standardizedFileURL.path, version: release.version, build: release.build)).write(to: ticket, options: .atomic)
         try Data(script.utf8).write(to: helper, options: .atomic)

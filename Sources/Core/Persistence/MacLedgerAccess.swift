@@ -27,7 +27,7 @@ final class MacLedgerAccess: ObservableObject {
 
     func quarantineRecovery() {
         if case .ready(let container,let lease)=state {failedContainer=container;failedLease=lease}
-        state = .failed("操作恢复尚未完成，账本暂时停止编辑。请退出后重新打开应用；恢复记录与原文件均已保留。")
+        state = .failed(L10n.text("mac.ledgerAccess.quarantineRecovery.dd8a45a520"))
     }
     func load(createIfMissing: Bool = false) {
         if case .ready = state { return }
@@ -39,7 +39,7 @@ final class MacLedgerAccess: ObservableObject {
         let memory = env["FINTRACK_V12_UI_TEST"] == "1"
         let testPath = env["FINTRACK_V13_TEST_STORE_PATH"]
         if !memory,testPath == nil,MacTestStore.requiresExplicitIsolation(bundleURL:Bundle.main.bundleURL) {
-            state = .failed("隔离验证副本缺少账本参数，已停止打开。请携带有效隔离路径重新启动；未打开个人账本。")
+            state = .failed(L10n.text("mac.ledgerAccess.load.9806df04fc"))
             return
         }
         let url: URL?
@@ -58,7 +58,7 @@ final class MacLedgerAccess: ObservableObject {
         // not a fresh installation. Preserve every byte and ask for recovery.
         if let url, !FileManager.default.fileExists(atPath:url.path),
            ["-wal", "-shm"].contains(where:{ FileManager.default.fileExists(atPath:url.path + $0) }) {
-            state = .failed("检测到账本辅助文件，但主数据库缺失。请保留原目录并从完整备份恢复，未创建新账本。")
+            state = .failed(L10n.text("mac.ledgerAccess.load.457479499e"))
             return
         }
         let schema = Schema([Account.self, Transaction.self, Category.self, Goal.self, FinancialProfile.self, RecurringTransaction.self, DepositRecord.self, LoanRule.self])
@@ -73,7 +73,7 @@ final class MacLedgerAccess: ObservableObject {
             // leaving a launch callback referencing a released context.
             failedContainer = container
             if try MacRecoveryJournal.recoverIfNeeded(in: container.mainContext) {
-                recoveryMessage = "上次操作未完成，已恢复操作前的账本与设置。自动入账已暂停，请核对后再开启。"
+                recoveryMessage = L10n.text("mac.ledgerAccess.load.ec6a0eb2e5")
             }
             #if FINTRACK_LOCAL_VALIDATION
             if memory || testPath != nil { try MacOverviewFixtures.seed(in: container.mainContext) }
@@ -96,6 +96,7 @@ final class MacLedgerAccess: ObservableObject {
 }
 
 struct MacLedgerWorkspaceGate: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     @ObservedObject private var access = MacLedgerAccess.shared
     @ObservedObject private var runtime = MacApplicationRuntime.shared
     @ObservedObject private var monitor = MacFXApplication.shared.monitor
@@ -107,20 +108,20 @@ struct MacLedgerWorkspaceGate: View {
                 FinTrackMacRootView().modelContainer(container).environmentObject(FinTrackMacApp.workspace)
             case .failed(let error):
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("账本暂时无法打开").appFont(.section, weight: .semibold).accessibilityIdentifier("ledgerUnavailable")
-                    Text("原账本保持原样。可重试打开，或先保留文件再安排恢复；菜单栏汇率仍可使用。").appFont(.body, weight: .regular)
-                    DisclosureGroup("查看错误详情") {
+                    Text(L10n.text("mac.ledgerAccess.body.d194149edc")).appFont(.section, weight: .semibold).accessibilityIdentifier("ledgerUnavailable")
+                    Text(L10n.text("mac.ledgerAccess.body.93c121cbed")).appFont(.body, weight: .regular)
+                    DisclosureGroup(L10n.text("mac.ledgerAccess.DisclosureGroup.f1a9a03304")) {
                         Text(error).appFont(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     }.accessibilityIdentifier("ledgerFailureDetails")
                     HStack {
-                        Button("重试打开账本") { access.retry() }.accessibilityIdentifier("retryLedger")
-                        Button("安全恢复说明") { recoveryHelp.toggle() }.accessibilityIdentifier("ledgerRecoveryHelp")
+                        Button(L10n.text("mac.ledgerAccess.body.722b81afec")) { access.retry() }.accessibilityIdentifier("retryLedger")
+                        Button(L10n.text("mac.ledgerAccess.body.9529ff30a7")) { recoveryHelp.toggle() }.accessibilityIdentifier("ledgerRecoveryHelp")
                     }
-                    if recoveryHelp { Text("先退出应用，保留原账本目录及 SQLite、WAL、SHM 文件的完整副本。不要删除原库或以空库覆盖。若重试仍失败，应在隔离副本验证恢复方案后再处理原库。").appFont(.body, weight: .regular).textSelection(.enabled) }
+                    if recoveryHelp { Text(L10n.text("mac.ledgerAccess.body.05e8dd437b")).appFont(.body, weight: .regular).textSelection(.enabled) }
                     MacAppEntrySettingsCard()
                 }.padding(20)
             case .unconfigured, .notLoaded:
-                ProgressView("正在准备账本…").appFont(.body).frame(maxWidth:.infinity,maxHeight:.infinity)
+                ProgressView(L10n.text("mac.ledgerAccess.ProgressView.fa72950b11")).appFont(.body).frame(maxWidth:.infinity,maxHeight:.infinity)
 
             }
         }
@@ -130,8 +131,8 @@ struct MacLedgerWorkspaceGate: View {
                     .font(.system(size: 8)).accessibilityIdentifier("fxIsolationMetrics")
             }
         }
-        .alert("账本已安全恢复", isPresented: Binding(get: { access.recoveryMessage != nil }, set: { if !$0 { access.recoveryMessage = nil } })) {
-            Button("知道了") { access.recoveryMessage = nil }
+        .alert(L10n.text("mac.ledgerAccess.body.67e10d3865"), isPresented: Binding(get: { access.recoveryMessage != nil }, set: { if !$0 { access.recoveryMessage = nil } })) {
+            Button(L10n.text("mac.ledgerAccess.body.de32e20193")) { access.recoveryMessage = nil }
         } message: { Text(access.recoveryMessage ?? "") }
         .defaultAppStorage(MacPreferences.defaults)
         .background(MacMenuBarWindowProbe { runtime.mainWindow = $0 })

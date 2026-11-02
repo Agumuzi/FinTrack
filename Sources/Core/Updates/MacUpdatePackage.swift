@@ -5,11 +5,11 @@ nonisolated enum MacUpdatePackageFailure: LocalizedError {
     case changed, format, structure, identity, preparation
     var errorDescription: String? {
         switch self {
-        case .changed: "安装包内容已发生变化，请重新下载。"
-        case .format: "此更新包格式不受支持，请从官网下载 DMG。"
-        case .structure: "安装包结构不符合要求，现有应用未修改。"
-        case .identity: "更新包身份或版本不匹配，现有应用未修改。"
-        case .preparation: "更新包准备失败，现有应用未修改。"
+        case .changed: L10n.text("mac.updatePackage.errorDescription.befce7045a")
+        case .format: L10n.text("mac.updatePackage.errorDescription.0bf847192c")
+        case .structure: L10n.text("mac.updatePackage.errorDescription.5ee74cf8ea")
+        case .identity: L10n.text("mac.updatePackage.errorDescription.1769b03d50")
+        case .preparation: L10n.text("mac.updatePackage.errorDescription.2668a32795")
         }
     }
 }

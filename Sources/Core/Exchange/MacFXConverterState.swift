@@ -35,10 +35,10 @@ nonisolated struct MacFXConverterState {
     }
     func failureText(_ code: String, quotes: [MacFXEvidenceQuote], units: Int) -> String {
         let status = parsed().status
-        if status == .editing { return "等待输入" }
-        if status == .invalid || status == .overflow { return "输入无效" }
-        if let activeCode, let value = amount(defaultUnits: units), let route = MacFXMath.resolve(from: activeCode, to: code, quotes: quotes), (try? route.amount(value)) == nil { return "结果超出范围" }
-        return "缺少报价"
+        if status == .editing { return L10n.text("mac.fXConverterState.failureText.6569c6e698") }
+        if status == .invalid || status == .overflow { return L10n.text("mac.fXConverterState.failureText.619fce373c") }
+        if let activeCode, let value = amount(defaultUnits: units), let route = MacFXMath.resolve(from: activeCode, to: code, quotes: quotes), (try? route.amount(value)) == nil { return L10n.text("mac.fXConverterState.failureText.6aaa761d88") }
+        return L10n.text("mac.fXConverterState.failureText.84358b9dae")
     }
 }
 

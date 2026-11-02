@@ -15,20 +15,20 @@ nonisolated enum MacFXKeychainClient {
     private struct Response: Decodable { let status: Int32; let value: String? }
     static func perform(_ operation: String, id: UUID, value: String? = nil, authorize: Bool = false, testKeychain: String? = nil) throws -> (OSStatus, String?) {
         guard let url=Bundle.main.url(forResource:"FinTrackKeychainHelper",withExtension:nil) else {
-            throw MacSettingsFailure.invalid("密钥服务不可用，请重新安装官方完整应用。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.fXKeychainClient.perform.c1dab0f134"))
         }
         var code:SecStaticCode?,requirement:SecRequirement?
         let rule="identifier \"dev.agumuzi.fintrack.fx.keychain-helper\" and certificate leaf = H\"51e58a1c399930d64ec957b3ae02489dd1e75c78\""
         guard SecStaticCodeCreateWithPath(url as CFURL,[],&code)==errSecSuccess,let code,
               SecRequirementCreateWithString(rule as CFString,[],&requirement)==errSecSuccess,let requirement,
               SecStaticCodeCheckValidity(code,SecCSFlags(rawValue:kSecCSStrictValidate),requirement)==errSecSuccess else {
-            throw MacSettingsFailure.invalid("密钥服务签名验证失败，请重新安装官方完整应用。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.fXKeychainClient.perform.6d908f4aa8"))
         }
         let input=try JSONEncoder().encode(Request(operation:operation,account:id.uuidString,value:value,authorize:authorize,testKeychain:testKeychain))
-        guard input.count<=32768 else {throw MacSettingsFailure.invalid("API Key 过长。")}
+        guard input.count<=32768 else {throw MacSettingsFailure.invalid(L10n.text("mac.fXKeychainClient.perform.448f332319"))}
         let output = try exchange(url, input: input, timeout: authorize ? 90 : 20)
         guard output.count<=32768,let response=try? JSONDecoder().decode(Response.self,from:output) else {
-            throw MacSettingsFailure.invalid("密钥服务未能完成请求，请重试。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.fXKeychainClient.perform.4e3063e2d3"))
         }
         return (response.status,response.value)
     }
@@ -59,7 +59,7 @@ nonisolated enum MacFXKeychainClient {
         timer.resume();defer {timer.cancel()}
         try write.fileHandleForWriting.write(contentsOf: input);try write.fileHandleForWriting.close()
         let output=read.fileHandleForReading.readDataToEndOfFile();process.waitUntilExit()
-        guard !deadline.didExpire else {throw MacSettingsFailure.invalid("密钥服务响应超时，请重试。现有密钥不会被自动删除。")}
+        guard !deadline.didExpire else {throw MacSettingsFailure.invalid(L10n.text("mac.fXKeychainClient.exchange.b052ad54b0"))}
         return output
     }
 

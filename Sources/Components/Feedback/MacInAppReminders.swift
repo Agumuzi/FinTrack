@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct MacInAppReminders: View {
+    @ObservedObject private var localizationState = LocalizationController.shared
     let workspace: MacWorkspaceSession
     @Query private var recurring: [RecurringTransaction]
     @Query private var goals: [Goal]
@@ -26,7 +27,7 @@ struct MacInAppReminders: View {
                 let reminder = calendar.date(byAdding: .day, value: -max(0, $0.reminderDaysBefore), to: $0.nextExecutionDate) ?? $0.nextExecutionDate
                 return reminder <= now
             }
-            if !due.isEmpty { items.append(("\(due.count) 项周期收支待处理", .recurring, nil)) }
+            if !due.isEmpty { items.append((L10n.format("mac.inAppReminders.items.59483269a7", Int64(due.count)), .recurring, nil)) }
         }
         let allCodes = Set(transactions.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + deposits.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + loans.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + recurring.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode))
         guard allCodes.count <= 1, allCodes.isEmpty || allCodes.contains(preferredCurrency) else { return items }
@@ -37,7 +38,7 @@ struct MacInAppReminders: View {
                 let net = MacFinancialSettings.snapshot(profile: profiles.first { $0.deletedAt == nil }, transactions: transactions.filter { $0.date < (calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now) }, loans: loans, deposits: deposits, currency: preferredCurrency, asOf: now).netWorth
                 let baseline = Goal.baselineNetWorth(from: profiles.first { $0.deletedAt == nil })
                 let due = candidates.filter { !$0.isCompleted(currentNetWorth: net, baselineNetWorth: baseline) }
-                if !due.isEmpty { items.append(("\(due.count) 个目标临近或超过期望时间", .settings, .goals)) }
+                if !due.isEmpty { items.append((L10n.format("mac.inAppReminders.items.39346a4113", Int64(due.count)), .settings, .goals)) }
             }
         }
         if budgetsEnabled {
@@ -47,7 +48,7 @@ struct MacInAppReminders: View {
             if !candidates.isEmpty {
                 let spending = MacBudgetSpendingSnapshot(rows: transactions, categories: categories)
                 let warning = candidates.filter { spending.spent($0) / $0.amount >= 0.8 }
-                if !warning.isEmpty { items.append(("\(warning.count) 项预算已使用 80% 或以上", .settings, .budgets)) }
+                if !warning.isEmpty { items.append((L10n.format("mac.inAppReminders.items.bee06966d6", Int64(warning.count)), .settings, .budgets)) }
             }
         }
         return items

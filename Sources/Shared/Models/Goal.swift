@@ -116,7 +116,7 @@ extension Goal {
 /// Input precision is distinct from a planning boundary and never changes accomplishment.
 enum TargetDatePrecision: String, Codable, CaseIterable {
     case year, month, day
-    var title: String { switch self { case .year: "年"; case .month: "年月"; case .day: "年月日" } }
+    var title: String { switch self { case .year: L10n.text("Year"); case .month: L10n.text("Month"); case .day: L10n.text("Date") } }
 }
 
 struct GoalTargetTime {

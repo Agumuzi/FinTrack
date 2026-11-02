@@ -13,10 +13,10 @@ enum MacFontSizeTier: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .small: "缩小"
-        case .standard: "标准"
-        case .large: "放大"
-        case .custom: "自定义"
+        case .small: L10n.text("mac.designSystem.title.290f680305")
+        case .standard: L10n.text("mac.designSystem.title.6bea77acef")
+        case .large: L10n.text("mac.designSystem.title.80f8fbcfa0")
+        case .custom: L10n.text("mac.designSystem.title.4eafa9e925")
         }
     }
     var bodySize: CGFloat {
@@ -158,7 +158,7 @@ struct MacStandardButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.appFont(.body, weight: .semibold).appPadding(.horizontal, 20).appMinHeight(40)
-            .foregroundStyle(primary ? .white : .primary)
+            .foregroundStyle(primary ? MacAccent.primaryForeground : .primary)
             .background(primary ? MacUI.accent : MacOverviewStyle.filters, in: RoundedRectangle(cornerRadius: 9))
             .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
@@ -371,6 +371,7 @@ struct MacFormTextField: View {
     var title: LocalizedStringKey
     @Binding var text: String
     init(_ title: LocalizedStringKey, text: Binding<String>) { self.title = title; _text = text }
+    init(_ title: String, text: Binding<String>) { self.title = LocalizedStringKey(title); _text = text }
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(6)) {
             Text(title).appFont(.body, weight: .medium).foregroundStyle(.secondary)
@@ -473,4 +474,14 @@ private struct MacHelpModifier: ViewModifier {
 extension View {
     func appHelp(_ text: String) -> some View { modifier(MacHelpModifier(text: Text(text))) }
     func appHelp(_ text: Text) -> some View { modifier(MacHelpModifier(text: text)) }
+}
+
+/// Align decorative leading symbols to the full text block, including wrapped titles.
+struct MacCenteredLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .center, spacing: MacUI.space(8)) {
+            configuration.icon
+            configuration.title.fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }

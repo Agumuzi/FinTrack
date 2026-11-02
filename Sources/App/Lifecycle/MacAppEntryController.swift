@@ -28,7 +28,7 @@ final class MacAppEntryController: ObservableObject {
     func apply(_ requested: MacAppEntryConfiguration, rejectAllHidden: Bool = false) async {
         guard !isTransitioning else { return }
         if rejectAllHidden && !requested.showMenuBar && !requested.showDock {
-            message = "菜单栏和 Dock 至少保留一个入口。"; return
+            message = L10n.text("mac.appEntryController.apply.1b06fd90b2"); return
         }
         let next = requested.normalized(), old = configuration, oldInserted = isMenuInserted
         isTransitioning = true; message = nil
@@ -65,7 +65,7 @@ final class MacAppEntryController: ObservableObject {
             isMenuInserted = true; restored.showMenuBar = true
         }
         configuration = restored.normalized()
-        message = "入口切换未完成，已保留原入口。请检查菜单栏或 Dock。"
+        message = L10n.text("mac.appEntryController.fail.3ba1e06e94")
         persist()
     }
 
@@ -86,7 +86,7 @@ final class MacAppEntryController: ObservableObject {
 
     private func persist() {
         do { defaults.set(try JSONEncoder().encode(configuration.normalized()), forKey: MacAppEntryConfiguration.storageKey) }
-        catch { message = "入口设置未能保存。" }
+        catch { message = L10n.text("mac.appEntryController.persist.d87ab19280") }
     }
 }
 
@@ -156,6 +156,7 @@ final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
     private var typographyMonitor: Any?
     func applicationWillFinishLaunching(_ notification: Notification) { MacNotificationDelegate.shared.install() }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MacNativeMenuLocalization.shared.install()
         typographyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection([.command,.shift,.option,.control])
             if flags.contains(.command), flags.intersection([.option,.control]).isEmpty,

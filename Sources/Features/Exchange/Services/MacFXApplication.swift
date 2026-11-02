@@ -99,10 +99,10 @@ final class MacFXApplication: ObservableObject {
         return result
     }
     func sourceLabel(_ id:String) -> String {
-        if MacFXSourceScope.isSystem(id) { return "系统数据源" }
-        if id == "identity" { return "同币种" }
-        if id == "isolated-fixture" { return "隔离演示" }
-        return MacFXService.sources.first { $0.id.uuidString == id }.map { "自定义 · " + $0.name } ?? "已保存来源"
+        if MacFXSourceScope.isSystem(id) { return L10n.text("mac.fXApplication.sourceLabel.2ea759ff20") }
+        if id == "identity" { return L10n.text("mac.fXApplication.sourceLabel.7659fc6ccf") }
+        if id == "isolated-fixture" { return L10n.text("mac.fXApplication.sourceLabel.6bccdacdd8") }
+        return MacFXService.sources.first { $0.id.uuidString == id }.map { L10n.text("mac.fXApplication.sourceLabel.ab18f1b3de") + $0.name } ?? L10n.text("mac.fXApplication.sourceLabel.f6e259d4f0")
     }
     func start() { monitor.start() }
     func update(_ change: (inout MacFXConfiguration) -> Void) {

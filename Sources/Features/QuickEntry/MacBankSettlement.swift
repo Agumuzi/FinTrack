@@ -14,7 +14,7 @@ enum MacBankSettlement {
         let actual = FinancialPrecision.roundAmountForStorage(actualBaseAmount)
         guard amount > 0, actual > 0 else { throw MacCurrency.Failure.invalidAmount }
         if source == book {
-            guard abs(actual - amount) < 0.005 else { throw MacSettingsFailure.invalid("同币种的记账金额须与原金额一致。") }
+            guard abs(actual - amount) < 0.005 else { throw MacSettingsFailure.invalid(L10n.text("mac.bankSettlement.snapshot.cfda7318ff")) }
             return .init(originalAmount:amount,originalCurrency:source,baseAmount:actual,baseCurrency:book,rate:1)
         }
         let derived = actual / amount
@@ -34,7 +34,7 @@ enum MacBankSettlement {
               allowLegacyPrecision || abs(FinancialPrecision.roundAmountForStorage(actual) - actual) < 1e-6,
               abs(FinancialPrecision.roundAmountForStorage(amount * rate) - FinancialPrecision.roundAmountForStorage(actual)) < 0.005,
               source != base || (rate == 1 && abs(amount - actual) < 0.005) else {
-            throw MacSettingsFailure.invalid("记账金额与保存的汇率快照不一致。")
+            throw MacSettingsFailure.invalid(L10n.text("mac.bankSettlement.validateSavedSnapshot.35e42e5991"))
         }
     }
     static func reusableRateText(_ rate: Double) -> String {

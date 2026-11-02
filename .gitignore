@@ -47,3 +47,7 @@ xcuserdata/
 __MACOSX/
 .vscode/
 .idea/
+
+# Localization tooling Python cache
+__pycache__/
+*.py[cod]
