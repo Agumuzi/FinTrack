@@ -1,16 +1,16 @@
-# 从源码构建 macOS 应用
+# Building FinTrack for macOS
 
-## 环境
+## Requirements
 
-- macOS；应用最低运行版本为 macOS 15.0。
-- Xcode 27 系列及命令行工具；当前本地验证环境为 Xcode 27.1，CI 使用 GitHub 的 Xcode 27 镜像。
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)，可通过 Homebrew 安装：`brew install xcodegen`。
+- macOS. Minimum application runtime target: macOS 15.0.
+- Xcode 27 series and command-line tools. The locally verified environment is Xcode 27.1; CI uses GitHub's Xcode 27 image.
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen), installable with Homebrew: `brew install xcodegen`.
 
-应用使用 Apple 系统 SDK，没有需要下载的第三方运行时包。工程由 `Project/project.yml` 生成，生成的 `.xcodeproj` 不提交到仓库。
+The app uses Apple's system SDKs and has no third-party runtime packages to download. The Xcode project is generated from `Project/project.yml`; the generated `.xcodeproj` is not committed.
 
-Xcode 和本项目的 Ad-hoc 构建不要求付费 Apple Developer 会员。编译由脚本调用 Xcode 命令行工具完成，无需打开 Xcode 窗口；发布包通过 GitHub Releases 提供 ZIP，由用户手动下载替换旧应用。
+Xcode and the project's ad-hoc build do not require a paid Apple Developer membership. The build script invokes Xcode command-line tools, so the Xcode UI does not need to be opened. Official releases provide downloadable packages on GitHub Releases; manually installed versions replace the existing app.
 
-## Release 编译
+## Release build
 
 ```sh
 git clone https://github.com/Agumuzi/FinTrack.git
@@ -18,36 +18,37 @@ cd FinTrack
 ./scripts/build-macos.sh Release
 ```
 
-输出：`.build/app/Build/Products/Release/FinTrack.app`。默认同时构建 arm64 和 x86_64，使用 Ad-hoc 签名；本地编译不等于完成 Developer ID 签名或 Apple 公证。脚本只编译，不启动应用。
+Output: `.build/app/Build/Products/Release/FinTrack.app`. The default build includes arm64 and x86_64 and uses ad-hoc signing. A local build is **not** Developer ID signed or notarized. The script builds the app but does not launch it.
 
-如需指定构建目录，可设置 `FINTRACK_DERIVED_DATA_PATH`。源码版本配置见 `Project/project.yml` 的 `MARKETING_VERSION` 和 `CURRENT_PROJECT_VERSION`；已发布安装包以 Release 页面对应的 Tag 为准。
+Set `FINTRACK_DERIVED_DATA_PATH` for a custom build directory. Source version settings are `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Project/project.yml`. For official installers, the corresponding GitHub Release tag is authoritative.
 
-## 在 Xcode 中查看
+## Opening the project in Xcode
 
 ```sh
 xcodegen generate --spec Project/project.yml --project Project
 open Project/FinTrack.xcodeproj
 ```
 
-选择 `FinTrack` scheme。默认 Debug Run 使用内存中的独立开发账本和模拟汇率，不读取正式账本；此账本在退出后不保留。Release 应用正常启动时使用正式本地存储，因此请先做好备份，不要对日常使用的真实账本进行开发试验。
+Select the `FinTrack` scheme. A normal Debug Run uses an independent in-memory development ledger and simulated exchange rates; it does not access the production ledger, and this data does not survive process exit. A normally launched Release app uses the actual local store, so back up your ledger and never experiment against real everyday data.
 
-Bundle Identifier 保持为 `dev.agumuzi.fintrack.macos`。不要随意修改模型或存储路径；这些都可能影响既有账本的兼容性。
+The Bundle Identifier remains `dev.agumuzi.fintrack.macos`. Do not casually change the data models or storage paths: doing so may affect compatibility with existing ledgers.
 
-## 产品网站
+## Product website
 
-网站源码位于 `website/`，无需依赖安装。预览可使用任意静态服务器，例如：
+Website source is in `website/` and requires no installed dependencies. Preview it with any static web server, for example:
 
 ```sh
 python3 -m http.server 8000 --directory website
 ```
 
-访问 `http://localhost:8000/`。`scripts/check-site.py` 检查本地资源和锚点；GitHub Actions 在合并后部署至 [GitHub Pages](https://agumuzi.github.io/FinTrack/)。网站不依赖前端框架、第三方字体或分析服务。
+Visit `http://localhost:8000/`. `scripts/check-site.py` validates local assets and anchors. GitHub Actions deploys merged changes to [GitHub Pages](https://agumuzi.github.io/FinTrack/). The site uses no front-end framework, third-party fonts, or analytics service.
 
+## Independently signed Keychain helper
 
-## 独立密钥组件
+`Resources/FinTrackKeychainHelper` is a Universal signed executable with an independent component version. Its source is in `Sources/Core/Security/KeychainHelper/`, but it is not rebuilt as part of a routine main-app build. Normal releases reuse its **exact original bytes** to avoid repeated authorization prompts caused by changing executable fingerprints.
 
-`Resources/FinTrackKeychainHelper` 是具有独立组件版本的 Universal 签名程序，源码位于 `Sources/Core/Security/KeychainHelper/`，不参与主应用重新编译。普通应用发布复用其原始字节，避免旧版钥匙串按程序指纹重新要求授权。`scripts/verify-keychain-helper.py` 检查源码、双架构签名与固定摘要；构建和签名不得改写该组件。组件安全更新需要独立评估授权迁移，不能随应用版本自动重签。
+`scripts/verify-keychain-helper.py` verifies its source, both architecture signatures, and fixed digest. Builds and signing steps must not modify it. Security updates to this helper require a separate assessment of authorization migration; it must not be re-signed automatically with regular app versions.
 
-主应用和组件相互验证官方固定身份；组件只接受父应用通过私有管道发送的请求，API Key 不进入命令行、日志或临时文件。自行发布的 fork 必须使用自己的身份构建并配置组件，不能使用官方组件访问官方应用的密钥。正式账本、Bundle ID 和 API Key 服务标识保持不变。
+The app and helper verify one another's fixed official identity. The helper accepts requests only through a private pipe from its parent application; API keys are not passed through arguments, logs, or temporary files. A redistributed fork must build and configure its **own identity**; it cannot use the official helper to access the official application's keys. Keep the production ledger, Bundle ID, and API-key service identifiers unchanged.
 
-构建目录中的产物及明确命名的验证副本需要显式隔离参数；缺少参数时会停止打开账本，避免意外访问日常数据。正式使用请将已确认的应用复制到 Applications。
+Build products and explicitly named validation copies require isolation parameters. Without them, the application refuses to open a ledger, protecting everyday data from accidental testing. For regular use, install the verified application in Applications.
