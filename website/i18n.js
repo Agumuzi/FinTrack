@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   const dictionary = {
+  "Clearer financial summaries and settings": "更清晰的财务概览与设置",
+  "Deposit interest summaries now use currency symbols, green received amounts, and a received-share ring on wide windows. Financial schedule dates, exchange-rate history filters, source timestamps, account settings, and automatic-update controls have clearer layouts.": "存款收益概览改用货币符号，已到账金额显示绿色，宽窗显示到账比例环。优化财务日程日期、汇率历史筛选、数据源时间戳、账户设置和自动更新控件的布局。",
   "November 1, 2026": "2026 年 11 月 1 日",
   "Reliable backups and preserved financial history": "更可靠的备份与财务历史保留",
   "Complete backups now use consistent size and recovery protection, while non-financial deposit edits preserve saved values and exchange-rate snapshots. Older loans without fixed dates offer an explicit contract-time-zone review; existing payment schedules and receipts stay intact. Updates wait for the ledger to be ready before confirming launch. The three menu-bar pages keep the same height, and CSV exports read only the selected record type.": "完整备份统一容量与恢复保护，存款的非财务编辑保留已存金额与汇率快照。未固定日期的旧贷款可明确核对合同所在时区；既有还款计划与收据保持不变。更新后等待账本就绪再确认启动。菜单栏三个页面保持等高，CSV导出只读取所选类型。",
@@ -38,7 +40,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.5 is available": "FinTrack v1.5 现已发布",
+  "FinTrack v1.5.1 is available": "FinTrack v1.5.1 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -170,6 +172,8 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "Clearer financial summaries and settings": "Более понятные финансовые сводки и настройки",
+  "Deposit interest summaries now use currency symbols, green received amounts, and a received-share ring on wide windows. Financial schedule dates, exchange-rate history filters, source timestamps, account settings, and automatic-update controls have clearer layouts.": "Сводки процентов используют символы валют, зелёные суммы полученных процентов и индикатор доли поступлений в широком окне. Улучшено отображение дат финансового календаря, фильтров истории курсов, времени источников, настроек счёта и автоматических обновлений.",
   "November 1, 2026": "1 ноября 2026 г.",
   "Reliable backups and preserved financial history": "Надёжные резервные копии и сохранение финансовой истории",
   "Complete backups now use consistent size and recovery protection, while non-financial deposit edits preserve saved values and exchange-rate snapshots. Older loans without fixed dates offer an explicit contract-time-zone review; existing payment schedules and receipts stay intact. Updates wait for the ledger to be ready before confirming launch. The three menu-bar pages keep the same height, and CSV exports read only the selected record type.": "Полные резервные копии используют согласованные ограничения размера и защиту восстановления. Изменение нефинансовых данных вклада сохраняет суммы и курсы. Для старых кредитов без закреплённых дат доступна явная проверка часового пояса договора; существующие графики и квитанции сохраняются. Обновление подтверждает запуск после готовности книги. Три страницы меню имеют одинаковую высоту, а экспорт CSV читает только выбранный тип записей.",
@@ -205,7 +209,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.5 is available": "Вышла версия FinTrack v1.5",
+  "FinTrack v1.5.1 is available": "Вышла версия FinTrack v1.5.1",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
