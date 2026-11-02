@@ -43,9 +43,7 @@ struct MacAboutSettingsView: View {
                       HStack(alignment: .center, spacing: MacUI.space(12)) {
                         Image(systemName: "clock.arrow.circlepath").appIconFont(19, weight: .regular, design: .default).frame(width: MacUI.space(25))
                         VStack(alignment: .leading, spacing: MacUI.space(4)) { Text(L10n.text("mac.aboutSettingsView.MacSettingsColumns.c42a3dd9c2")).appFont(.body, weight: .medium, design: .default); Text(L10n.text("mac.aboutSettingsView.MacSettingsColumns.05194ffffc")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary) }
-                      }
-                      HStack {
-                        Spacer(minLength: 0)
+                        Spacer(minLength: 12)
                         Toggle(L10n.text("mac.aboutSettingsView.MacSettingsColumns.c42a3dd9c2"), isOn: $automatic).labelsHidden().toggleStyle(.switch).tint(.blue).disabled(!canConfigure)
                         MacSettingsMenu(selection: $frequency, options: [(L10n.text("mac.aboutSettingsView.MacSettingsMenu.eea1694c23"),"daily"), (L10n.text("mac.aboutSettingsView.MacSettingsMenu.92845d3b53"),"weekly"), (L10n.text("mac.aboutSettingsView.MacSettingsMenu.68b21af949"),"monthly")]).frame(width: MacUI.space(150)).disabled(!canConfigure)
                       }

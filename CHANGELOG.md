@@ -2,6 +2,13 @@
 
 此处记录已发布的应用版本。安装包与校验文件见 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases)。
 
+## v1.5.1 — 2026-11-02
+
+- Refine the upcoming financial schedule and deposit interest summary layouts.
+- Place currency preferences beside scheduled posting settings on wide windows.
+- Keep exchange-rate history filters and automatic update controls on one row on wide layouts.
+- Prevent custom exchange-rate source timestamps from splitting date digits across lines.
+
 ## v1.5 — 2026-11-02
 
 - 建立以英语为基础的语言模块，完整支持英语、简体中文、跟随系统和应用内切换；现有俄语资源保留，暂不开放选择。

@@ -8,7 +8,7 @@ struct MacDepositEarningsOverview: View {
     let availableWidth: CGFloat
     let availableHeight: CGFloat
     @State private var snapshot = MacDepositEarnings.Snapshot.empty
-    private var cardHeight: CGFloat { min(MacUI.space(116), max(94, availableHeight * 0.18)) }
+    private var cardHeight: CGFloat { MacUI.space(132) }
     private var cardWidth: CGFloat? { availableWidth >= MacUI.space(690) ? nil : max(220, min(300, availableWidth * 0.85)) }
     var body: some View {
         let revision = MacDepositEarnings.Revision(deposits: deposits, transactions: transactions, now: now)
@@ -66,7 +66,7 @@ struct MacDepositEarningsOverview: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(8), content: content).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.appPadding(10).frame(maxWidth: .infinity, alignment: .topLeading).frame(width: cardWidth, height: cardHeight)
+        }.appPadding(14).frame(maxWidth: .infinity, alignment: .topLeading).frame(width: cardWidth, height: cardHeight)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.035)))
             .appHelp(L10n.text(help)).accessibilityElement(children: .contain).accessibilityIdentifier(id)
@@ -79,9 +79,8 @@ struct MacDepositEarningsOverview: View {
     private func detail(_ key: String, amount: Decimal, currency: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: MacUI.space(6)) {
             Text(L10n.text(key)).foregroundStyle(.secondary)
-            Spacer(minLength: 0)
             Text(MacDisplayPreferences.money(amount) + " " + currency).monospacedDigit()
-        }.appFont(.caption)
+        }.appFont(.caption).fixedSize(horizontal: false, vertical: true)
     }
     private func empty(_ key: String) -> some View { Text(L10n.text(key)).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
     private func refresh() {
