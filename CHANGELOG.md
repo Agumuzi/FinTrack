@@ -6,7 +6,7 @@ This document records published FinTrack versions. Installers and checksum files
 
 - Introduced an English-first localization module with full support for English, Simplified Chinese, Follow System, and in-app language switching. Existing Russian resources are retained but are not yet selectable.
 - Refined English terminology, table headings, chart dates, menus, and multilingual layouts; fixed overlapping and truncated labels and icon alignment. The default accent color now matches the product website.
-- Made the ledger-restore confirmation phrase follow the interface language again: `RESTORE` in English and `恢复账本` in Simplified Chinese.
+- Made the ledger-restore confirmation phrase follow the interface language again: `RESTORE` in English and its localized confirmation phrase in Simplified Chinese.
 - Added a compact deposit-interest overview showing outstanding interest, current-year earnings, and future-year projections by original currency and scheduled interest year. Income awaiting verification is not counted as received; partial receipts and final amount adjustments remain distinct.
 - Preserved database structures, historical amounts and exchange-rate snapshots, CSV contracts, backup formats, and update trust. Existing Chinese storage identifiers were not changed.
 
@@ -94,7 +94,7 @@ Selected-text access requires macOS Accessibility permission; notifications requ
 ## v1.4 — 2026-10-24
 
 - Fixed amount entry and backspace behavior across thousands separators; grouping appears during entry while preserving the caret, and historical amount precision is unchanged unless edited.
-- Fixed duplicate backup-history entries and accidental deletions after overwriting backups with the same name. File identity and digest are checked before deletion, and undeleleted entries remain if part of a removal fails.
+- Fixed duplicate backup-history entries and accidental deletions after overwriting backups with the same name. File identity and digest are checked before deletion, and undeleted entries remain if part of a removal fails.
 - Fixed lost loan principal/down-payment fields, cent-level installment remainders, future transactions affecting goal baselines, and financial validation for original-format CSVs. Loan balances decrease based on verified receipts.
 - Improved multi-selection, dates, and amount-column widths in transactions and condensed forms/details. Standardized category icons and reference-count ordering; tuned settings breakpoints and color preview in both appearances.
 - Made historical exchange-rate charts progressive, canceled stale requests when switching ranges, reused history caches, refined mirror order, and reduced repeated Keychain access.
