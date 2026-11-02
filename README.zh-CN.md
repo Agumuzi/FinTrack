@@ -4,10 +4,10 @@
 
 <h1 align="center">FinTrack</h1>
 <p align="center">为 Mac 打造的个人财务工作台。记录收支，整理资产，把计划看清楚。</p>
-<p align="center"><strong>v1.5.2 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
+<p align="center"><strong>v1.5.3 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
 <p align="center">
   <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
-  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5.2">下载 macOS 版</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5.3">下载 macOS 版</a> ·
   <a href="docs/INSTALLATION.md">安装指南</a> ·
   <a href="CHANGELOG.md">更新记录</a> ·
   <a href="https://ko-fi.com/agumuzi">支持开发</a>
@@ -36,7 +36,7 @@
 
 ## 下载与安装
 
-[**下载 FinTrack v1.5.2 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.2/FinTrack-v1.5.2-macOS.dmg) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.2/SHA256.txt)
+[**下载 FinTrack v1.5.3 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.3/FinTrack-v1.5.3-macOS.dmg) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.3/SHA256.txt)
 
 1. 下载并校验 DMG，打开后将 `FinTrack` 拖到旁边的“应用程序”文件夹。
 2. 首次打开可能受到 macOS 安全检查限制。当前安装包采用 **固定本地身份签名，未经 Apple 公证**，详见[安装指南（英语）](docs/INSTALLATION.md)。
