@@ -14,6 +14,24 @@ struct OverviewCard<Content: View>: View {
     }
 }
 
+// The financial goal determines the paired row height. The schedule scrolls
+// within the same height instead of making the entire overview row taller.
+private struct MacOverviewGoalScheduleRow: Layout {
+    var spacing: CGFloat
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? MacUI.space(900)
+        let column = max(1, (width - spacing) / 2)
+        let height = subviews.first?.sizeThatFits(.init(width: column, height: nil)).height ?? 0
+        return CGSize(width: width, height: height)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let column = max(1, (bounds.width - spacing) / 2)
+        for (index, view) in subviews.enumerated() {
+            view.place(at: CGPoint(x: bounds.minX + CGFloat(index) * (column + spacing), y: bounds.minY), anchor: .topLeading, proposal: .init(width: column, height: bounds.height))
+        }
+    }
+}
+
 struct MacOverviewView: View {
     @ObservedObject private var localizationState = LocalizationController.shared
     @AppStorage(MacCustomTypography.bodyKey, store: MacPreferences.defaults) private var layoutBodyPoints = 16
@@ -102,7 +120,7 @@ struct MacOverviewView: View {
                         metrics(contentWidth: innerContentWidth)
                         trendCard
                         if keepsCardsInPairs {
-                            HStack(alignment: .top, spacing: MacUI.space(15)) {
+                            MacOverviewGoalScheduleRow(spacing: MacUI.space(15)) {
                                 goalCard.frame(maxWidth: .infinity)
                                 scheduleCard.frame(maxWidth: .infinity)
                             }
@@ -415,7 +433,7 @@ struct MacOverviewView: View {
         return result.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date < $1.date }
     }
     private var scheduleCard: some View {
-        OverviewCard(help: L10n.text("mac.overviewView.OverviewCard.90398cb8ba"), height: 258) {
+        OverviewCard(help: L10n.text("mac.overviewView.OverviewCard.90398cb8ba"), height: 250) {
             VStack(alignment: .leading, spacing: MacUI.space(12)) {
                 VStack(alignment: .leading, spacing: MacUI.space(4)) {
                     Text(L10n.text("mac.overviewView.OverviewCard.e1c1309b39")).appFont(.body, weight: .semibold, design: .default).accessibilityIdentifier("overviewScheduleTitle")
@@ -423,37 +441,41 @@ struct MacOverviewView: View {
                 }
                 if schedule.isEmpty { empty(L10n.text("mac.overviewView.empty.f880b7b62b"), icon: "calendar").frame(height: MacUI.space(145)) }
                 else {
-                    VStack(spacing: MacUI.space(0)) { ForEach(schedule.prefix(4)) { row in
-                        Button { workspace.section = row.section } label: {
-                            HStack(alignment: .top, spacing: MacUI.space(10)) {
-                                Image(systemName: row.icon).foregroundStyle(row.color).frame(width: MacUI.space(29), height: MacUI.space(29)).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-                                VStack(alignment: .leading, spacing: MacUI.space(6)) {
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(row.title).appFont(.caption, weight: .medium)
-                                        Spacer(minLength: 8)
-                                        Text(row.date, format: .dateTime.month(.abbreviated).day().locale(L10n.locale)).appFont(.caption).foregroundStyle(.secondary).fixedSize()
-                                    }
-                                    Text(row.name).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                                    ViewThatFits(in: .horizontal) {
-                                        HStack(spacing: MacUI.space(10)) { scheduleStatus(row); Spacer(minLength: 0); scheduleAmount(row) }
-                                        VStack(alignment: .leading, spacing: MacUI.space(5)) { scheduleStatus(row); scheduleAmount(row) }
-                                    }
-                                }.frame(maxWidth: .infinity, alignment: .leading)
-                            }.appPadding(.vertical, 8).contentShape(Rectangle())
-                        }.buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.format("mac.overviewView.ForEach.349cbc9439", "\(row.name)")).accessibilityIdentifier("overviewSchedule-" + row.id)
-                        if row.id != schedule.prefix(4).last?.id { Divider() }
-                    } }
+                    ScrollView {
+                        VStack(spacing: 0) { ForEach(schedule.prefix(4)) { row in
+                            Button { workspace.section = row.section } label: {
+                                HStack(spacing: MacUI.space(8)) {
+                                    Image(systemName: row.icon).foregroundStyle(row.color).frame(width: MacUI.space(27), height: MacUI.space(27)).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                                    VStack(alignment: .leading, spacing: MacUI.space(3)) {
+                                        HStack(spacing: MacUI.space(6)) {
+                                            Text(row.title).appFont(.caption, weight: .medium).lineLimit(1)
+                                            scheduleStatus(row)
+                                            Spacer(minLength: 0)
+                                            Text(row.date, format: .dateTime.month(.abbreviated).day().locale(L10n.locale)).appFont(.caption).foregroundStyle(.secondary).fixedSize()
+                                        }
+                                        HStack(spacing: MacUI.space(6)) {
+                                            Text(row.name).appFont(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                            Spacer(minLength: 0)
+                                            scheduleAmount(row)
+                                        }
+                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                                }.appPadding(.vertical, 4).contentShape(Rectangle())
+                            }.buttonStyle(MacInteractiveButtonStyle()).appHelp(row.title + " · " + row.name + " · " + row.amount).accessibilityIdentifier("overviewSchedule-" + row.id)
+                            if row.id != schedule.prefix(4).last?.id { Divider() }
+                        } }
+                    }.frame(maxWidth: .infinity).accessibilityIdentifier("overviewScheduleList")
                 }
+
                 Text(L10n.text("mac.overviewView.OverviewCard.78afe68cd4")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
-            }.frame(minHeight: MacUI.space(185), alignment: .top)
-        }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("overviewScheduleCard")
     }
     private func scheduleStatus(_ row: ScheduleItem) -> some View {
-        Text(row.status).appFont(.caption).foregroundStyle(row.color).fixedSize(horizontal: true, vertical: false)
-            .appPadding(5).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+        Text(row.status).appFont(.caption).foregroundStyle(row.color).lineLimit(1).minimumScaleFactor(0.8)
+            .appPadding(.horizontal, 4).appPadding(.vertical, 1).background(row.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
     }
     private func scheduleAmount(_ row: ScheduleItem) -> some View {
-        Text(row.amount).appFont(.caption).monospacedDigit().fixedSize(horizontal: true, vertical: false)
+        Text(row.amount).appFont(.caption).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7).layoutPriority(1)
     }
 
     private var recentCard: some View {

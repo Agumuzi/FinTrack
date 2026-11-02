@@ -376,7 +376,6 @@ struct MacRecordSection: View {
                 Text(activeBookCurrency == nil ? "—" : MacOverviewStyle.money(amount))
                     .appFont(.amount, weight: .semibold, design: .default).monospacedDigit().foregroundStyle(color)
                     .lineLimit(1).minimumScaleFactor(0.5).allowsTightening(true).accessibilityIdentifier(id)
-                Text(activeBookCurrency ?? L10n.text("mac.recordsView.metric.b837dbe9c8")).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
             }.appPadding(15).frame(maxWidth: .infinity, alignment: .leading).appMinHeight(108)
                 .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
                 .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.04)))

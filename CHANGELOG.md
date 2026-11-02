@@ -2,6 +2,12 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.2 — 2026-11-02
+
+- Collapse deposit interest summaries by default; use the info control to show or hide more compact cards.
+- Limit financial schedule entries to two lines and match the neighboring goal card height, with internal scrolling when needed.
+- Remove repeated currency labels beneath the transaction summary amounts.
+
 ## v1.5.1 — 2026-11-02
 
 - Refine the upcoming financial schedule and deposit interest summary layouts, with currency symbols, green received amounts, primary-color outstanding amounts, and a received-share ring on wide windows.

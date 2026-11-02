@@ -8,7 +8,8 @@ struct MacDepositEarningsOverview: View {
     let availableWidth: CGFloat
     let availableHeight: CGFloat
     @State private var snapshot = MacDepositEarnings.Snapshot.empty
-    private var cardHeight: CGFloat { MacUI.space(148) }
+    @State private var expanded = false
+    private var cardHeight: CGFloat { MacUI.space(108) }
     private var cardWidth: CGFloat? { availableWidth >= MacUI.space(690) ? nil : max(220, min(300, availableWidth * 0.85)) }
     var body: some View {
         let revision = MacDepositEarnings.Revision(deposits: deposits, transactions: transactions, now: now)
@@ -16,16 +17,26 @@ struct MacDepositEarningsOverview: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(L10n.text("deposit.earnings.overview")).appFont(.caption, weight: .semibold).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Image(systemName: "info.circle").foregroundStyle(.secondary).appHelp(L10n.text("deposit.earnings.basis"))
+                Button { expanded.toggle() } label: {
+                    HStack(spacing: MacUI.space(5)) {
+                        Image(systemName: "chevron." + (expanded ? "up" : "down"))
+                        Image(systemName: "info.circle")
+                    }.foregroundStyle(.secondary).contentShape(Rectangle())
+                }.buttonStyle(MacInteractiveButtonStyle())
+                    .accessibilityLabel(L10n.text(expanded ? "deposit.earnings.collapse" : "deposit.earnings.expand"))
+                    .accessibilityValue(L10n.text(expanded ? "deposit.earnings.expanded" : "deposit.earnings.collapsed"))
+                    .accessibilityIdentifier("depositEarningsToggle").appHelp(L10n.text("deposit.earnings.basis"))
             }
-            if availableWidth >= MacUI.space(690) {
-                HStack(alignment: .top, spacing: MacUI.space(12)) { cards }
-            } else {
-                // Keep the existing list and detail pane usable at high zoom.
-                // Only the overview scrolls horizontally on a narrow window.
-                ScrollView(.horizontal) {
+            if expanded {
+                if availableWidth >= MacUI.space(690) {
                     HStack(alignment: .top, spacing: MacUI.space(12)) { cards }
-                }.accessibilityIdentifier("depositEarningsHorizontalScroll")
+                } else {
+                    // Keep the existing list and detail pane usable at high zoom.
+                    // Only the overview scrolls horizontally on a narrow window.
+                    ScrollView(.horizontal) {
+                        HStack(alignment: .top, spacing: MacUI.space(12)) { cards }
+                    }.accessibilityIdentifier("depositEarningsHorizontalScroll")
+                }
             }
             if snapshot.excludedDeposits > 0 {
                 Label(L10n.format("deposit.earnings.review", Int64(snapshot.excludedDeposits)), systemImage: "exclamationmark.triangle")
@@ -44,7 +55,7 @@ struct MacDepositEarningsOverview: View {
             if snapshot.current.isEmpty { empty("deposit.earnings.none") }
             ForEach(snapshot.current) { row in
                 HStack(spacing: MacUI.space(14)) {
-                    VStack(alignment: .leading, spacing: MacUI.space(10)) {
+                    VStack(alignment: .leading, spacing: MacUI.space(6)) {
                         detail("deposit.earnings.received", amount: row.received, currency: row.currency, received: true)
                         Divider()
                         detail("deposit.earnings.unreceived", amount: row.outstanding, currency: row.currency)
@@ -75,7 +86,7 @@ struct MacDepositEarningsOverview: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(8), content: content).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.appPadding(14).frame(maxWidth: .infinity, alignment: .topLeading).frame(width: cardWidth, height: cardHeight)
+        }.appPadding(10).frame(maxWidth: .infinity, alignment: .topLeading).frame(width: cardWidth, height: cardHeight)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.035)))
             .appHelp(L10n.text(help)).accessibilityElement(children: .contain).accessibilityIdentifier(id)
@@ -104,7 +115,7 @@ struct MacDepositEarningsOverview: View {
                 Text(fraction, format: .percent.precision(.fractionLength(1))).appFont(.caption, weight: .semibold).monospacedDigit()
                 Text(L10n.text("deposit.earnings.received")).appFont(.caption).foregroundStyle(.secondary)
             }
-        }.frame(width: MacUI.space(76), height: MacUI.space(76)).appPadding(4)
+        }.frame(width: MacUI.space(56), height: MacUI.space(56)).appPadding(4)
     }
     private func empty(_ key: String) -> some View { Text(L10n.text(key)).appFont(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
     private func refresh() {
