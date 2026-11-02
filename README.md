@@ -1,74 +1,77 @@
 <p align="center">
-  <img src="website/assets/app-icon.png" width="96" alt="FinTrack 应用图标">
+  <img src="website/assets/app-icon.png" width="96" alt="FinTrack app icon">
 </p>
 
 <h1 align="center">FinTrack</h1>
-<p align="center">为 Mac 打造的个人财务工作台。记录收支，整理资产，把计划看清楚。</p>
+<p align="center">A personal finance workspace built for Mac. Track transactions, organize your finances, and plan with clarity.</p>
 <p align="center"><strong>v1.5 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
 <p align="center">
-  <a href="https://agumuzi.github.io/FinTrack/">产品官网</a> ·
-  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5">下载 macOS 版</a> ·
-  <a href="docs/INSTALLATION.md">安装指南</a> ·
-  <a href="CHANGELOG.md">更新记录</a> ·
-  <a href="https://ko-fi.com/agumuzi">☕ 支持开发</a>
+  <a href="https://agumuzi.github.io/FinTrack/">Website</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5">Download for macOS</a> ·
+  <a href="docs/INSTALLATION.md">Installation</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="https://ko-fi.com/agumuzi">Support development</a>
 </p>
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/assets/screenshots/overview-dark.png">
-  <img src="website/assets/screenshots/overview-light.png" alt="FinTrack 概览">
+  <img src="website/assets/screenshots/overview-light.png" alt="FinTrack overview">
 </picture>
 
-*真实软件界面，使用示例数据展示。应用不预装示例账本。*
+*Actual application screenshots with fictional sample data. No sample ledger is included with the app.*
 
-## 在一个工作台里，整理个人财务
+## Your personal finances, all in one workspace
 
-- **日常记账**：管理收入与支出，按日期、类别和币种查找；类别跟随收支范围，明细保留原币与历史汇率，查看趋势与分类统计。
-- **资产与计划**：整理账户与资产，管理存款、贷款、周期记账、预算及财务目标。银行图片支持自行上传，与银行名称关联保存；再次输入相同名称会自动匹配，无需重复添加。
-- **多币种**：保留原币、记账汇率和本位币金额，查询与换算汇率，分别选择记账及菜单栏的数据来源。
-- **Mac 原生体验**：SwiftUI 界面、菜单栏快速操作、键盘交互与浅色 / 深色外观；支持从 macOS 字体库选择界面字体、调整字号快捷键、登录启动与后台运行。
-- **选区金额换算**：在其他应用选中金额后通过全局快捷键换算，可选划取后自动显示；需允许辅助功能权限。
-- **本地数据管理**：原生完整备份与恢复，四类 CSV 模板及导入导出。
+- **Income and expenses:** Record and find transactions by date, category, and currency. Categories follow the transaction type; entries retain their original amounts and historical exchange rates. Explore trends and category breakdowns.
+- **Assets and planning:** Manage accounts, assets, deposits, loans, recurring transactions, budgets, and financial goals. Upload your own bank images; FinTrack associates them with bank names and reuses them automatically when the same name is entered.
+- **Deposit interest overview:** Review expected interest, current-year received and pending interest, and future-year projections grouped by the original currency. Unverified scheduled income is not treated as confirmed receipt.
+- **Multiple currencies:** Preserve original-currency amounts, recorded exchange rates, and base-currency values. Look up and convert currencies, with separate rate-source preferences for bookkeeping and menu-bar monitoring.
+- **Native Mac experience:** SwiftUI interface, menu-bar shortcuts, keyboard interaction, and light/dark appearance. Choose installed macOS fonts, adjust text size and interface scaling, and configure login launch and background operation.
+- **Selected-amount conversion:** Select an amount in another app and convert it using a global shortcut, with optional automatic display on selection. Requires macOS Accessibility permission.
+- **Local data management:** Full native backup and restore, plus four CSV formats for import and export.
+- **Interface languages:** English and Simplified Chinese, with a Follow System option and in-app language switching. Russian translation resources are retained but are not yet available as a selectable language.
 
-更多真实界面见[产品官网](https://agumuzi.github.io/FinTrack/#showcase)。
+See more real screenshots on the [product website](https://agumuzi.github.io/FinTrack/#showcase).
 
-## 下载与安装
+## Download and install
 
-[**下载 FinTrack v1.5 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5/FinTrack-v1.5-macOS.dmg) · [SHA256 校验文件](https://github.com/Agumuzi/FinTrack/releases/download/v1.5/SHA256.txt)
+[**Download FinTrack v1.5 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5/FinTrack-v1.5-macOS.dmg) · [SHA256 checksums](https://github.com/Agumuzi/FinTrack/releases/download/v1.5/SHA256.txt)
 
-1. 下载并校验 DMG，打开后将 `FinTrack` 拖到旁边的“应用程序”文件夹。
-2. 首次打开可能受到 macOS 安全检查限制。当前安装包采用 **固定本地身份签名，未经 Apple 公证**，详见[安装指南](docs/INSTALLATION.md)。
-3. 首次启动提供权限引导，可稍后设置，也可从通用设置重新打开。先录入少量数据，确认保存、退出重开和备份恢复符合需要，再逐步投入日常使用。
+1. Download the DMG and verify its checksum. Open it, then drag `FinTrack` into the `Applications` folder shown alongside it.
+2. On first launch, macOS may block the app under its security checks. The current distribution uses a **fixed local signing identity and is not notarized by Apple**. See the [installation guide](docs/INSTALLATION.md).
+3. The first launch offers a permissions walkthrough; you can skip it and reopen it later in General settings. Start with a few test entries, verify persistence after restarting, and test backup and restore before relying on the app for everyday finances.
 
-v1.1 及之后版本内置官方签名更新源，可在“设置 → 关于 FinTrack”中检查、下载并校验新版，再确认安装。v1.0 用户需手动下载当前版本并替换应用。升级前请先创建完整备份。应用内下载如遇网络超时，可使用上方链接手动下载并校验。
+Versions v1.1 and later include an official signed update feed. Use **Settings → About FinTrack** to check for updates, download and verify them, and then confirm installation. Users upgrading from v1.0 must manually install the current release. Create a full backup before upgrading. If in-app downloading times out, use the links above to download and verify the release manually.
 
-需要 **macOS 15.0 或更高版本**。安装包包含 arm64 与 x86_64；已在 Apple Silicon 实机运行，Intel 实机兼容性尚未验证。
+**Requirements:** macOS 15.0 or later. The distribution includes both arm64 and x86_64. It has been run on physical Apple Silicon hardware; Intel hardware compatibility has not yet been verified on a physical device.
 
-## 数据与隐私
+## Data and privacy
 
-账本保存在本机，与应用和源代码目录分开。用户自行录入数据、选择图片，并通过完整备份保存账本。API 密钥使用本机钥匙串，不随账本备份迁移。
+Financial records are stored locally, separately from the application bundle and source tree. You enter your own information, choose your own images, and can create full backups. API keys are stored in the macOS Keychain and are **not** transferred with ledger backups.
 
-汇率查询会连接所选的外部数据来源；备份和 CSV 包含财务信息，应妥善保管。账本不是加密保险库。更多细节见[数据与隐私](docs/PRIVACY.md)。
+Exchange-rate requests contact your selected external providers. Backups and CSV files can contain sensitive financial information and should be protected. FinTrack is **not an encrypted vault**. For details, see [Data & Privacy](docs/PRIVACY.md).
 
-## 项目与文档
+## Project documentation
 
-| 文档 | 内容 |
+| Document | Contents |
 | --- | --- |
-| [文档导航](docs/README.md) | 按使用、开发与 AI 辅助维护任务查找项目文档 |
-| [构建指南](docs/BUILDING.md) | 环境要求、源码编译与工程生成 |
-| [源码结构](docs/ARCHITECTURE.md) | 应用入口、业务模块、共享模型和资源 |
-| [安装指南](docs/INSTALLATION.md) | 安装、校验与安全更新 |
-| [更新记录](CHANGELOG.md) | 正式应用版本 |
-| [参与项目](CONTRIBUTING.md) | 反馈问题和提交改动 |
-| [安全政策](SECURITY.md) | 私密报告安全问题与敏感信息处理 |
-| [社区行为准则](CODE_OF_CONDUCT.md) | Issues、PR 与项目讨论的沟通规范 |
-| [素材与组件](docs/THIRD_PARTY_NOTICES.md) | 平台组件及资源来源 |
+| [Documentation index](docs/README.md) | Find guides for users, contributors, and code maintainers |
+| [Build guide](docs/BUILDING.md) | Requirements, compilation, and project generation |
+| [Architecture](docs/ARCHITECTURE.md) | Entry points, feature modules, shared models, and resources |
+| [Installation](docs/INSTALLATION.md) | Installation, checksum verification, and secure updates |
+| [Changelog](CHANGELOG.md) | Published application versions |
+| [Contributing](CONTRIBUTING.md) | Reporting issues and proposing changes |
+| [Security policy](SECURITY.md) | Private vulnerability reports and handling sensitive information |
+| [Code of conduct](CODE_OF_CONDUCT.md) | Conduct in issues, pull requests, and discussions |
+| [Third-party notices](docs/THIRD_PARTY_NOTICES.md) | Platform components and asset provenance |
 
-可通过 [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) 手动更新，或使用 v1.1 起内置的官方签名更新源。完整 VoiceOver、长期真实财务使用和 Intel 实机仍待验证。
+Update via [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases) or the built-in signed update feed available since v1.1. Full VoiceOver coverage, prolonged real-world financial use, and physical Intel testing remain unverified.
 
-## 许可证与品牌素材
+## License and brand assets
 
-本仓库由作者拥有授权权利的原创源代码采用 [MIT License](LICENSE)，允许使用、复制、修改、分发和商业使用，条件是保留版权及许可声明。软件按现状提供，不附带担保。
+The original source code that the maintainer has the right to license is distributed under the [MIT License](LICENSE), which permits use, copying, modification, distribution, and commercial use subject to retaining the copyright and license notice. The software is provided **as is**, without warranty.
 
-**FinTrack 应用图标、Agumuzi 品牌标识、原创宣传图及截图**不包含在代码授权中；未经许可不得移作其他项目的品牌或素材。详见[品牌与视觉资产授权声明](ASSETS-LICENSE.md)。第三方素材与平台组件仍遵循各自条款，参见[素材与组件说明](docs/THIRD_PARTY_NOTICES.md)。
+**The FinTrack app icon, Agumuzi branding, original promotional graphics, and screenshots** are not licensed under MIT for separate reuse. They must not be repurposed as another project's branding or artwork without permission, except as permitted by law. See the [Brand & Visual Assets notice](ASSETS-LICENSE.md). Third-party assets and platform components remain subject to their respective terms; see [Third-party notices](docs/THIRD_PARTY_NOTICES.md).
 
-**历史许可：**此前版本曾采用不同许可，其中已授予的权利不因当前变更而撤销。早期 MIT 许可证文本仍存档于[历史许可证](docs/LEGACY_MIT_LICENSE.md)。品牌素材复用请通过本仓库联系维护者。
+**License history:** Previous releases used different licensing terms, and rights already granted by those releases are not retroactively withdrawn. An earlier MIT license text remains archived in the [legacy license document](docs/LEGACY_MIT_LICENSE.md). Contact the maintainer through this repository for permission to reuse brand artwork.
