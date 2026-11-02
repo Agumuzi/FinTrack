@@ -8,7 +8,7 @@ struct MacDepositEarningsOverview: View {
     let availableWidth: CGFloat
     let availableHeight: CGFloat
     @State private var snapshot = MacDepositEarnings.Snapshot.empty
-    private var cardHeight: CGFloat { MacUI.space(112) }
+    private var cardHeight: CGFloat { MacUI.space(148) }
     private var cardWidth: CGFloat? { availableWidth >= MacUI.space(690) ? nil : max(220, min(300, availableWidth * 0.85)) }
     var body: some View {
         let revision = MacDepositEarnings.Revision(deposits: deposits, transactions: transactions, now: now)
@@ -49,7 +49,7 @@ struct MacDepositEarningsOverview: View {
                         Divider()
                         detail("deposit.earnings.unreceived", amount: row.outstanding, currency: row.currency)
                     }.frame(maxWidth: .infinity, alignment: .leading)
-                    receivedRing(row)
+                    if availableWidth >= MacUI.space(1100) { receivedRing(row) }
                 }.appPadding(.bottom, 6)
 
             }
