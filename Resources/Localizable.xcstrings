@@ -1809,7 +1809,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available Assets"
+            "value": "Liquid funds"
           }
         },
         "ru": {
@@ -1821,7 +1821,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用资产"
+            "value": "流动资金"
           }
         }
       }
@@ -1831,7 +1831,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available assets"
+            "value": "Liquid funds"
           }
         },
         "ru": {
@@ -1843,7 +1843,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用资产"
+            "value": "流动资金"
           }
         }
       }
@@ -3506,7 +3506,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "初始资产与目标当前所属币种"
+            "value": "流动资金、初始资产与目标当前所属币种"
           }
         }
       }
@@ -8115,7 +8115,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Initial assets"
+            "value": "Liquid funds"
           }
         },
         "ru": {
@@ -8127,7 +8127,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "初始资产"
+            "value": "流动资金"
           }
         }
       }
@@ -34942,13 +34942,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Confirm Interest Received"
+            "value": "Confirm funds received"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "确认收到利息"
+            "value": "确认资金已到账"
           }
         }
       }
@@ -34978,13 +34978,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Confirm Receipt of Bank Interest?"
+            "value": "Confirm actual settlement?"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "确认已收到银行利息？"
+            "value": "确认实际结算？"
           }
         }
       }
@@ -35014,13 +35014,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Confirming records any unposted interest at maturity as income. The principal remains in the deposit record; use the actual amount received from the bank."
+            "value": "Confirm only after this interest has actually arrived. At maturity, this also confirms that the full principal has returned to liquid funds, using its saved exchange rate. If principal has not returned, cancel and review estimated receipts separately."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "确认后，将到期未入账的利息记为收入。本金保留在存款记录中；请以银行实际到账为准。"
+            "value": "请仅在本次利息实际到账后确认。若已到期，本操作同时确认本金已全额返还流动资金，沿用已存本金汇率。若本金尚未返还，请取消并单独核实预计利息收据。"
           }
         }
       }
@@ -44302,13 +44302,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Initial assets"
+            "value": "Liquid funds"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "初始资产"
+            "value": "流动资金"
           }
         }
       }
@@ -49666,13 +49666,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Available Assets"
+            "value": "Liquid funds"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用资产"
+            "value": "流动资金"
           }
         }
       }
@@ -50788,7 +50788,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "净资产 = 可用资产 + 存款本金 − 手工负债 − 贷款余额。历史时点余额不可用；期间筛选不改变当前资产。实际还款请在贷款模块核对。"
+            "value": "净资产 = 流动资金 + 持有及待结算存款本金 − 手工负债 − 贷款余额。历史时点余额不可用；期间筛选不改变当前资产。实际还款请在贷款模块核对。"
           }
         }
       }
@@ -50800,13 +50800,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opening Balances"
+            "value": "Calibrate liquid funds and debt"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "编辑初始资产与负债"
+            "value": "校准流动资金与负债"
           }
         }
       }
@@ -64932,6 +64932,176 @@
           "stringUnit": {
             "state": "translated",
             "value": "已收起"
+          }
+        }
+      }
+    },
+    "liquidity.initialize": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm current liquid funds"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认当前流动资金"
+          }
+        }
+      }
+    },
+    "liquidity.calibrate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibrate current liquid funds"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "校准当前流动资金"
+          }
+        }
+      }
+    },
+    "liquidity.current": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current liquid funds"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前流动资金"
+          }
+        }
+      }
+    },
+    "liquidity.initialize.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back up your ledger before updating. Enter the cash you can actually use now, excluding deposits. The suggested amount is unconfirmed. Existing history is preserved. Review ended deposits with uncertain settlement separately; their principal is not assumed returned. Verify interest already received before confirming the balance."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "升级前请保留旧版完整备份。请输入当前真实可动用资金，不含存款本金。建议金额尚未确认，历史数据保留。结束状态不明的旧存款请单独核对，不推定本金已返还。 请先核实已到账利息，再确认余额。"
+          }
+        }
+      }
+    },
+    "liquidity.calibrate.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the actual balance, including a negative balance if needed. Calibration records a difference without changing income, expenses or net. CSV does not preserve internal movements: calibrate after importing historical deposits."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入实际余额，允许负数。校准记录差额，不改变收入、支出或净额。CSV不保存内部资金流转，导入历史存款后请核对并校准。"
+          }
+        }
+      }
+    },
+    "liquidity.pending": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liquid funds await confirmation — review balance"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流动资金尚未确认，点此核对余额"
+          }
+        }
+      }
+    },
+    "liquidity.return": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm principal returned"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "确认本金已返还"
+          }
+        }
+      }
+    },
+    "liquidity.return.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full principal received"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本金已全额到账"
+          }
+        }
+      }
+    },
+    "liquidity.return.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm only after the bank has actually returned the full principal below. Interest must be verified separately. This action is recorded once using the saved principal exchange rate. Partial principal returns require separate review; do not confirm full return."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅在银行已实际全额返还以下本金时确认。利息需单独核实。本操作使用已存本金汇率，仅记录一次。部分本金返还需另行核对，请勿确认全额返还。"
+          }
+        }
+      }
+    },
+    "liquidity.renewal.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm the source principal has actually returned and verify any estimated interest before renewing. Unknown historical settlements require balance calibration and a new deposit instead."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先确认原存款本金实际返还，并核实预计利息后再续存。结算不明的历史存款请校准余额后使用新建存款。"
           }
         }
       }

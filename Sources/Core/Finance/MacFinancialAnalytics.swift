@@ -27,13 +27,17 @@ enum MacFinancialSettings {
         return try MacTransactionCRUD.amount(value)
     }
 
-    static func saveProfile(assets: String, debt: String, currency: String, in context: ModelContext) throws {
+    static func saveProfile(assets: String, debt: String, currency: String, initializingOnly: Bool = false, in context: ModelContext) throws {
         _ = try MacCurrency.ledgerCurrency(in: context, preferred: currency)
-        let assets = try nonnegativeAmount(assets), debt = try nonnegativeAmount(debt)
-        let profile = try context.fetch(FetchDescriptor<FinancialProfile>(sortBy: [SortDescriptor(\.createdAt)])).first { $0.deletedAt == nil }
+        let cashText = assets.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let assets = Double(cashText), assets.isFinite, abs(assets) <= 1e12 else { throw MacFinanceRecords.Failure.invalidTerm }
+        let debt = try nonnegativeAmount(debt)
+        let profile = try MacLiquidity.profile(in: context)
             ?? FinancialProfile()
+        if initializingOnly && profile.liquidityData != nil { throw MacFinanceReview.Failure.confirmation }
         if profile.modelContext == nil { context.insert(profile) }
-        profile.initialAssets = assets
+        do { try MacLiquidity.confirm(amount: assets, profile: profile, currency: currency, in: context) }
+        catch { context.rollback(); throw error }
         profile.initialDebt = Goal.normalizedDebt(debt)
         profile.updatedAt = Date()
         if profile.syncVersion < Int.max { profile.syncVersion += 1 }
@@ -58,8 +62,20 @@ enum MacFinancialSettings {
             let remaining = audit.reliable ? (audit.outstanding ?? loan.principal) : loan.principal
             return sum + FinancialPrecision.roundAmountForStorage(remaining * loan.exchangeRateToBase)
         }
-        return FinancialProfileSnapshot(netWorth: original.netWorth - debt, availableAssets: original.availableAssets,
-            frozenDepositPrincipal: original.frozenDepositPrincipal, manualDebtBalance: original.manualDebtBalance,
+        var liquid = original.availableAssets
+        var held = original.frozenDepositPrincipal
+        if let state = MacLiquidity.state(profile), state.currency == currency {
+            liquid = MacLiquidity.cash(state, transactions: transactions, asOf: date)
+            let today = Calendar.current.startOfDay(for: date)
+            held = state.positions.filter { !$0.returned && !$0.cancelled && ($0.opening || Calendar.current.startOfDay(for: $0.start) <= today) }
+                .reduce(0) { $0 + $1.principal }
+            // Imported records have no funding provenance; retain active assets
+            // and require explicit calibration instead of inventing transfers.
+            let tracked = Set(state.positions.map(\.id))
+            held += DepositManager.frozenPrincipalBalance(for: deposits.filter { $0.deletedAt == nil && !tracked.contains($0.id) }, baseCurrency: currency, asOf: date)
+        }
+        return FinancialProfileSnapshot(netWorth: liquid + held - original.manualDebtBalance - debt, availableAssets: liquid,
+            frozenDepositPrincipal: held, manualDebtBalance: original.manualDebtBalance,
             loanBalance: debt, requiredAssetReferenceTopUp: original.requiredAssetReferenceTopUp)
     }
 }

@@ -85,6 +85,9 @@ final class MacLedgerAccess: ObservableObject {
                     try context.save()
                 }
             }
+            for p in try container.mainContext.fetch(FetchDescriptor<FinancialProfile>()) {
+                if let data = p.liquidityData { _ = try LiquidityState.decode(data) }
+            }
             // Legacy loans lack a contract timezone. Expose their explicit
             // date review without changing the contract during ledger open.
             // Once per container open; imports and native restores repair inside their own transaction.

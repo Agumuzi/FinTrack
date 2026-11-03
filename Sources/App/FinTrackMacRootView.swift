@@ -62,6 +62,9 @@ struct FinTrackMacRootView: View {
     @AppStorage("fintrack_auto_posting") private var automaticPosting = false
     @AppStorage("v13_auto_deposit_posting") private var automaticDeposits = true
     @ObservedObject private var appServices = MacAppServices.shared
+    @Query(sort: \FinancialProfile.createdAt) private var profiles: [FinancialProfile]
+    @State private var deferredLiquidity = false
+    @State private var showsLiquidity = false
     @Query private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
     @Query private var loans: [LoanRule]
@@ -118,6 +121,18 @@ struct FinTrackMacRootView: View {
         .modifier(MacOperationFeedbackPresenter(center:operationFeedback))
         .modifier(MacUpdateSheetPresenter())
         .modifier(MacPermissionSheetPresenter())
+        .sheet(isPresented: Binding(get: { currency != nil && !deferredLiquidity && (profiles.first(where: { $0.deletedAt == nil && $0.liquidityData != nil }) ?? profiles.first(where: { $0.deletedAt == nil }))?.liquidityData == nil }, set: { if !$0 { deferredLiquidity = true } })) {
+            if let currency { MacFinancialProfileEditor(currency: currency, profile: (profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil })) }
+        }
+        .sheet(isPresented: $showsLiquidity) {
+            if let currency { MacFinancialProfileEditor(currency: currency, profile: (profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil })) }
+        }
+        .overlay(alignment: .top) {
+            if deferredLiquidity && (profiles.first(where: { $0.deletedAt == nil && $0.liquidityData != nil }) ?? profiles.first(where: { $0.deletedAt == nil }))?.liquidityData == nil {
+                Button(L10n.text("liquidity.pending")) { showsLiquidity = true }
+                    .padding(8).background(.regularMaterial)
+            }
+        }
         .overlay {
             if showsAccount {
                 ZStack(alignment: .bottomLeading) {

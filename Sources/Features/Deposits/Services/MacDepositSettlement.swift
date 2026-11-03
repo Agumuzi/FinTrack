@@ -6,9 +6,8 @@ import SwiftData
 /// rollover and reconciliation cannot safely be inferred from original fields.
 ///
 /// Uses the ORIGINAL DepositSettlementRule amounts and original Transaction
-/// original/base snapshot fields. No principal withdrawal/capital transfer is
-/// synthesized. Serial single-context idempotency only; separate-window
-/// concurrency needs a persistent uniqueness constraint before automation.
+/// original/base snapshots. Actual maturity returns tracked principal atomically;
+/// estimated posting retains principal pending explicit confirmation.
 @MainActor
 enum MacDepositSettlement {
     enum PostingError: LocalizedError {
@@ -171,6 +170,7 @@ enum MacDepositSettlement {
         }
 
         do {
+            try MacLiquidity.register(deposit, opening: true, in: context)
             for (item, snapshot) in zip(items, snapshots) {
                 context.insert(Transaction(
                     amount: snapshot.baseAmount, currency: bookCurrency, type: .income,
@@ -193,6 +193,7 @@ enum MacDepositSettlement {
             }
             deposit.updatedAt = now
             if deposit.syncVersion < Int.max { deposit.syncVersion += 1 }
+            if matured && !estimated { try MacLiquidity.returnPrincipal(deposit, in: context) }
             try context.save()
         } catch {
             context.rollback()

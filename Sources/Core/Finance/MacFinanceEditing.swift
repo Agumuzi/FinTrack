@@ -104,6 +104,7 @@ enum MacFinanceEditing {
                 r.startDate != start || r.maturityDate != maturity || r.typedInterestSettlementMode != depositMode ||
                 r.principalExchangeRateToBase != snapshot.rate || (interestRate != nil && r.interestExchangeRateToBase != interestRate)
             if changed {
+                if let state = MacLiquidity.state(try MacLiquidity.profile(in: context)), state.positions.contains(where: { $0.id == r.id && $0.returned }) { throw Failure.paidHistory }
                 guard !r.hasCreditedInterest, r.lastInterestPayoutDate == nil, r.sourceDepositID == nil,
                       !rows.contains(where: { ($0.note ?? "").contains("[FTDep:\(r.id.uuidString):") })
                 else { throw Failure.paidHistory }
@@ -186,7 +187,10 @@ enum MacFinanceEditing {
             if let goalPaused { r.isPaused = goalPaused }
             r.updatedAt = Date(); if r.syncVersion < Int.max { r.syncVersion += 1 }
         }
-        do { try context.save() } catch { context.rollback(); throw error }
+        do {
+            if case .deposit(let d) = target { try MacLiquidity.edit(d, in: context) }
+            try context.save()
+        } catch { context.rollback(); throw error }
     }
 
     static func retire(_ target: MacFinanceRecord, in context: ModelContext) throws {
@@ -194,7 +198,9 @@ enum MacFinanceEditing {
         let now = Date()
         let rules = try context.fetch(FetchDescriptor<RecurringTransaction>())
         switch target {
-        case .deposit(let r): r.deletedAt = now; r.isActive = false; r.updatedAt = now
+        case .deposit(let r):
+            try MacLiquidity.edit(r, cancelling: true, in: context)
+            r.deletedAt = now; r.isActive = false; r.updatedAt = now
         case .loan(let r):
             r.deletedAt = now; r.updatedAt = now
             let prefix = "loan_generated:\(r.id.uuidString):"

@@ -37,14 +37,19 @@ struct MacFinancialProfileEditor: View {
     let profile: FinancialProfile?
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query private var transactions: [Transaction]
+    @Query private var deposits: [DepositRecord]
+    @Query private var loans: [LoanRule]
     @State private var assets = "0"
+    @State private var initializing = true
     @State private var debt = "0"
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
-            Text(L10n.text("mac.insightsView.body.0e199d4bbe")).appFont(.dialogTitle, weight: .semibold)
+            Text(L10n.text(initializing ? "liquidity.initialize" : "liquidity.calibrate")).appFont(.dialogTitle, weight: .semibold)
             Text(currency).foregroundStyle(.secondary)
-            TextField(L10n.text("mac.insightsView.body.dc57eb2e51"), text: $assets).accessibilityIdentifier("profileAssets")
+            Text(L10n.text(initializing ? "liquidity.initialize.help" : "liquidity.calibrate.help")).appFont(.caption).foregroundStyle(.secondary)
+            TextField(L10n.text("liquidity.current"), text: $assets).accessibilityIdentifier("profileAssets")
             TextField(L10n.text("mac.insightsView.body.eaf3ae29c3"), text: $debt).accessibilityIdentifier("profileDebt")
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
@@ -52,14 +57,16 @@ struct MacFinancialProfileEditor: View {
                 Button(L10n.text("mac.insightsView.body.2cd0f3be87")) { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(L10n.text("mac.insightsView.body.a3030bf8f1")) {
                     do {
-                        try MacFinancialSettings.saveProfile(assets: assets, debt: debt, currency: currency, in: context)
+                        if initializing, try MacLiquidity.profile(in: context)?.liquidityData != nil { throw MacFinanceReview.Failure.confirmation }
+                        try MacFinancialSettings.saveProfile(assets: assets, debt: debt, currency: currency, initializingOnly: initializing, in: context)
                         dismiss()
                     } catch { self.error = MacLocalization.error(error) }
                 }.keyboardShortcut(.defaultAction).accessibilityIdentifier("saveFinancialProfile")
             }
         }.appPadding(24).appDialog(width: 480)
         .onAppear {
-            assets = String(profile?.initialAssets ?? 0)
+            initializing = profile?.liquidityData == nil
+            assets = String(MacFinancialSettings.snapshot(profile: profile, transactions: transactions, loans: loans, deposits: deposits, currency: currency, asOf: Date()).availableAssets)
             debt = String(abs(profile?.initialDebt ?? 0))
         }
     }

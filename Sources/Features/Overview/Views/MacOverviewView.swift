@@ -82,7 +82,7 @@ struct MacOverviewView: View {
     private var expenses: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .expense) }
     private var incomes: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .income) }
     private var trend: [MacOverviewData.Month] { MacOverviewData.months(transactions, scope: scope, currency: currency, count: trendMonths) }
-    private var profile: FinancialProfile? { profiles.first { $0.deletedAt == nil } }
+    private var profile: FinancialProfile? { profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil } }
     private var snapshot: FinancialProfileSnapshot {
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
         return MacFinancialSettings.snapshot(profile: profile, transactions: transactions.filter { $0.date < tomorrow },

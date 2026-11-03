@@ -2,6 +2,14 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.4 — 2026-11-03
+
+- Confirm the real current liquid-funds balance once, without rewriting historical transactions, deposit amounts, loan records or goal baselines. Later calibration records an internal difference without changing income, expenses or net.
+- Deduct newly funded deposit principal once and return it only after actual maturity settlement or explicit full-principal receipt confirmation. Future-start deposits move funds on their start date.
+- Keep identifiable unconfirmed maturity principal in assets; exclude estimated interest from liquid funds until verified. Income/expense reports retain their existing semantics.
+- Preserve internal movements in native full backups and currency rebasing, with additive migration of existing ledgers and compatibility with older backups and CSV formats. Renewal requires confirmed principal and verified interest.
+- Before updating, save an offline full backup in the old version. On first launch, verify interest already received, then enter usable cash excluding deposits. Unknown ended deposits and partial principal returns require manual review; CSV is not a substitute for a native full backup.
+
 ## v1.5.3 — 2026-11-02
 
 - Include today's recorded income and expenses in current assets even when their saved time is later today; future calendar days remain excluded. Existing receipt timestamps and amounts are preserved.

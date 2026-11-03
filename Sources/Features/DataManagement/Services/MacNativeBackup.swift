@@ -185,6 +185,7 @@ nonisolated struct MacBackupGoal: Codable, Sendable {
 nonisolated struct MacBackupFinancialProfile: Codable, Sendable {
     var id: UUID
     var ownerUID: String?
+    var liquidityData: Data?
     var initialAssets: Double
     var initialDebt: Double
     var createdAt: Date
@@ -195,6 +196,7 @@ nonisolated struct MacBackupFinancialProfile: Codable, Sendable {
     @MainActor init(_ row: FinancialProfile) {
         id = row.id
         ownerUID = row.ownerUID
+        liquidityData = row.liquidityData
         initialAssets = row.initialAssets
         initialDebt = row.initialDebt
         createdAt = row.createdAt
@@ -207,6 +209,7 @@ nonisolated struct MacBackupFinancialProfile: Codable, Sendable {
         let row = FinancialProfile()
         row.id = id
         row.ownerUID = ownerUID
+        row.liquidityData = liquidityData
         row.initialAssets = initialAssets
         row.initialDebt = initialDebt
         row.createdAt = createdAt
@@ -681,7 +684,7 @@ enum MacNativeBackup {
         }
         for row in p.goal { try dates(row.startDate,row.deadline,row.createdAt,row.updatedAt,row.deletedAt);guard row.targetAmount > 0 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validateFinancialPayload.381b2e7b02")) }; try amount(row.targetAmount); try amount(row.creationNetWorth, signed: true) }
         for row in p.category { try dates(row.createdAt,row.updatedAt,row.deletedAt) }
-        for row in p.financialProfile { try dates(row.createdAt,row.updatedAt,row.deletedAt);try amount(row.initialAssets); try amount(row.initialDebt, signed: true) }
+        for row in p.financialProfile { if let data = row.liquidityData { _ = try LiquidityState.decode(data) }; try dates(row.createdAt,row.updatedAt,row.deletedAt);try amount(row.initialAssets); try amount(row.initialDebt, signed: true) }
         for row in p.account { try dates(row.createdAt);try amount(row.balance, signed: true); _ = try MacCurrency.code(row.currency) }
     }
     static func preview(_ data: Data, validateFinancial: Bool = true) throws -> Payload {
