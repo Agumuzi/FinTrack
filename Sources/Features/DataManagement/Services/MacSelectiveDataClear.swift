@@ -37,7 +37,7 @@ enum MacSelectiveDataClear {
             // Keep identity tombstones and receipt markers, so a removed posting
             // cannot be silently recreated by a rewound or restored rule.
             for row in try context.fetch(FetchDescriptor<Transaction>()) where expected.records.contains(row.id) { row.deletedAt = now; row.updatedAt = now }
-            for row in try context.fetch(FetchDescriptor<DepositRecord>()) where expected.deposits.contains(row.id) { row.deletedAt = now; row.isActive = false; row.updatedAt = now }
+            for row in try context.fetch(FetchDescriptor<DepositRecord>()) where expected.deposits.contains(row.id) { try MacLiquidity.edit(row, cancelling: true, in: context); row.deletedAt = now; row.isActive = false; row.updatedAt = now }
             for row in try context.fetch(FetchDescriptor<LoanRule>()) where expected.loans.contains(row.id) { row.deletedAt = now; row.updatedAt = now }
             for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) where expected.recurring.contains(row.id) { row.deletedAt = now; row.isActive = false; row.updatedAt = now }
             for row in try context.fetch(FetchDescriptor<Goal>()) where expected.goals.contains(row.id) { row.deletedAt = now; row.updatedAt = now }

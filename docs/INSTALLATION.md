@@ -2,12 +2,12 @@
 
 ## Download and verify
 
-Download `FinTrack-v1.5.3-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
+Download `FinTrack-v1.5.4-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
 
 Run this command in the download directory:
 
 ```sh
-shasum -a 256 FinTrack-v1.5.3-macOS.dmg
+shasum -a 256 FinTrack-v1.5.4-macOS.dmg
 ```
 
 Compare the resulting digest against the DMG entry in `SHA256.txt`. When it matches, open the DMG and drag `FinTrack` to the `Applications` folder shown in the same window. The disk image contains only the app and the Applications shortcut.
@@ -67,3 +67,12 @@ In these two versions, the confirmation window can prevent the old process from 
 v1.4.8 continues to read supported legacy full backups and standardizes the per-backup safety limit at **256 MiB**. Restore backups larger than **100 MiB**, or newer backups containing large backup-history metadata, using v1.4.8 or later. When a backup exceeds the supported limit, the ledger is not changed. Quit FinTrack and preserve an offline copy of the entire ledger directory, separate preferences, and bank images before planning a restore; do not delete the original store. CSV is not a full-backup substitute.
 
 Legacy loans without stored fixed repayment dates also lack the original contract time zone. Select the contract's time zone in loan details, review each installment date, and confirm before continuing. Existing fixed schedules and paid receipts retain their original values, and other ledger features remain available.
+
+
+## v1.5.4 liquid-funds confirmation
+
+Create and retain an offline native full backup in the old version before updating. On the first launch, verify any bank interest already received, then confirm the cash you can actually use now, excluding deposits. The prefilled legacy amount is a suggestion and does not take effect without confirmation. Existing history and goal baselines remain intact.
+
+New deposits transfer principal internally. Estimated interest does not count as liquid funds; principal stays in held/pending assets until actual settlement is confirmed. The deposit menu offers **Confirm principal returned**, including zero-interest maturities. Confirm full return only when the full principal has actually arrived. Partial principal returns and ended records whose settlement cannot be established require manual review; the app does not invent payments. Verify source principal and estimated interest before renewing.
+
+Use **Calibrate liquid funds and debt** in the asset details to set the actual current balance later, including negative balances. Calibration does not create income or expenses. Native full backups retain the confirmation and movement history; CSV keeps its existing format and does not contain internal movements. Review and calibrate after importing historical deposits.

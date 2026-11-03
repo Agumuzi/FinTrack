@@ -6,6 +6,7 @@ final class FinancialProfile {
     var id: UUID
     var ownerUID: String?
     var initialAssets: Double
+    var liquidityData: Data? = nil
     var initialDebt: Double
     var createdAt: Date
     var updatedAt: Date

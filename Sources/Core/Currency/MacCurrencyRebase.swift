@@ -19,7 +19,7 @@ enum MacCurrencyRebase {
         parts += try context.fetch(FetchDescriptor<RecurringTransaction>()).map { "R:\($0.id):\($0.originalAmount):\($0.originalCurrency):\($0.baseAmount):\($0.baseCurrencyCode):\($0.updatedAt):\($0.nextExecutionDate)" }
         parts += try context.fetch(FetchDescriptor<DepositRecord>()).map { "D:\($0.id):\($0.originalPrincipal):\($0.originalCurrency):\($0.basePrincipal):\($0.baseExpectedInterest):\($0.updatedAt)" }
         parts += try context.fetch(FetchDescriptor<LoanRule>()).map { "L:\($0.id):\($0.principal):\($0.currency):\($0.basePrincipal):\($0.updatedAt)" }
-        parts += try context.fetch(FetchDescriptor<FinancialProfile>()).map { "P:\($0.id):\($0.initialAssets):\($0.initialDebt):\($0.updatedAt)" }
+        parts += try context.fetch(FetchDescriptor<FinancialProfile>()).map { "P:\($0.id):\($0.initialAssets):\($0.initialDebt):\($0.updatedAt):\($0.liquidityData?.base64EncodedString() ?? "")" }
         parts += try context.fetch(FetchDescriptor<Goal>()).map { "G:\($0.id):\($0.targetAmount):\($0.creationNetWorth):\($0.updatedAt)" }
         parts.append("Budgets:" + (MacPreferences.defaults.data(forKey: "v2_budgets")?.base64EncodedString() ?? ""))
         return parts.sorted().joined(separator: "\n")
@@ -39,8 +39,12 @@ enum MacCurrencyRebase {
             return try MacCurrency.snapshot(amount: abs(amount), original: source, base: book, rate: rate)
         }
         var changes: [() -> Void] = []
+        var rebasedCashNet = 0.0
+        var principalFactors: [UUID: Double] = [:]
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
         for row in try context.fetch(FetchDescriptor<Transaction>()) {
             let s = try await convert(row.originalAmount, row.originalCurrency, row.date)
+            if row.deletedAt == nil && row.date < end && !(row.note ?? "").contains("[FTEstimated]") { rebasedCashNet += row.typedType == .income ? s.baseAmount : -s.baseAmount }
             changes.append { row.baseAmount = s.baseAmount; row.baseCurrencyCode = book; row.exchangeRateToBase = s.rate }
         }
         for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) {
@@ -54,6 +58,7 @@ enum MacCurrencyRebase {
         for row in try context.fetch(FetchDescriptor<DepositRecord>()) {
             let p = try await convert(row.originalPrincipal, row.originalCurrency, row.startDate)
             let i = try await convert(row.expectedInterest, row.originalCurrency, row.maturityDate)
+            principalFactors[row.id] = row.basePrincipal > 0 ? p.baseAmount / row.basePrincipal : 1
             let oldBook = row.baseCurrencyCode
             let transferred = try await convert(row.resolvedRolloverBasePrincipalAmount, oldBook, row.startDate)
             let transferredInterest = try await convert(row.resolvedRolloverBaseInterestAmount, oldBook, row.startDate)
@@ -67,7 +72,29 @@ enum MacCurrencyRebase {
             let a = try await convert(row.initialAssets, reference, row.createdAt)
             let d = try await convert(row.initialDebt, reference, row.createdAt)
             let sign = row.initialDebt < 0 ? -1.0 : 1.0
-            changes.append { row.initialAssets = a.baseAmount; row.initialDebt = d.baseAmount * sign }
+            var liquidity: Data? = nil
+            if let data = row.liquidityData {
+                var state = try LiquidityState.decode(data)
+                let current = MacLiquidity.cash(state, transactions: try context.fetch(FetchDescriptor<Transaction>()))
+                let unit = try await convert(1, state.currency, Date())
+                let factor = unit.rate
+                for i in state.positions.indices {
+                    state.positions[i].principal = FinancialPrecision.roundAmountForStorage(state.positions[i].principal * (principalFactors[state.positions[i].id] ?? factor))
+                }
+                for i in state.events.indices {
+                    let eventFactor = state.events[i].depositID.flatMap { principalFactors[$0] } ?? factor
+                    state.events[i].amount = FinancialPrecision.roundAmountForStorage(state.events[i].amount * eventFactor)
+                    state.events[i].before = state.events[i].before.map { FinancialPrecision.roundAmountForStorage($0 * factor) }
+                    state.events[i].after = state.events[i].after.map { FinancialPrecision.roundAmountForStorage($0 * factor) }
+                }
+                state.confirmedCash = FinancialPrecision.roundAmountForStorage(current * factor) - state.movements(asOf: Date())
+                state.transactionBaseline = rebasedCashNet
+                state.currency = book
+                state.events.append(.init(depositID: nil, kind: "rebase", amount: 0, date: Date(), before: current, after: FinancialPrecision.roundAmountForStorage(current * factor)))
+                liquidity = try state.encode()
+            }
+            let rebasedLiquidity = liquidity
+            changes.append { row.initialAssets = a.baseAmount; row.initialDebt = d.baseAmount * sign; row.liquidityData = rebasedLiquidity }
         }
         for row in try context.fetch(FetchDescriptor<Goal>()) {
             let t = try await convert(row.targetAmount, reference, row.createdAt)

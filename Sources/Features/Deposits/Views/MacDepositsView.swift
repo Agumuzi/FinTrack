@@ -10,6 +10,8 @@ struct MacDepositsView: View {
     @AppStorage("v2_font_tier", store: MacPreferences.defaults) private var layoutTier = "standard"
     let bookCurrency: String?
     @Environment(\.modelContext) private var context
+    @Query private var profiles: [FinancialProfile]
+    @State private var returningPrincipal = false
     @Query private var deposits: [DepositRecord]
     @Query private var transactions: [Transaction]
     @State private var search = ""
@@ -137,6 +139,15 @@ struct MacDepositsView: View {
                     }.accessibilityIdentifier("confirmRemoveFinance")
                 }
             }.appPadding(24).appDialog(width: 500)
+        }
+        .alert(L10n.text("liquidity.return"), isPresented: $returningPrincipal) {
+            Button(L10n.text("mac.insightsView.body.2cd0f3be87"), role: .cancel) { }
+            Button(L10n.text("liquidity.return.confirm")) {
+                do { try MacLiquidity.confirmPrincipal(deposit, in: context); saved() }
+                catch { self.error = MacLocalization.error(error) }
+            }
+        } message: {
+            Text(L10n.text("liquidity.return.help") + "\n" + MacOverviewStyle.money(deposit.originalPrincipal) + " " + deposit.originalCurrency)
         }
         .sheet(item: $confirming) { deposit in
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
@@ -295,6 +306,9 @@ struct MacDepositsView: View {
                 HStack(spacing: 8) {
                     Button(L10n.text("mac.depositsView.detailActions.0518365699"), systemImage: "pencil") { editing = .deposit(deposit) }.accessibilityIdentifier("editFinance-" + deposit.id.uuidString).disabled(bookCurrency == nil || posting)
                     Menu {
+                        if MacLiquidity.pending(deposit, profile: (profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil })), Calendar.current.startOfDay(for: deposit.maturityDate) <= Calendar.current.startOfDay(for: now) {
+                            Button(L10n.text("liquidity.return")) { returningPrincipal = true }
+                        }
                         Button(L10n.text("mac.depositsView.Menu.4fec38cbe7"), systemImage: "doc.on.doc") { copying = deposit }.accessibilityIdentifier("depositCopy").disabled(bookCurrency == nil)
                         Button(L10n.text("mac.depositsView.Menu.0481d5ba76")) { chooseLogo(deposit.bankName) }.accessibilityIdentifier("depositChooseLogo")
                         Button(L10n.text("mac.depositsView.Menu.0ed90379cb")) { do { try MacBankLogos.reset(deposit.bankName); logoRevision += 1 } catch { self.error = MacLocalization.error(error) } }

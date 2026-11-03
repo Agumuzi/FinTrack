@@ -107,7 +107,7 @@ enum MacFinanceRecords {
         )
         if let reminder { deposit.reminderDaysBefore = reminder.daysBefore; deposit.reminderHour = reminder.hour; deposit.reminderMinute = reminder.minute }
         context.insert(deposit)
-        do { if saveImmediately { try context.save() } }
+        do { try MacLiquidity.register(deposit, in: context); if saveImmediately { try context.save() } }
         catch { context.rollback(); throw error }
         return deposit
     }
@@ -156,7 +156,7 @@ enum MacFinanceRecords {
         try requireLedgerCurrency(currency, in: context)
         // Goal is intentionally currency-less in the original schema.
         // V1.6 does not infer progress from a mixed-currency ledger.
-        let profile = try context.fetch(FetchDescriptor<FinancialProfile>()).first { $0.deletedAt == nil }
+        let profile = try MacLiquidity.profile(in: context)
         let current = MacFinancialSettings.snapshot(profile: profile,
             transactions: try context.fetch(FetchDescriptor<Transaction>()), loans: try context.fetch(FetchDescriptor<LoanRule>()),
             deposits: try context.fetch(FetchDescriptor<DepositRecord>()), currency: currency, asOf: Date())

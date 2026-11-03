@@ -91,6 +91,13 @@ enum MacFinanceReview {
                         in context: ModelContext) throws -> DepositRecord {
         guard !source.isActive, source.hasCreditedInterest, source.deletedAt == nil,
               source.typedInterestSettlementMode != .monthly, start >= source.maturityDate else { throw Failure.schedule }
+        if let p = try MacLiquidity.profile(in: context), p.liquidityData != nil {
+            let receipts = try context.fetch(FetchDescriptor<Transaction>()).filter { $0.deletedAt == nil && ($0.note ?? "").contains("[FTDep:\(source.id.uuidString):") }
+            guard let state = MacLiquidity.state(p), state.positions.contains(where: { $0.id == source.id && $0.returned }),
+                  !receipts.contains(where: { ($0.note ?? "").contains("[FTEstimated]") }) else {
+                throw MacSettingsFailure.invalid(L10n.text("liquidity.renewal.help"))
+            }
+        }
         let existing = try context.fetch(FetchDescriptor<DepositRecord>())
         guard !existing.contains(where: { $0.sourceDepositID == source.id && $0.deletedAt == nil }) else { throw Failure.schedule }
         do {

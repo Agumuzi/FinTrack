@@ -201,7 +201,11 @@ enum MacCSV {
             sections["accounts"] = .init(sectionTitle: table.sectionTitle, headers: table.headers, rows: rows)
         }
         do {
+            let knownDepositIDs = Set(try context.fetch(FetchDescriptor<DepositRecord>()).map(\.id))
             let result = try MacFullDataImportService().importBackup(sections: sections, into: context)
+            for d in try context.fetch(FetchDescriptor<DepositRecord>()) where !knownDepositIDs.contains(d.id) && d.deletedAt == nil && d.isActive {
+                try MacLiquidity.register(d, opening: true, in: context)
+            }
             // Reconstruct only deterministic original loan-generated links.
             // Unmatched rules remain visible for the legacy audit.
             let loans = try context.fetch(FetchDescriptor<LoanRule>())
