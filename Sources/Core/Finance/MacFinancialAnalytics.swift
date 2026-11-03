@@ -20,25 +20,30 @@ enum DepositManager {
 }
 
 enum MacFinancialSettings {
+    enum ProfileInputError: LocalizedError {
+        case cash, debt
+        var errorDescription: String? { L10n.text(self == .cash ? "liquidity.invalid.cash" : "liquidity.invalid.debt") }
+    }
     static func nonnegativeAmount(_ text: String) throws -> Double {
-        let value = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
-        if !value.isEmpty, value.allSatisfy({ "0123456789.".contains($0) }),
-           value.filter({ $0 == "." }).count <= 1, Double(value) == 0 { return 0 }
+        let value = MacNumberInput.normalizedAmount(text)
+        if value.range(of: #"^[0-9]+(\.[0-9]*)?$"#, options: .regularExpression) != nil, Double(value) == 0 { return 0 }
         return try MacTransactionCRUD.amount(value)
     }
 
     static func saveProfile(assets: String, debt: String, currency: String, initializingOnly: Bool = false, in context: ModelContext) throws {
         _ = try MacCurrency.ledgerCurrency(in: context, preferred: currency)
-        let cashText = assets.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
-        guard let assets = Double(cashText), assets.isFinite, abs(assets) <= 1e12 else { throw MacFinanceRecords.Failure.invalidTerm }
-        let debt = try nonnegativeAmount(debt)
+        let cashText = MacNumberInput.normalizedAmount(assets)
+        guard cashText.range(of: #"^-?[0-9]+(\.[0-9]*)?$"#, options: .regularExpression) != nil,
+              let assets = Double(cashText), assets.isFinite, abs(assets) <= 1e12 else { throw ProfileInputError.cash }
+        let debtValue: Double
+        do { debtValue = try nonnegativeAmount(debt) } catch { throw ProfileInputError.debt }
         let profile = try MacLiquidity.profile(in: context)
             ?? FinancialProfile()
         if initializingOnly && profile.liquidityData != nil { throw MacFinanceReview.Failure.confirmation }
         if profile.modelContext == nil { context.insert(profile) }
         do { try MacLiquidity.confirm(amount: assets, profile: profile, currency: currency, in: context) }
         catch { context.rollback(); throw error }
-        profile.initialDebt = Goal.normalizedDebt(debt)
+        profile.initialDebt = Goal.normalizedDebt(debtValue)
         profile.updatedAt = Date()
         if profile.syncVersion < Int.max { profile.syncVersion += 1 }
         do { try context.save() } catch { context.rollback(); throw error }

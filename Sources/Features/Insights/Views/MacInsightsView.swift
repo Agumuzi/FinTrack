@@ -40,17 +40,21 @@ struct MacFinancialProfileEditor: View {
     @Query private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
     @Query private var loans: [LoanRule]
-    @State private var assets = "0"
+    @State private var assets = "0.00"
     @State private var initializing = true
-    @State private var debt = "0"
+    @State private var debt = "0.00"
     @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             Text(L10n.text(initializing ? "liquidity.initialize" : "liquidity.calibrate")).appFont(.dialogTitle, weight: .semibold)
             Text(currency).foregroundStyle(.secondary)
             Text(L10n.text(initializing ? "liquidity.initialize.help" : "liquidity.calibrate.help")).appFont(.caption).foregroundStyle(.secondary)
-            TextField(L10n.text("liquidity.current"), text: $assets).accessibilityIdentifier("profileAssets")
-            TextField(L10n.text("mac.insightsView.body.eaf3ae29c3"), text: $debt).accessibilityIdentifier("profileDebt")
+            MacEntryField(title: L10n.text("liquidity.current")) {
+                TextField("0.00", text: $assets).textFieldStyle(.roundedBorder).accessibilityLabel(L10n.text("liquidity.current")).accessibilityIdentifier("profileAssets")
+            }
+            MacEntryField(title: L10n.text("liquidity.manual.debt")) {
+                TextField("0.00", text: $debt).textFieldStyle(.roundedBorder).accessibilityLabel(L10n.text("liquidity.manual.debt")).accessibilityIdentifier("profileDebt")
+            }
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Spacer()
@@ -66,8 +70,8 @@ struct MacFinancialProfileEditor: View {
         }.appPadding(24).appDialog(width: 480)
         .onAppear {
             initializing = profile?.liquidityData == nil
-            assets = String(MacFinancialSettings.snapshot(profile: profile, transactions: transactions, loans: loans, deposits: deposits, currency: currency, asOf: Date()).availableAssets)
-            debt = String(abs(profile?.initialDebt ?? 0))
+            assets = MacNumberInput.presentation(String(MacFinancialSettings.snapshot(profile: profile, transactions: transactions, loans: loans, deposits: deposits, currency: currency, asOf: Date()).availableAssets))
+            debt = MacNumberInput.presentation(String(abs(profile?.initialDebt ?? 0)))
         }
     }
 }

@@ -65,7 +65,8 @@ nonisolated struct LiquidityState: Codable, Sendable {
     }
     static func confirm(amount: Double, profile: FinancialProfile, currency: String, in context: ModelContext) throws {
         try MacRecoveryJournal.assertWritable(in: context)
-        guard !MacAutomaticPosting.isRunning, amount.isFinite, abs(amount) <= 1e12 else { throw MacFinanceRecords.Failure.invalidTerm }
+        guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("liquidity.busy")) }
+        guard amount.isFinite, abs(amount) <= 1e12 else { throw MacFinancialSettings.ProfileInputError.cash }
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         var value: LiquidityState
         if let data = profile.liquidityData {

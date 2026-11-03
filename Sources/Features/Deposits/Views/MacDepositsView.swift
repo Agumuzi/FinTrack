@@ -17,6 +17,7 @@ struct MacDepositsView: View {
     @State private var search = ""
     @State private var status: MacDepositsData.Status?
     @State private var bank: String?
+    @State private var maturityYear: Int?
     @State private var currency: String?
     @State private var sort = MacDepositsData.Sort.maturity
     @State private var selectedID: UUID?
@@ -54,9 +55,10 @@ struct MacDepositsView: View {
     private var widthBinding: Binding<Double> { Binding(get: { listWidth }, set: { transientWidth = $0 }) }
     private var active: [DepositRecord] { deposits.filter { $0.deletedAt == nil } }
     private var visible: [DepositRecord] {
-        MacDepositsData.filtered(active, search: search, status: status, bank: bank, currency: currency, sort: sort, now: now)
+        MacDepositsData.filtered(active, search: search, status: status, bank: bank, currency: currency, year: maturityYear, sort: sort, now: now)
     }
     private var selected: DepositRecord? { visible.first { $0.id == selectedID } }
+    private var maturityYears: [Int] { Array(Set(active.map { Calendar.current.component(.year, from: $0.maturityDate) })).sorted(by: >) }
     private var banks: [String] { Array(Set(active.map(\.bankName))).sorted { $0.localizedStandardCompare($1) == .orderedAscending } }
     private var currencies: [String] { Array(Set(active.map(\.originalCurrency))).sorted() }
 
@@ -179,6 +181,12 @@ struct MacDepositsView: View {
                             selected: status == item, icon: item == .matured ? "calendar.badge.exclamationmark" : "clock", id: "depositStatus-\(item.rawValue)") { status = item }
                     }
                     Divider().appPadding(.vertical, 8)
+                    Text(L10n.text("deposit.filter.maturityYear")).appFont(.caption, weight: .semibold).foregroundStyle(.secondary).appPadding(.leading, 8)
+                    filterButton(L10n.text("deposit.filter.allYears"), selected: maturityYear == nil, id: "depositYearAll") { maturityYear = nil }
+                    ForEach(maturityYears, id: \.self) { year in
+                        filterButton(String(year), count: active.filter { Calendar.current.component(.year, from: $0.maturityDate) == year }.count, selected: maturityYear == year, id: "depositYear-\(year)") { maturityYear = year }
+                    }
+                    Divider().appPadding(.vertical, 8)
                     Text(L10n.text("mac.depositsView.ScrollView.8a08964d02")).appFont(.caption, weight: .semibold).foregroundStyle(.secondary).appPadding(.leading, 8)
                     filterButton(L10n.text("mac.depositsView.filterButton.d7904daa2b"), selected: bank == nil, id: "depositBankAll") { bank = nil }
                     ForEach(banks, id: \.self) { name in
@@ -192,7 +200,7 @@ struct MacDepositsView: View {
                     }
                 }
             }
-            Button(L10n.text("mac.depositsView.filters.13a431e59b")) { search = ""; status = nil; bank = nil; currency = nil }.buttonStyle(MacInteractiveButtonStyle())
+            Button(L10n.text("mac.depositsView.filters.13a431e59b")) { search = ""; status = nil; bank = nil; currency = nil; maturityYear = nil }.buttonStyle(MacInteractiveButtonStyle())
                 .foregroundStyle(.secondary).accessibilityIdentifier("depositReset")
         }.appPadding(18).background(MacOverviewStyle.filters)
     }

@@ -21,7 +21,7 @@ enum MacDepositReconciliation {
         do {
             receipt.originalAmount = FinancialPrecision.roundAmountForStorage(amount)
             receipt.exchangeRateToBase = snapshot.rate; receipt.baseAmount = snapshot.baseAmount; receipt.amount = snapshot.baseAmount
-            receipt.note = (receipt.note ?? "").replacingOccurrences(of: " [FTEstimated]", with: "").replacingOccurrences(of: "（待核对）", with: "").replacingOccurrences(of: " [FTPartial]", with: "") + " [FTVerified] 核对前金额:\(original)" + (partial ? " [FTPartial]" : "")
+            receipt.note = (receipt.note ?? "").replacingOccurrences(of: " [FTEstimated]", with: "").replacingOccurrences(of: "（待核对）", with: "").replacingOccurrences(of: " [FTPartial]", with: "") + " [FTVerified] 核对前金额:\(MacNumberInput.presentation(String(original)))" + (partial ? " [FTPartial]" : "")
             receipt.updatedAt = Date(); try context.save()
         } catch { context.rollback(); throw error }
     }
