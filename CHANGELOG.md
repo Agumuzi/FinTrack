@@ -2,6 +2,14 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.5 — 2026-11-03
+
+- Accept correctly grouped current liquid-funds balances such as `1,234.56`. Invalid cash/debt inputs now identify the correct field, rather than showing a loan-term error; the dialog labels manual debt explicitly, with `0.00` for no debt.
+- Default financial amount and interest-rate inputs to two fractional digits without rewriting untouched historical values. Preserve additional fractional digits explicitly typed during editing; existing storage and exchange-rate precision rules remain unchanged.
+- Format generated interest-reconciliation annotations to two digits, including display of older notes, while preserving the original receipt history.
+- Show whole-number year percentages on hover or by clicking the deposit earnings chart. Remove the redundant received label inside the received-share ring.
+- Add a maturity-year deposit filter that combines with the existing status, bank, currency and search filters.
+
 ## v1.5.4 — 2026-11-03
 
 - Confirm the real current liquid-funds balance once, without rewriting historical transactions, deposit amounts, loan records or goal baselines. Later calibration records an internal difference without changing income, expenses or net.

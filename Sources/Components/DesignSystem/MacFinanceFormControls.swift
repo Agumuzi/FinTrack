@@ -21,12 +21,40 @@ enum MacNumberInput {
         }.joined()
         return integer + (pieces.count == 2 ? "." + pieces[1] : "")
     }
-    static func rate(_ raw: String) -> String {
-        guard var value = Decimal(string: raw, locale: Locale(identifier: "en_US_POSIX")) else { return raw }
-        var rounded = Decimal(); NSDecimalRound(&rounded, &value, 2, .plain)
-        let formatter = NumberFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.numberStyle = .decimal; formatter.usesGroupingSeparator = false; formatter.minimumFractionDigits = 2; formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSDecimalNumber(decimal: rounded)) ?? raw
+    /// Accept grouped pasted balances without interpreting a grouping comma as a decimal.
+    nonisolated static func normalizedAmount(_ input: String) -> String {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "−", with: "-")
+        let sign = text.hasPrefix("-") ? "-" : ""
+        let body = sign.isEmpty ? text : String(text.dropFirst())
+        for separator in [",", " ", "\u{00a0}", "\u{202f}"] {
+            let pattern = "^[0-9]{1,3}(" + NSRegularExpression.escapedPattern(for: separator) + "[0-9]{3})+(\\.[0-9]*)?$"
+            if body.range(of: pattern, options: .regularExpression) != nil {
+                return sign + body.replacingOccurrences(of: separator, with: "")
+            }
+        }
+        return text.replacingOccurrences(of: ",", with: ".")
     }
+    nonisolated static func fractionDigits(_ raw: String) -> Int {
+        let pieces = normalizedAmount(raw).split(separator: ".", omittingEmptySubsequences: false)
+        return pieces.count == 2 ? pieces[1].count : 0
+    }
+    /// Presentation never writes rounded text back to the binding. Only an
+    /// actual edit opts into more than the default two fractional digits.
+    nonisolated static func presentation(_ raw: String, grouping: String = "none", digits: Int = 2, enteredFractionDigits: Int? = nil) -> String {
+        guard let number = Decimal(string: raw, locale: Locale(identifier: "en_US_POSIX")),
+              raw.range(of: #"^-?[0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?$"#, options: .regularExpression) != nil,
+              NSDecimalNumber(decimal: number).doubleValue.isFinite else { return raw }
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.numberStyle = .decimal
+        formatter.roundingMode = .halfUp
+        formatter.minimumFractionDigits = digits
+        formatter.maximumFractionDigits = max(digits, enteredFractionDigits ?? digits)
+        formatter.usesGroupingSeparator = grouping != "none"
+        formatter.groupingSeparator = grouping == "space" ? " " : ","
+        return formatter.string(from: NSDecimalNumber(decimal: number)) ?? raw
+    }
+    static func rate(_ raw: String) -> String { presentation(raw) }
+
 }
 
 struct MacNumericInput: NSViewRepresentable {
@@ -39,14 +67,8 @@ struct MacNumericInput: NSViewRepresentable {
     var large = false
     var digits: Int? = nil
     var accessibilityTitle: String? = nil
-    @AppStorage("v2_decimals", store: MacPreferences.defaults) private var decimals = 2
-    private func presented(_ raw: String, editing: Bool) -> String {
-        if rate { return editing ? raw : MacNumberInput.rate(raw) }
-        if !editing, let value = Double(raw), value.isFinite,
-           digits != nil || raw.range(of: #"^[0-9]+(\.[0-9]*)?$"#, options: .regularExpression) != nil {
-            return MacDisplayPreferences.money(value, decimals: digits ?? decimals, grouping: grouping, negative: "minus", zero: "number")
-        }
-        return MacNumberInput.display(raw, grouping: grouping)
+    private func presented(_ raw: String, enteredFractionDigits: Int? = nil) -> String {
+        MacNumberInput.presentation(raw, grouping: rate ? "none" : grouping, digits: digits ?? 2, enteredFractionDigits: enteredFractionDigits)
     }
     @AppStorage("v2_grouping", store: MacPreferences.defaults) private var grouping = "comma"
     @AppStorage(MacInterfaceFonts.preferenceKey, store: MacPreferences.defaults) private var interfaceFont = ""
@@ -57,6 +79,7 @@ struct MacNumericInput: NSViewRepresentable {
         var parent: MacNumericInput
         var editing = false
         var observedText = ""
+        var enteredFractionDigits: Int?
         init(_ parent: MacNumericInput) { self.parent = parent }
         var lastDisplay = ""
         private var separator: String { parent.grouping == "space" ? " " : "," }
@@ -86,8 +109,9 @@ struct MacNumericInput: NSViewRepresentable {
             lastDisplay = display
         }
         func externalUpdate(_ field: NSTextField) {
+            if observedText != parent.text { enteredFractionDigits = nil }
             observedText = parent.text
-            render(parent.rate ? MacNumberInput.rate(parent.text) : MacNumberInput.display(parent.text, grouping: parent.grouping), in: field)
+            render(parent.presented(parent.text, enteredFractionDigits: enteredFractionDigits), in: field)
         }
         func prepareFocus(_ field:NSTextField) {
             editing=true;parent.focus?.wrappedValue=true
@@ -102,7 +126,7 @@ struct MacNumericInput: NSViewRepresentable {
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
             let value = field.stringValue
-            if parent.rate { parent.text = value; observedText = value; lastDisplay = value; return }
+            if parent.rate { enteredFractionDigits = MacNumberInput.fractionDigits(value); parent.text = value; observedText = value; lastDisplay = value; return }
             if (field.currentEditor() as? NSTextView)?.hasMarkedText() == true { return }
             // A one-character edit may temporarily break a group, for example
             // 1,000 -> 1,0000. Validate its digits, then rebuild the separators.
@@ -117,6 +141,7 @@ struct MacNumericInput: NSViewRepresentable {
                   !grouped || ordinaryEdit || MacNumberInput.raw(value, grouping: parent.grouping) != value else {
                 render(lastDisplay, in: field); NSSound.beep(); return
             }
+            enteredFractionDigits = MacNumberInput.fractionDigits(raw)
             parent.text = raw; observedText = raw
             if field.formatter == nil {render(MacNumberInput.display(raw,grouping:parent.grouping),in:field)}
             else {lastDisplay=value}
@@ -137,7 +162,7 @@ struct MacNumericInput: NSViewRepresentable {
         func controlTextDidEndEditing(_ notification: Notification) {
             editing = false; parent.focus?.wrappedValue = false
             guard let field = notification.object as? NSTextField else { return }
-            field.stringValue = parent.presented(parent.text, editing: false)
+            field.stringValue = parent.presented(parent.text, enteredFractionDigits: enteredFractionDigits)
         }
         @objc func submitField(_ field: NSTextField) {
             if let submit = parent.submit { submit() }
@@ -162,7 +187,8 @@ struct MacNumericInput: NSViewRepresentable {
         else if (field.formatter as? MacAmountEditingFormatter)?.grouping != grouping {field.formatter=MacAmountEditingFormatter(grouping:grouping)}
         let coordinator = context.coordinator
         if !coordinator.editing {
-            let value = presented(text, editing: false)
+            if text != coordinator.observedText { coordinator.enteredFractionDigits = nil; coordinator.observedText = text }
+            let value = presented(text, enteredFractionDigits: coordinator.enteredFractionDigits)
             if field.stringValue != value { field.stringValue = value }
         } else if text != coordinator.observedText {
             // External changes (for example inferred interest) may update a field;

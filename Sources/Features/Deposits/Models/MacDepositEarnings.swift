@@ -3,6 +3,11 @@ import Foundation
 /// Derived only. A settlement's marker, not its transaction date, assigns its
 /// planned year. No model, cursor, FX snapshot or posting operation is mutated.
 @MainActor enum MacDepositEarnings {
+    static func percentage(_ amount: Decimal, total: Decimal) -> String {
+        guard total > 0 else { return "0%" }
+        let fraction = min(1, max(0, NSDecimalNumber(decimal: amount / total).doubleValue))
+        return fraction.formatted(.percent.precision(.fractionLength(0)))
+    }
     struct Revision: Hashable {
         let deposits: [[String]]
         let receipts: [[String]]

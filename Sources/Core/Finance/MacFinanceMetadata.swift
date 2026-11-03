@@ -27,6 +27,15 @@ enum MacFinanceNotes {
         if value.hasPrefix("Loan installment ") {
             value = value.replacingOccurrences(of: "Loan installment ", with: "还款期次 ").replacingOccurrences(of: "Principal:", with: "本金：").replacingOccurrences(of: "Interest:", with: "利息：")
         }
+        // Format old generated audit annotations for display only. The original
+        // receipt note, marker, value and backup/CSV contents remain untouched.
+        if note.contains("[FTDep:") && note.contains("[FTVerified]"),
+           let regex = try? NSRegularExpression(pattern: #"核对前金额:([-+]?[0-9]+(?:\.[0-9]+)?)"#) {
+            for match in regex.matches(in: value, range: NSRange(value.startIndex..., in: value)).reversed() {
+                guard let range = Range(match.range(at: 1), in: value) else { continue }
+                value.replaceSubrange(range, with: MacNumberInput.presentation(String(value[range])))
+            }
+        }
         return value.replacingOccurrences(of: #"\[FT(?:Dep|Rec|Loan):[^\]]+\]|\[FT(?:Estimated|Verified|Partial)\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     static func replacing(_ old: String?, with userNote: String) -> String? {

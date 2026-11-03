@@ -65105,6 +65105,125 @@
           }
         }
       }
+    },
+    "liquidity.invalid.cash": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid liquid-funds balance (up to 1 trillion in magnitude). Grouped amounts such as 1,234.56 are accepted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的流动资金余额，绝对值不超过一万亿；支持 1,234.56 格式。"
+          }
+        }
+      }
+    },
+    "liquidity.invalid.debt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid nonnegative manual debt amount. If you have no debt, enter 0.00."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请输入有效的非负手工负债金额；没有负债请填 0.00。"
+          }
+        }
+      }
+    },
+    "liquidity.manual.debt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual debt (0.00 if none)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手工负债（没有则填 0.00）"
+          }
+        }
+      }
+    },
+    "liquidity.busy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled posting is in progress. Try saving the balance again shortly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在处理计划入账，请稍后再次保存余额。"
+          }
+        }
+      }
+    },
+    "deposit.filter.maturityYear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By maturity year"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按到期年份"
+          }
+        }
+      }
+    },
+    "deposit.filter.allYears": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All years"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部年份"
+          }
+        }
+      }
+    },
+    "deposit.earnings.percentages": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or hide year percentages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示或隐藏年份占比"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

@@ -21,10 +21,11 @@ enum MacDepositsData {
         guard let filter else { return true }
         return filter == .matured ? actual == .matured || actual == .ended : actual == filter
     }
-    static func filtered(_ deposits: [DepositRecord], search: String, status selected: Status?, bank: String?, currency: String?, sort: Sort, now: Date = Date()) -> [DepositRecord] {
+    static func filtered(_ deposits: [DepositRecord], search: String, status selected: Status?, bank: String?, currency: String?, year: Int? = nil, sort: Sort, now: Date = Date()) -> [DepositRecord] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return deposits.filter {
             $0.deletedAt == nil && matches(status($0, now: now), filter: selected) &&
+            (year == nil || Calendar.current.component(.year, from: $0.maturityDate) == year) &&
             (bank == nil || $0.bankName == bank) && (currency == nil || $0.originalCurrency == currency) &&
             (needle.isEmpty || [$0.bankName, $0.originalCurrency, MacFinanceNotes.visible($0.note)].contains { $0.localizedCaseInsensitiveContains(needle) })
         }.sorted {

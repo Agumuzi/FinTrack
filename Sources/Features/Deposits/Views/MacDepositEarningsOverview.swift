@@ -10,6 +10,7 @@ struct MacDepositEarningsOverview: View {
     let availableHeight: CGFloat
     @State private var snapshot = MacDepositEarnings.Snapshot.empty
     @State private var expanded = false
+    @State private var percentageCurrencies: Set<String> = []
     var body: some View {
         let revision = MacDepositEarnings.Revision(deposits: deposits, transactions: transactions, now: now)
         VStack(alignment: .leading, spacing: MacUI.space(8)) {
@@ -45,23 +46,32 @@ struct MacDepositEarningsOverview: View {
                     VStack(alignment: .leading, spacing: MacUI.space(8)) {
                         amount(row.outstanding, currency: row.currency, prominent: true)
                         if years.count > 1 {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: MacUI.space(58)))], alignment: .leading, spacing: MacUI.space(4)) {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: MacUI.space(percentageCurrencies.contains(row.currency) ? 95 : 58)))], alignment: .leading, spacing: MacUI.space(4)) {
                                 ForEach(years) { share in
                                     HStack(spacing: 4) {
                                         Circle().fill(yearColor(share.year)).frame(width: 6, height: 6)
-                                        Text(String(share.year)).appFont(.caption).foregroundStyle(.secondary)
+                                        Text(String(share.year) + (percentageCurrencies.contains(row.currency) ? " · " + MacDepositEarnings.percentage(share.amount, total: row.outstanding) : "")).appFont(.caption).foregroundStyle(.secondary)
+                                            .appHelp(String(share.year) + " · " + MacDepositEarnings.percentage(share.amount, total: row.outstanding))
                                     }
                                 }
                             }
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                     if years.count > 1 && availableWidth >= MacUI.space(1100) {
-                        Chart(years) { share in
-                            SectorMark(angle: .value(L10n.text("deposit.earnings.outstanding"), NSDecimalNumber(decimal: share.amount).doubleValue), innerRadius: .ratio(0.5), angularInset: 1)
-                                .foregroundStyle(yearColor(share.year))
-                                .accessibilityLabel(String(share.year))
-                                .accessibilityValue(MacDisplayPreferences.money(share.amount) + " " + row.currency)
-                        }.chartLegend(.hidden).frame(width: MacUI.space(70), height: MacUI.space(70))
+                        Button {
+                            if percentageCurrencies.contains(row.currency) { percentageCurrencies.remove(row.currency) }
+                            else { percentageCurrencies.insert(row.currency) }
+                        } label: {
+                            Chart(years) { share in
+                                SectorMark(angle: .value(L10n.text("deposit.earnings.outstanding"), NSDecimalNumber(decimal: share.amount).doubleValue), innerRadius: .ratio(0.5), angularInset: 1)
+                                    .foregroundStyle(yearColor(share.year))
+                                    .accessibilityLabel(String(share.year))
+                                    .accessibilityValue(MacDepositEarnings.percentage(share.amount, total: row.outstanding))
+                            }.chartLegend(.hidden).frame(width: MacUI.space(70), height: MacUI.space(70))
+                        }.buttonStyle(.plain)
+                            .appHelp(years.map { String($0.year) + " · " + MacDepositEarnings.percentage($0.amount, total: row.outstanding) }.joined(separator: "\n"))
+                            .accessibilityLabel(L10n.text("deposit.earnings.percentages"))
+                            .accessibilityIdentifier("depositYearPercentages-" + row.currency)
                     }
                 }
             }
@@ -125,8 +135,7 @@ struct MacDepositEarningsOverview: View {
             Circle().stroke(.secondary.opacity(0.16), lineWidth: MacUI.space(7))
             Circle().trim(from: 0, to: fraction).stroke(.green, style: StrokeStyle(lineWidth: MacUI.space(7), lineCap: .round)).rotationEffect(.degrees(-90))
             VStack(spacing: MacUI.space(3)) {
-                Text(fraction, format: .percent.precision(.fractionLength(1))).appFont(.caption, weight: .semibold).monospacedDigit()
-                Text(L10n.text("deposit.earnings.received")).appFont(.caption).foregroundStyle(.secondary)
+                Text(fraction, format: .percent.precision(.fractionLength(0))).appFont(.caption, weight: .semibold).monospacedDigit()
             }
         }.frame(width: MacUI.space(56), height: MacUI.space(56)).appPadding(4)
     }
