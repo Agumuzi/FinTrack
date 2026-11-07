@@ -37,13 +37,13 @@ enum MacAutomaticPosting {
         guard rule.modelContext === context, rule.deletedAt == nil, rule.isActive, cursor == rule.nextExecutionDate, updated == rule.updatedAt, source == rule.originalCurrency else { throw MacFinanceReview.Failure.schedule }
         return try MacFinanceRecords.postDue(rule: rule, transactions: [], now: now, bookCurrency: book, exchangeRates: quotes, in: context)
     }
-    static func post(_ deposit: DepositRecord, now: Date, book: String, estimated: Bool = false, in context: ModelContext) async throws -> MacDepositSettlement.PostingResult {
+    static func post(_ deposit: DepositRecord, now: Date, book: String, scheduled: Bool = false, in context: ModelContext) async throws -> MacDepositSettlement.PostingResult {
         let cursor = deposit.nextInterestPayoutDate, updated = deposit.updatedAt, source = deposit.originalCurrency
         let quotes = try await rates(source: source, base: book, dates: depositDates(deposit, now: now))
         guard deposit.modelContext === context, deposit.deletedAt == nil, deposit.isActive, cursor == deposit.nextInterestPayoutDate, updated == deposit.updatedAt, source == deposit.originalCurrency else { throw MacFinanceReview.Failure.schedule }
-        return try MacDepositSettlement.postDue(deposit, now: now, bookCurrency: book, exchangeRates: quotes, estimated: estimated, in: context)
+        return try MacDepositSettlement.postDue(deposit, now: now, bookCurrency: book, exchangeRates: quotes, scheduled: scheduled, in: context)
     }
-    static func run(in context: ModelContext, now: Date = Date(), includeRules: Bool = true, includeDeposits: Bool = true, estimateDeposits: Bool = false) async -> String? {
+    static func run(in context: ModelContext, now: Date = Date(), includeRules: Bool = true, includeDeposits: Bool = true) async -> String? {
         guard !running else { return nil }
         running = true; defer { running = false }
         var failures: [String] = []
@@ -55,9 +55,19 @@ enum MacAutomaticPosting {
                 do { _ = try await post(rule, now: now, book: rule.baseCurrencyCode, in: context) }
                 catch { failures.append(rule.title + ": " + MacLocalization.error(error)) }
             }
-            for deposit in deposits where includeDeposits && MacDepositSettlement.isEligible(deposit, now: now) {
-                do { _ = try await post(deposit, now: now, book: deposit.baseCurrencyCode, estimated: estimateDeposits, in: context) }
-                catch { failures.append(deposit.bankName + ": " + MacLocalization.error(error)) }
+            if includeDeposits, let state = MacLiquidity.state(try MacLiquidity.profile(in: context)) {
+                let transactions = try context.fetch(FetchDescriptor<Transaction>())
+                for deposit in deposits where !deposit.isActive {
+                    do {
+                        try MacDepositSettlement.finishScheduledMaturity(
+                            deposit, state: state, deposits: deposits, transactions: transactions, now: now, in: context
+                        )
+                    } catch { failures.append(deposit.bankName + ": " + MacLocalization.error(error)) }
+                }
+                for deposit in deposits where MacDepositSettlement.isEligible(deposit, now: now) {
+                    do { _ = try await post(deposit, now: now, book: deposit.baseCurrencyCode, scheduled: true, in: context) }
+                    catch { failures.append(deposit.bankName + ": " + MacLocalization.error(error)) }
+                }
             }
             for loan in loans where includeRules && loan.deletedAt == nil && MacLoanRepayment.isManaged(loan) && loan.generatedRules.isEmpty {
                 do { _ = try await post(loan, now: now, book: loan.baseCurrencyCode, in: context) }

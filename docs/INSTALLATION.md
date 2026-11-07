@@ -2,12 +2,12 @@
 
 ## Download and verify
 
-Download `FinTrack-v1.5.5-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
+Download `FinTrack-v1.5.6-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
 
 Run this command in the download directory:
 
 ```sh
-shasum -a 256 FinTrack-v1.5.5-macOS.dmg
+shasum -a 256 FinTrack-v1.5.6-macOS.dmg
 ```
 
 Compare the resulting digest against the DMG entry in `SHA256.txt`. When it matches, open the DMG and drag `FinTrack` to the `Applications` folder shown in the same window. The disk image contains only the app and the Applications shortcut.

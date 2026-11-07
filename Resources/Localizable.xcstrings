@@ -34456,13 +34456,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "After maturity, a pending-review income entry is generated automatically. You can also confirm the actual amount received below."
+            "value": "When automatic settlement is on, maturity moves principal and scheduled interest to liquid funds. Edit the interest receipt if the amount differs."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "到期后自动生成待核对收入，也可在下方手动确认实际到账。"
+            "value": "开启自动结算后，到期时本金和计划利息转入活期。实际利息不同，可修正利息记录。"
           }
         }
       }
@@ -58144,13 +58144,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Post the scheduled amount as income pending review. Confirm the actual amount received in Deposit Details."
+            "value": "Move principal and scheduled interest to liquid funds at maturity. Correct the actual interest in Deposit Details."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按计划金额记为待核对收入，可在存款详情确认实际到账。"
+            "value": "到期自动把本金和计划利息转入活期。实际利息可在存款详情中修正。"
           }
         }
       }
@@ -64562,6 +64562,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@年"
+          }
+        }
+      }
+    },
+    "deposit.maturity.cashReview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The liquid balance was set on or after maturity. Check whether it already includes this payment before settling the deposit."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这笔存款到期当天或之后设置过活期余额。请先核对余额是否已包含这笔本息，再处理结算。"
           }
         }
       }

@@ -99,8 +99,8 @@ import Foundation
                 let marker = MacDepositSettlement.receiptMarker(depositID: deposit.id, date: period.date, monthly: monthly)
                 let receipt = byMarker[marker]
                 let note = receipt?.note ?? ""
-                // Explicit manual posting is a confirmation in the existing app.
-                // Automatic posting always carries FTEstimated, even after maturity.
+                // Interest credited at maturity is included at its contract
+                // amount. Pre-maturity estimates remain pending until credited.
                 let confirmed = receipt != nil && !note.contains("[FTEstimated]")
                 let received = confirmed ? amount(receipt!.originalAmount)! : 0
                 let pending: Decimal
