@@ -63,6 +63,7 @@ struct MacFinancialProfileEditor: View {
                     do {
                         if initializing, try MacLiquidity.profile(in: context)?.liquidityData != nil { throw MacFinanceReview.Failure.confirmation }
                         try MacFinancialSettings.saveProfile(assets: assets, debt: debt, currency: currency, initializingOnly: initializing, in: context)
+                        if initializing { MacAppServices.shared.restartDaily() }
                         dismiss()
                     } catch { self.error = MacLocalization.error(error) }
                 }.keyboardShortcut(.defaultAction).accessibilityIdentifier("saveFinancialProfile")

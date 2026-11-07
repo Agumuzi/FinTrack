@@ -92,7 +92,7 @@ final class MacAppServices: ObservableObject {
         let access = MacLedgerAccess.shared; access.load()
         guard let context = access.container?.mainContext else { return }
         let d = MacPreferences.defaults
-        postingError = await MacAutomaticPosting.run(in: context, now: Self.eligibleThrough(Date()), includeRules: d.bool(forKey: "fintrack_auto_posting"), includeDeposits: d.object(forKey: "v13_auto_deposit_posting") as? Bool ?? true, estimateDeposits: true)
+        postingError = await MacAutomaticPosting.run(in: context, now: Self.eligibleThrough(Date()), includeRules: d.bool(forKey: "fintrack_auto_posting"), includeDeposits: d.object(forKey: "v13_auto_deposit_posting") as? Bool ?? true)
         do { try await MacNotifications.schedule(in: context) } catch { postingError = L10n.text("mac.appServices.runDue.aff23af827") + error.localizedDescription }
     }
 }

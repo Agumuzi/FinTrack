@@ -4,10 +4,10 @@
 
 <h1 align="center">FinTrack</h1>
 <p align="center">A personal finance workspace built for Mac. Track transactions, organize your finances, and plan with clarity.</p>
-<p align="center"><strong>v1.5.5 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
+<p align="center"><strong>v1.5.6 · macOS 15.0+ · Apple Silicon / Intel</strong></p>
 <p align="center">
   <a href="https://agumuzi.github.io/FinTrack/">Website</a> ·
-  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5.5">Download for macOS</a> ·
+  <a href="https://github.com/Agumuzi/FinTrack/releases/tag/v1.5.6">Download for macOS</a> ·
   <a href="docs/INSTALLATION.md">Installation</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="https://ko-fi.com/agumuzi">Support development</a>
@@ -36,7 +36,7 @@ See more real screenshots on the [product website](https://agumuzi.github.io/Fin
 
 ## Download and install
 
-[**Download FinTrack v1.5.5 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.5/FinTrack-v1.5.5-macOS.dmg) · [SHA256 checksums](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.5/SHA256.txt)
+[**Download FinTrack v1.5.6 for macOS**](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.6/FinTrack-v1.5.6-macOS.dmg) · [SHA256 checksums](https://github.com/Agumuzi/FinTrack/releases/download/v1.5.6/SHA256.txt)
 
 1. Download the DMG and verify its checksum. Open it, then drag `FinTrack` into the `Applications` folder shown alongside it.
 2. On first launch, macOS may block the app under its security checks. The current distribution uses a **fixed local signing identity and is not notarized by Apple**. See the [installation guide](docs/INSTALLATION.md).

@@ -13,7 +13,7 @@ enum MacDepositSettlement {
     enum PostingError: LocalizedError {
         case legacyRecord, unsafeRollover, currencyMismatch, notDue
         case corruptedSchedule, duplicateReceipt, tooManyPeriods
-        case noLongerActive, possibleManualReceipt
+        case noLongerActive, possibleManualReceipt, cashAlreadyReviewed
 
         var errorDescription: String? {
             switch self {
@@ -25,6 +25,7 @@ enum MacDepositSettlement {
             case .duplicateReceipt: L10n.text("mac.depositSettlement.errorDescription.4f8cb31896")
             case .tooManyPeriods: L10n.text("mac.depositSettlement.errorDescription.f994bc4d43")
             case .noLongerActive: L10n.text("mac.depositSettlement.errorDescription.73a116c12b")
+            case .cashAlreadyReviewed: L10n.text("deposit.maturity.cashReview")
             case .possibleManualReceipt: L10n.text("mac.depositSettlement.errorDescription.eb9c887b7a")
             }
         }
@@ -71,9 +72,17 @@ enum MacDepositSettlement {
     @discardableResult
     static func postDue(
         _ deposit: DepositRecord, now: Date, bookCurrency: String,
-        exchangeRates: [Int64: Double] = [:], estimated: Bool = false, in context: ModelContext
+        exchangeRates: [Int64: Double] = [:], estimated: Bool = false, scheduled: Bool = false, in context: ModelContext
     ) throws -> PostingResult {
         try MacRecoveryJournal.assertWritable(in:context)
+        let scheduledState: LiquidityState?
+        if scheduled {
+            guard !context.hasChanges, let state = MacLiquidity.state(try MacLiquidity.profile(in: context)),
+                  state.currency == bookCurrency else { throw MacFinanceReview.Failure.schedule }
+            scheduledState = state
+        } else {
+            scheduledState = nil
+        }
         guard isManaged(deposit) else { throw PostingError.legacyRecord }
         if let sourceID = deposit.sourceDepositID {
             let parents = try context.fetch(FetchDescriptor<DepositRecord>())
@@ -159,10 +168,20 @@ enum MacDepositSettlement {
                   return uniqueMarkers.contains(where: { note.contains($0) })
               })
         else { throw PostingError.duplicateReceipt }
-        if estimated {
-            guard !items.contains(where: { item in allTransactions.contains { row in
-                row.deletedAt == nil && row.typedType == .income && !MacTransactionCRUD.isProtectedGeneratedPosting(row) && row.originalCurrency == deposit.originalCurrency && abs(row.originalAmount - item.amount) < 0.005 && calendar.isDate(row.date, inSameDayAs: item.date) && (row.category == "Deposit" || (row.note ?? "").localizedCaseInsensitiveContains(deposit.bankName))
-            } }) else { throw PostingError.possibleManualReceipt }
+        let pendingInterest = estimated || (scheduled && !matured)
+        if estimated || scheduled {
+            guard !items.contains(where: { hasManualReceipt(for: deposit, amount: $0.amount, date: $0.date, in: allTransactions) })
+            else { throw PostingError.possibleManualReceipt }
+        }
+        var earlierEstimates: [Transaction] = []
+        var scheduledReference: Date?
+        if matured, let state = scheduledState {
+            let reference = latestCashReference(state)
+            try checkScheduledMaturity(deposit, reference: reference, deposits: allDeposits)
+            scheduledReference = reference
+            if let last = deposit.lastInterestPayoutDate {
+                earlierEstimates = try estimatesToCredit(deposit, through: last, after: reference, transactions: allTransactions)
+            }
         }
         let snapshots = try items.map { item in
             try MacCurrency.snapshot(amount: item.amount, original: deposit.originalCurrency,
@@ -172,10 +191,11 @@ enum MacDepositSettlement {
         do {
             try MacLiquidity.register(deposit, opening: true, in: context)
             for (item, snapshot) in zip(items, snapshots) {
+                let mayBeInOpeningCash = scheduledReference.map { $0 >= calendar.startOfDay(for: item.date) } ?? false
                 context.insert(Transaction(
                     amount: snapshot.baseAmount, currency: bookCurrency, type: .income,
                     category: "Deposit",
-                    note: "银行利息：\(deposit.bankName) \(item.marker)" + (estimated ? " [FTEstimated]（待核对）" : ""),
+                    note: "银行利息：\(deposit.bankName) \(item.marker)" + ((pendingInterest || mayBeInOpeningCash) ? " [FTEstimated]（待核对）" : ""),
                     date: item.date,
                     originalAmount: item.amount, originalCurrency: deposit.originalCurrency,
                     exchangeRateToBase: snapshot.rate, baseAmount: snapshot.baseAmount,
@@ -193,7 +213,10 @@ enum MacDepositSettlement {
             }
             deposit.updatedAt = now
             if deposit.syncVersion < Int.max { deposit.syncVersion += 1 }
-            if matured && !estimated { try MacLiquidity.returnPrincipal(deposit, in: context) }
+            if matured && !pendingInterest {
+                creditEstimates(earlierEstimates, at: now)
+                try MacLiquidity.returnPrincipal(deposit, in: context)
+            }
             try context.save()
         } catch {
             context.rollback()
@@ -206,4 +229,99 @@ enum MacDepositSettlement {
             matured: matured
         )
     }
+
+    /// Complete a maturity left pending by the previous automatic posting
+    /// policy. Existing receipt IDs and manually reconciled values are kept.
+    static func finishScheduledMaturity(
+        _ deposit: DepositRecord, state: LiquidityState, deposits: [DepositRecord],
+        transactions: [Transaction], now: Date, in context: ModelContext
+    ) throws {
+        guard isManaged(deposit), !deposit.isActive, deposit.hasCreditedInterest,
+              Calendar.current.startOfDay(for: deposit.maturityDate) <= Calendar.current.startOfDay(for: now),
+              state.currency == deposit.baseCurrencyCode,
+              let position = state.positions.first(where: { $0.id == deposit.id }), !position.cancelled
+        else { return }
+
+        let reference = latestCashReference(state)
+        let prefix = "[FTDep:\(deposit.id.uuidString):"
+        let hasEstimate = transactions.contains {
+            $0.deletedAt == nil && reference < Calendar.current.startOfDay(for: $0.date)
+                && ($0.note ?? "").contains(prefix) && ($0.note ?? "").contains("[FTEstimated]")
+        }
+        guard !position.returned || hasEstimate else { return }
+        try MacRecoveryJournal.assertWritable(in: context)
+        guard !context.hasChanges else { throw MacFinanceReview.Failure.schedule }
+        try checkScheduledMaturity(deposit, reference: reference, deposits: deposits)
+        let estimates = try estimatesToCredit(deposit, through: deposit.maturityDate, after: reference, transactions: transactions)
+        guard !position.returned || !estimates.isEmpty else { return }
+        do {
+            creditEstimates(estimates, at: now)
+            try MacLiquidity.returnPrincipal(deposit, in: context)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    private static func latestCashReference(_ state: LiquidityState) -> Date {
+        let lastCalibration = state.events.filter { $0.kind == "calibration" }.map(\.date).max()
+        return max(state.confirmedAt, lastCalibration ?? state.confirmedAt)
+    }
+
+    private static func checkScheduledMaturity(
+        _ deposit: DepositRecord, reference: Date, deposits: [DepositRecord]
+    ) throws {
+        guard deposit.typedMaturityInterestHandling != .rollover,
+              !deposits.contains(where: { $0.sourceDepositID == deposit.id })
+        else { throw PostingError.unsafeRollover }
+
+        // A cash reference set on or after the payout day may include the
+        // bank payment. Use the saved reference to avoid crediting it again.
+        guard reference < Calendar.current.startOfDay(for: deposit.maturityDate)
+        else { throw PostingError.cashAlreadyReviewed }
+    }
+
+    private static func estimatesToCredit(
+        _ deposit: DepositRecord, through date: Date, after reference: Date, transactions: [Transaction]
+    ) throws -> [Transaction] {
+        let periods = MacDepositTerms.schedule(deposit)
+        guard periods.last?.date == deposit.maturityDate else { throw PostingError.corruptedSchedule }
+        let audit = MacDepositsData.audit(deposit, transactions: transactions, periods: periods)
+        guard audit.unverifiedCount == 0 else { throw PostingError.duplicateReceipt }
+        let markers = Set(audit.receipts.compactMap { MacDepositsData.receiptIdentity($0.note)?.marker })
+        let monthly = deposit.typedInterestSettlementMode == .monthly
+        guard periods.allSatisfy({
+            $0.date > date || $0.interest == 0 || markers.contains(receiptMarker(depositID: deposit.id, date: $0.date, monthly: monthly))
+        }) else { throw PostingError.corruptedSchedule }
+        let estimates = audit.receipts.filter {
+            $0.date <= date && reference < Calendar.current.startOfDay(for: $0.date)
+                && ($0.note ?? "").contains("[FTEstimated]")
+        }
+        guard !estimates.contains(where: { hasManualReceipt(for: deposit, amount: $0.originalAmount, date: $0.date, in: transactions) })
+        else { throw PostingError.possibleManualReceipt }
+        return estimates
+    }
+
+    private static func creditEstimates(_ receipts: [Transaction], at now: Date) {
+        for receipt in receipts {
+            receipt.note = receipt.note?
+                .replacingOccurrences(of: "[FTEstimated]", with: "")
+                .replacingOccurrences(of: "（待核对）", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            receipt.updatedAt = now
+        }
+    }
+
+    private static func hasManualReceipt(
+        for deposit: DepositRecord, amount: Double, date: Date, in transactions: [Transaction]
+    ) -> Bool {
+        transactions.contains { row in
+            row.deletedAt == nil && row.typedType == .income && !MacTransactionCRUD.isProtectedGeneratedPosting(row)
+                && row.originalCurrency == deposit.originalCurrency && abs(row.originalAmount - amount) < 0.005
+                && Calendar.current.isDate(row.date, inSameDayAs: date)
+                && (row.category == "Deposit" || (row.note ?? "").localizedCaseInsensitiveContains(deposit.bankName))
+        }
+    }
+
 }

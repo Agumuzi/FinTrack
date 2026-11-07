@@ -2,6 +2,11 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.6 — 2026-11-07
+
+- With automatic deposit settlement enabled, maturity transfers principal and scheduled interest to liquid funds. The principal leaves the deposit balance in the same operation. Edit the original receipt to correct any difference in bank interest.
+- Complete eligible outstanding maturities from earlier versions using their existing receipts. Leave cases for review when a later liquid-funds reference may already include the bank payment, or when receipt or renewal history is ambiguous.
+
 ## v1.5.5 — 2026-11-03
 
 - Accept correctly grouped current liquid-funds balances such as `1,234.56`. Invalid cash/debt inputs now identify the correct field, rather than showing a loan-term error; the dialog labels manual debt explicitly, with `0.00` for no debt.
