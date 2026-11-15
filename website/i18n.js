@@ -3,6 +3,9 @@
 (() => {
   'use strict';
   const dictionary = {
+  "November 15, 2026": "2026 年 11 月 15 日",
+  "Consistent realized income and cash": "统一已实现收入与流动资金口径",
+  "Ordinary note markers no longer change cash eligibility. Pending deposit interest is excluded from realized summaries and comparisons. Receipt identities, historical FX and confirmed cash references are preserved.": "普通备注标记不再影响资金归属。待核对存款利息不计入已实现收支汇总和期间比较；保留收据身份、历史汇率和已确认的现金参考余额。",
   "Same-day receipts reflected in current assets": "当天到账及时计入当前资产",
   "Today's recorded income and expenses now appear in current assets even when their saved time is later today; future days remain excluded. Deposit interest cards fit their content at a shared height without internal scrolling, with larger totals, a planned-year distribution, and a single expand/collapse symbol. Existing financial records are preserved.": "当天已记账的收入和支出，即使保存时间晚于当前时刻，也会计入当前资产；未来日期仍排除。存款收益卡按内容统一高度，无内部滚动，放大总额并展示计划年份占比，使用单个符号展开或收起。既有财务记录保持原值。",
   "Compact summaries, more room for your records": "紧凑概览，为账目腾出更多空间",
@@ -44,7 +47,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.5.6 is available": "FinTrack v1.5.6 现已发布",
+  "FinTrack v1.5.7 is available": "FinTrack v1.5.7 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -176,6 +179,9 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "November 15, 2026": "15 ноября 2026 г.",
+  "Consistent realized income and cash": "Согласованный учёт доходов и денежных средств",
+  "Ordinary note markers no longer change cash eligibility. Pending deposit interest is excluded from realized summaries and comparisons. Receipt identities, historical FX and confirmed cash references are preserved.": "Метки в обычных заметках больше не влияют на денежные средства. Неподтверждённые проценты по вкладам исключены из итогов полученных доходов и сравнения периодов. Идентификаторы записей, исторические курсы и подтверждённый денежный остаток сохранены.",
   "Same-day receipts reflected in current assets": "Поступления за сегодня отражаются в текущих активах",
   "Today's recorded income and expenses now appear in current assets even when their saved time is later today; future days remain excluded. Deposit interest cards fit their content at a shared height without internal scrolling, with larger totals, a planned-year distribution, and a single expand/collapse symbol. Existing financial records are preserved.": "Записанные за сегодня доходы и расходы учитываются в текущих активах, даже если сохранённое время ещё не наступило. Будущие дни исключены. Карточки процентов имеют общую высоту по содержимому без внутренней прокрутки, увеличенные суммы, распределение по плановым годам и один символ раскрытия. Существующие финансовые записи сохранены.",
   "Compact summaries, more room for your records": "Компактные сводки — больше места для записей",
@@ -217,7 +223,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.5.6 is available": "Вышла версия FinTrack v1.5.6",
+  "FinTrack v1.5.7 is available": "Вышла версия FinTrack v1.5.7",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",
