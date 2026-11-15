@@ -44,7 +44,7 @@ enum MacCurrencyRebase {
         let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
         for row in try context.fetch(FetchDescriptor<Transaction>()) {
             let s = try await convert(row.originalAmount, row.originalCurrency, row.date)
-            if row.deletedAt == nil && row.date < end && !(row.note ?? "").contains("[FTEstimated]") { rebasedCashNet += row.typedType == .income ? s.baseAmount : -s.baseAmount }
+            if row.deletedAt == nil && row.date < end && TransactionRecognition.isRealized(row) { rebasedCashNet += row.typedType == .income ? s.baseAmount : -s.baseAmount }
             changes.append { row.baseAmount = s.baseAmount; row.baseCurrencyCode = book; row.exchangeRateToBase = s.rate }
         }
         for row in try context.fetch(FetchDescriptor<RecurringTransaction>()) {
@@ -89,6 +89,7 @@ enum MacCurrencyRebase {
                 }
                 state.confirmedCash = FinancialPrecision.roundAmountForStorage(current * factor) - state.movements(asOf: Date())
                 state.transactionBaseline = rebasedCashNet
+                state.recognitionAdjustment = 0
                 state.currency = book
                 state.events.append(.init(depositID: nil, kind: "rebase", amount: 0, date: Date(), before: current, after: FinancialPrecision.roundAmountForStorage(current * factor)))
                 liquidity = try state.encode()

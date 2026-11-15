@@ -101,7 +101,7 @@ import Foundation
                 let note = receipt?.note ?? ""
                 // Interest credited at maturity is included at its contract
                 // amount. Pre-maturity estimates remain pending until credited.
-                let confirmed = receipt != nil && !note.contains("[FTEstimated]")
+                let confirmed = receipt.map { TransactionRecognition.isRealized($0) } ?? false
                 let received = confirmed ? amount(receipt!.originalAmount)! : 0
                 let pending: Decimal
                 if stoppedWithoutSettlement { pending = 0 }

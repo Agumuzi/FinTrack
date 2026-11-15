@@ -228,7 +228,7 @@ enum MacTransactionCRUD {
         transactions: [Transaction], currency: String
     ) -> (income: Double, expense: Double, net: Double) {
         let scoped = transactions.filter {
-            $0.deletedAt == nil && $0.baseCurrencyCode == currency
+            $0.deletedAt == nil && TransactionRecognition.isRealized($0) && $0.baseCurrencyCode == currency
         }
         let income = scoped.filter { $0.typedType == .income }
             .reduce(0.0) { $0 + $1.baseAmount }

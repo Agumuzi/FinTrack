@@ -21,7 +21,7 @@ enum FinancialProfileSnapshotRule {
     ) -> FinancialProfileSnapshot {
         let baselineAssets = profile?.initialAssets ?? 0
         let manualDebtBalance = max(-Goal.normalizedDebt(profile?.initialDebt ?? 0), 0)
-        let baseCurrencyTransactions = transactions.filter { $0.baseCurrencyCode == baseCurrency }
+        let baseCurrencyTransactions = transactions.filter { $0.deletedAt == nil && TransactionRecognition.isRealized($0) && $0.baseCurrencyCode == baseCurrency }
         let incomeBalance = baseCurrencyTransactions
             .filter { $0.typedType == .income }
             .reduce(0) { $0 + $1.baseAmount }

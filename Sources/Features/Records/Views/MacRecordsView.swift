@@ -623,14 +623,15 @@ struct MacRecordSection: View {
     }
     private func signedTableAmount(_ row: Transaction) -> some View {
         let income = row.typedType == .income
-        return Text((income ? "+" : "−") + MacOverviewStyle.money(row.baseAmount)
+        let stateLabel = TransactionRecognition.isRealized(row) ? "" : " · " + L10n.text("receipt.pendingShort")
+        return Text((income ? "+" : "−") + MacOverviewStyle.money(row.baseAmount) + stateLabel
                     + (activeBookCurrency == nil ? " " + row.baseCurrencyCode : ""))
             .appFont(.body, weight: .medium).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
             .foregroundStyle(income ? MacOverviewStyle.income : MacOverviewStyle.expense)
             .frame(maxWidth: .infinity, alignment: .trailing)
             .appPadding(.trailing, 10)
             .accessibilityIdentifier("recordAmount-" + row.id.uuidString)
-            .accessibilityLabel((income ? L10n.text("mac.recordsView.signedTableAmount.7a7425968b") : L10n.text("mac.recordsView.signedTableAmount.38d69dcb62")) + MacOverviewStyle.money(row.baseAmount) + " " + row.baseCurrencyCode)
+            .accessibilityLabel((income ? L10n.text("mac.recordsView.signedTableAmount.7a7425968b") : L10n.text("mac.recordsView.signedTableAmount.38d69dcb62")) + MacOverviewStyle.money(row.baseAmount) + " " + row.baseCurrencyCode + stateLabel)
     }
     private func detailPanel(_ row: Transaction) -> some View {
         VStack(alignment: .leading, spacing: MacUI.space(18)) {
@@ -644,7 +645,7 @@ struct MacRecordSection: View {
                     Label(row.typedType == .income ? L10n.text("mac.recordsView.ScrollView.117d8f914d") : L10n.text("mac.recordsView.ScrollView.e679096865"), systemImage: row.typedType == .income ? "arrow.down.left" : "arrow.up.right")
                         .appFont(.caption, weight: .regular).foregroundStyle(row.typedType == .income ? MacOverviewStyle.income : MacOverviewStyle.expense)
                     Text(MacOverviewStyle.money(row.originalAmount)).appFont(.amount, weight: .semibold, design: .default).monospacedDigit()
-                    Text(row.originalCurrency).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+                    Text(row.originalCurrency + (TransactionRecognition.isRealized(row) ? "" : " · " + L10n.text("receipt.pendingReview"))).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     Divider()
                     detailField(L10n.text("mac.recordsView.detailField.0d12cbd656"), value: MacOverviewStyle.category(row.category), id: "recordSelectedCategory")
                     detailField(L10n.text("mac.recordsView.detailField.70d0c1b336"), value: MacDateDisplay.string(row.date), id: "recordDetailDate")

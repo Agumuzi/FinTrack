@@ -65241,6 +65241,38 @@
           }
         }
       }
+    },
+    "receipt.pendingReview": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending review · excluded from realized totals"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待核对 · 不计入已实现收支"
+          }
+        }
+      }
+    },
+    "receipt.pendingShort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待核对"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

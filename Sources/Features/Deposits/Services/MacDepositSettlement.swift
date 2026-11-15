@@ -246,7 +246,7 @@ enum MacDepositSettlement {
         let prefix = "[FTDep:\(deposit.id.uuidString):"
         let hasEstimate = transactions.contains {
             $0.deletedAt == nil && reference < Calendar.current.startOfDay(for: $0.date)
-                && ($0.note ?? "").contains(prefix) && ($0.note ?? "").contains("[FTEstimated]")
+                && ($0.note ?? "").contains(prefix) && !TransactionRecognition.isRealized($0)
         }
         guard !position.returned || hasEstimate else { return }
         try MacRecoveryJournal.assertWritable(in: context)
@@ -296,7 +296,7 @@ enum MacDepositSettlement {
         }) else { throw PostingError.corruptedSchedule }
         let estimates = audit.receipts.filter {
             $0.date <= date && reference < Calendar.current.startOfDay(for: $0.date)
-                && ($0.note ?? "").contains("[FTEstimated]")
+                && !TransactionRecognition.isRealized($0)
         }
         guard !estimates.contains(where: { hasManualReceipt(for: deposit, amount: $0.originalAmount, date: $0.date, in: transactions) })
         else { throw PostingError.possibleManualReceipt }
@@ -305,10 +305,7 @@ enum MacDepositSettlement {
 
     private static func creditEstimates(_ receipts: [Transaction], at now: Date) {
         for receipt in receipts {
-            receipt.note = receipt.note?
-                .replacingOccurrences(of: "[FTEstimated]", with: "")
-                .replacingOccurrences(of: "（待核对）", with: "")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            receipt.note = TransactionRecognition.replacingPendingState(receipt.note)
             receipt.updatedAt = now
         }
     }

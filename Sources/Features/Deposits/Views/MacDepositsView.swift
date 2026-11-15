@@ -380,7 +380,7 @@ struct MacDepositsView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(MacDateDisplay.string(receipt.date)).appFont(.caption).foregroundStyle(.secondary)
                             Text("+\(MacOverviewStyle.money(receipt.originalAmount)) \(receipt.originalCurrency)").appFont(.body, weight: .semibold).foregroundStyle(MacOverviewStyle.income)
-                            Button((receipt.note ?? "").contains("[FTEstimated]") ? L10n.text("mac.depositsView.ForEach.9e7050cbb4") : L10n.text("mac.depositsView.ForEach.29565a9dcf")) { reconciling = receipt }.appFont(.caption).disabled(bookCurrency == nil || posting)
+                            Button(!TransactionRecognition.isRealized(receipt) ? L10n.text("mac.depositsView.ForEach.9e7050cbb4") : L10n.text("mac.depositsView.ForEach.29565a9dcf")) { reconciling = receipt }.appFont(.caption).disabled(bookCurrency == nil || posting)
                         }
                         Divider()
                     }

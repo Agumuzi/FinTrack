@@ -9,6 +9,8 @@ nonisolated struct LiquidityState: Codable, Sendable {
     var confirmedAt: Date
     var confirmedCash: Double
     var transactionBaseline: Double
+    // nil identifies old baselines. Optional keeps old readers/backup fields compatible.
+    var recognitionAdjustment: Double? = 0
     var positions: [Position] = []
     var events: [Event] = []
     struct Position: Codable, Sendable {
@@ -33,6 +35,7 @@ nonisolated struct LiquidityState: Codable, Sendable {
         let state = try JSONDecoder().decode(Self.self, from: data)
         guard state.version == 1, state.currency.count == 3,
               state.confirmedCash.isFinite, state.transactionBaseline.isFinite,
+              state.recognitionAdjustment?.isFinite ?? true,
               Set(state.positions.map(\.id)).count == state.positions.count,
               Set(state.events.map(\.id)).count == state.events.count,
               state.positions.allSatisfy({ $0.principal.isFinite && $0.principal >= 0 && $0.start.timeIntervalSince1970.isFinite }),
@@ -57,16 +60,39 @@ nonisolated struct LiquidityState: Codable, Sendable {
     }
     static func net(_ transactions: [Transaction], currency: String, asOf date: Date = Date()) -> Double {
         let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: date)) ?? date
-        return transactions.filter { $0.deletedAt == nil && $0.date < end && $0.baseCurrencyCode == currency && !($0.note ?? "").contains("[FTEstimated]") }
+        return transactions.filter { $0.deletedAt == nil && $0.date < end && $0.baseCurrencyCode == currency && TransactionRecognition.isRealized($0) }
             .reduce(0) { $0 + ($1.typedType == .income ? $1.baseAmount : -$1.baseAmount) }
     }
     static func cash(_ state: LiquidityState, transactions: [Transaction], asOf date: Date = Date()) -> Double {
-        FinancialPrecision.roundAmountForStorage(state.confirmedCash + net(transactions, currency: state.currency, asOf: date) - state.transactionBaseline + state.movements(asOf: date))
+        let recognized = net(transactions, currency: state.currency, asOf: date)
+        // Before explicit normalization, an old payload retains its original cash.
+        let adjustment = state.recognitionAdjustment ?? (recognized - legacyNet(transactions, currency: state.currency, asOf: date))
+        return FinancialPrecision.roundAmountForStorage(state.confirmedCash + recognized - state.transactionBaseline - adjustment + state.movements(asOf: date))
+    }
+    private static func legacyNet(_ rows: [Transaction], currency: String, asOf date: Date) -> Double {
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: date)) ?? date
+        return rows.filter { $0.deletedAt == nil && $0.date < end && $0.baseCurrencyCode == currency && !($0.note ?? "").contains("[FTEstimated]") }
+            .reduce(0) { $0 + ($1.typedType == .income ? $1.baseAmount : -$1.baseAmount) }
+    }
+    /// Freeze a neutral bridge once, before accepting new writes. No transaction or
+    /// confirmed cash is rewritten. Older applications ignore this optional field.
+    @discardableResult static func normalizeRecognition(in context: ModelContext) throws -> Bool {
+        let rows = try context.fetch(FetchDescriptor<Transaction>())
+        var changed = false
+        for profile in try context.fetch(FetchDescriptor<FinancialProfile>()) {
+            guard let data = profile.liquidityData else { continue }
+            var state = try LiquidityState.decode(data)
+            guard state.recognitionAdjustment == nil else { continue }
+            state.recognitionAdjustment = net(rows, currency: state.currency) - legacyNet(rows, currency: state.currency, asOf: Date())
+            profile.liquidityData = try state.encode(); changed = true
+        }
+        return changed
     }
     static func confirm(amount: Double, profile: FinancialProfile, currency: String, in context: ModelContext) throws {
         try MacRecoveryJournal.assertWritable(in: context)
         guard !MacAutomaticPosting.isRunning else { throw MacSettingsFailure.invalid(L10n.text("liquidity.busy")) }
         guard amount.isFinite, abs(amount) <= 1e12 else { throw MacFinancialSettings.ProfileInputError.cash }
+        try normalizeRecognition(in: context)
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         var value: LiquidityState
         if let data = profile.liquidityData {
@@ -80,7 +106,7 @@ nonisolated struct LiquidityState: Codable, Sendable {
             for d in deposits where d.deletedAt == nil && d.baseCurrencyCode == currency {
                 // Only an active contract or an identifiable estimated maturity
                 // retains principal. Unknown ended history is never resurrected.
-                let estimated = transactions.contains { $0.deletedAt == nil && ($0.note ?? "").contains("[FTDep:\(d.id.uuidString):") && ($0.note ?? "").contains("[FTEstimated]") && $0.date >= d.maturityDate }
+                let estimated = transactions.contains { $0.deletedAt == nil && ($0.note ?? "").contains("[FTDep:\(d.id.uuidString):") && !TransactionRecognition.isRealized($0) && $0.date >= d.maturityDate }
                 let rolled = deposits.contains { $0.deletedAt == nil && $0.sourceDepositID == d.id }
                 guard d.isActive || (estimated && !rolled) else { continue }
                 let future = Calendar.current.startOfDay(for: d.startDate) > Calendar.current.startOfDay(for: Date())

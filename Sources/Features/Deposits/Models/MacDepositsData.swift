@@ -66,21 +66,17 @@ enum MacDepositsData {
     struct ReceiptAudit {
         let receipts: [Transaction]
         let unverifiedCount: Int
-        var pendingCount: Int { receipts.filter { ($0.note ?? "").contains("[FTEstimated]") }.count }
-        var partialCount: Int { receipts.filter { ($0.note ?? "").contains("[FTPartial]") && !($0.note ?? "").contains("[FTEstimated]") }.count }
+        var pendingCount: Int { receipts.filter { !TransactionRecognition.isRealized($0) }.count }
+        var partialCount: Int { receipts.filter { ($0.note ?? "").contains("[FTPartial]") && TransactionRecognition.isRealized($0) }.count }
         var postedTotal: Double { FinancialPrecision.roundAmountForStorage(receipts.reduce(0) { $0 + $1.originalAmount }) }
-        var total: Double { FinancialPrecision.roundAmountForStorage(receipts.filter { !($0.note ?? "").contains("[FTEstimated]") }.reduce(0) { $0 + $1.originalAmount }) }
+        var total: Double { FinancialPrecision.roundAmountForStorage(receipts.filter { TransactionRecognition.isRealized($0) }.reduce(0) { $0 + $1.originalAmount }) }
     }
     /// Require stable identity, schedule/date/amount and the stored FX snapshot.
     /// Ambiguous or damaged receipts stay visible as an anomaly, outside totals.
     static func receiptIdentity(_ note: String?) -> (depositID: UUID, marker: String)? {
-        let parts = (note ?? "").components(separatedBy: "[FTDep:")
-        guard parts.count == 2, let end = parts[1].firstIndex(of: "]") else { return nil }
-        let body = String(parts[1][..<end]), fields = body.split(separator: ":")
-        guard fields.count == 3, let id = UUID(uuidString: String(fields[0])), Int64(fields[1]) != nil,
-              fields[2] == "MP" || fields[2] == "MAT" else { return nil }
-        return (id, "[FTDep:" + body + "]")
+        TransactionRecognition.depositIdentity(note)
     }
+
     static func audit(_ deposit: DepositRecord, transactions: [Transaction],
                       periods: [MacDepositTerms.Period]? = nil, allowsActualReceiptDate: Bool = false) -> ReceiptAudit {
         let prefix = "[FTDep:\(deposit.id.uuidString):"

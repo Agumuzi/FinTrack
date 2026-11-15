@@ -805,6 +805,7 @@ enum MacNativeBackup {
             let lookup = Dictionary(uniqueKeysWithValues: recurringTransaction.map { ($0.id, $0) })
             for (index, row) in loanRule.enumerated() { row.generatedRules = p.loanRule[index].generatedRuleIDs.compactMap { lookup[$0] } }
             try MacDataManagement.registerReferencedCategories(in: context)
+            if !MacRecoveryJournal.isRecovering { try MacLiquidity.normalizeRecognition(in: context) }
             if let save { try save(context) } else { try context.save() }
             MacRecoveryJournal.checkpoint("database")
         } catch {

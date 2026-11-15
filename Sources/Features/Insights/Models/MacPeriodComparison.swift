@@ -30,7 +30,7 @@ enum MacPeriodComparison {
     }
     static func snapshot(rows: [Transaction], currency: String, current: DateInterval, previous: DateInterval,
                          flow: TransactionType, monthly: Bool, calendar: Calendar = .current) -> Snapshot {
-        let eligible = rows.filter { $0.deletedAt == nil && $0.baseCurrencyCode == currency }
+        let eligible = rows.filter { $0.deletedAt == nil && TransactionRecognition.isRealized($0) && $0.baseCurrencyCode == currency }
         func scoped(_ interval: DateInterval) -> [Transaction] { eligible.filter { $0.date >= interval.start && $0.date < interval.end } }
         func totals(_ rows: [Transaction]) -> Totals {
             Totals(income: ComparisonAnalyticsCore.totalAmount(of: .income, in: rows), expense: ComparisonAnalyticsCore.totalAmount(of: .expense, in: rows))

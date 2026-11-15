@@ -94,7 +94,7 @@ enum MacFinanceReview {
         if let p = try MacLiquidity.profile(in: context), p.liquidityData != nil {
             let receipts = try context.fetch(FetchDescriptor<Transaction>()).filter { $0.deletedAt == nil && ($0.note ?? "").contains("[FTDep:\(source.id.uuidString):") }
             guard let state = MacLiquidity.state(p), state.positions.contains(where: { $0.id == source.id && $0.returned }),
-                  !receipts.contains(where: { ($0.note ?? "").contains("[FTEstimated]") }) else {
+                  !receipts.contains(where: { !TransactionRecognition.isRealized($0) }) else {
                 throw MacSettingsFailure.invalid(L10n.text("liquidity.renewal.help"))
             }
         }

@@ -25,7 +25,7 @@ enum ComparisonPeriod: CaseIterable, Identifiable {
 enum ComparisonAnalyticsCore {
     static func totalAmount(of type: TransactionType, in transactions: [Transaction]) -> Double {
         transactions
-            .filter { $0.typedType == type }
+            .filter { TransactionRecognition.isRealized($0) && $0.typedType == type }
             .reduce(0) { $0 + $1.baseAmount }
     }
 
@@ -55,9 +55,9 @@ enum ComparisonAnalyticsCore {
         currentTransactions: [Transaction],
         previousTransactions: [Transaction]
     ) -> [YearComparisonAnalyticsService.CategoryDelta] {
-        let currentByCategory = Dictionary(grouping: currentTransactions.filter { $0.typedType == .expense }, by: \.category)
+        let currentByCategory = Dictionary(grouping: currentTransactions.filter { TransactionRecognition.isRealized($0) && $0.typedType == .expense }, by: \.category)
             .mapValues { $0.reduce(0) { $0 + $1.baseAmount } }
-        let previousByCategory = Dictionary(grouping: previousTransactions.filter { $0.typedType == .expense }, by: \.category)
+        let previousByCategory = Dictionary(grouping: previousTransactions.filter { TransactionRecognition.isRealized($0) && $0.typedType == .expense }, by: \.category)
             .mapValues { $0.reduce(0) { $0 + $1.baseAmount } }
         let allCategories = Set(currentByCategory.keys).union(previousByCategory.keys)
 
@@ -268,7 +268,7 @@ enum ComparisonAnalyticsCore {
         calendar: Calendar
     ) -> [Date: Double] {
         transactions.reduce(into: [:]) { result, transaction in
-            guard transaction.typedType == type else { return }
+            guard TransactionRecognition.isRealized(transaction), transaction.typedType == type else { return }
             result[calendar.startOfDay(for: transaction.date), default: 0] += transaction.baseAmount
         }
     }
@@ -279,7 +279,7 @@ enum ComparisonAnalyticsCore {
         calendar: Calendar
     ) -> [Int: Double] {
         transactions.reduce(into: [:]) { result, transaction in
-            guard transaction.typedType == type else { return }
+            guard TransactionRecognition.isRealized(transaction), transaction.typedType == type else { return }
             result[calendar.component(.day, from: transaction.date), default: 0] += transaction.baseAmount
         }
     }
@@ -290,7 +290,7 @@ enum ComparisonAnalyticsCore {
         calendar: Calendar
     ) -> [Int: Double] {
         transactions.reduce(into: [:]) { result, transaction in
-            guard transaction.typedType == type else { return }
+            guard TransactionRecognition.isRealized(transaction), transaction.typedType == type else { return }
             result[calendar.component(.month, from: transaction.date), default: 0] += transaction.baseAmount
         }
     }
@@ -370,8 +370,8 @@ enum YearComparisonAnalyticsService {
             return nil
         }
 
-        let currentTransactions = transactions.filter { currentInterval.contains($0.date) }
-        let previousTransactions = transactions.filter { previousInterval.contains($0.date) }
+        let currentTransactions = transactions.filter { TransactionRecognition.isRealized($0) && currentInterval.contains($0.date) }
+        let previousTransactions = transactions.filter { TransactionRecognition.isRealized($0) && previousInterval.contains($0.date) }
 
         guard !currentTransactions.isEmpty || !previousTransactions.isEmpty else {
             return nil

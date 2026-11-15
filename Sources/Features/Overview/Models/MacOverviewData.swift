@@ -51,7 +51,7 @@ struct MacOverviewScope: Equatable {
         // Most historical rows are outside the selected period. Reject them
         // before observing currency/category/type properties unnecessarily.
         if let range, !(row.date >= range.start && row.date < range.end) { return false }
-        guard row.deletedAt == nil, row.baseCurrencyCode == currency,
+        guard row.deletedAt == nil, TransactionRecognition.isRealized(row), row.baseCurrencyCode == currency,
               category == nil || row.category == category, type == nil || row.typedType == type else { return false }
         return true
     }
@@ -80,7 +80,7 @@ enum MacOverviewData {
         let expense: Double
     }
     static func categories(_ rows: [Transaction], type: TransactionType) -> [Bucket] {
-        Dictionary(grouping: rows.filter { $0.deletedAt == nil && $0.typedType == type }, by: \.category)
+        Dictionary(grouping: rows.filter { $0.deletedAt == nil && TransactionRecognition.isRealized($0) && $0.typedType == type }, by: \.category)
             .map { Bucket(id: $0.key, amount: ComparisonAnalyticsCore.totalAmount(of: type, in: $0.value), count: $0.value.count) }
             .sorted { $0.amount == $1.amount ? $0.id < $1.id : $0.amount > $1.amount }
     }

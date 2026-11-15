@@ -15,7 +15,7 @@ struct MacBudgetSpendingSnapshot {
         for category in categories where categoryNames[category.id] == nil {
             categoryNames[category.id] = category.name
         }
-        for row in rows where row.deletedAt == nil && row.typedType == .expense {
+        for row in rows where row.deletedAt == nil && TransactionRecognition.isRealized(row) && row.typedType == .expense {
             let month = MacBudgetData.month(row.date), currency = row.baseCurrencyCode
             let amount = row.baseAmount
             totals[Key(month: month, currency: currency, category: nil), default: 0] += amount

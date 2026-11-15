@@ -92,6 +92,7 @@ final class MacLedgerAccess: ObservableObject {
             // date review without changing the contract during ledger open.
             // Once per container open; imports and native restores repair inside their own transaction.
             try MacDataManagement.reconcileCategories(in: container.mainContext)
+            if try MacLiquidity.normalizeRecognition(in: container.mainContext) { try container.mainContext.save() }
             state = .ready(container, lease)
             failedContainer = nil; failedLease = nil
         } catch { failedContainer?.mainContext.rollback();failedContainer?.mainContext.autosaveEnabled=false;state = .failed(String(describing: error)) }
