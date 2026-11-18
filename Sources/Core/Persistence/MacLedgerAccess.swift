@@ -139,7 +139,7 @@ struct MacLedgerWorkspaceGate: View {
             Button(L10n.text("mac.ledgerAccess.body.de32e20193")) { access.recoveryMessage = nil }
         } message: { Text(access.recoveryMessage ?? "") }
         .defaultAppStorage(MacPreferences.defaults)
-        .background(MacMenuBarWindowProbe { runtime.mainWindow = $0 })
+        .background(MacMenuBarWindowProbe { runtime.attachMainWindow($0) })
         .onAppear { access.load(createIfMissing: true) }
     }
 }

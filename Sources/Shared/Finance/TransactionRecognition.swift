@@ -25,6 +25,10 @@ enum TransactionRecognition {
         let suffix = note.range(of: identity.marker).map { String(note[$0.upperBound...]) } ?? ""
         return suffix.contains("[FTEstimated]") ? .estimated : .posted
     }
+    static func depositStateContains(_ marker: String, in note: String?) -> Bool {
+        guard let note, let identity = depositIdentity(note), let range = note.range(of: identity.marker) else { return false }
+        return note[range.upperBound...].contains(marker)
+    }
     static func replacingPendingState(_ note: String?) -> String {
         let text = note ?? ""
         guard let identity = depositIdentity(text), let range = text.range(of: identity.marker) else { return text }

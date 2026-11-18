@@ -33466,13 +33466,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scheduled Amount:"
+            "value": "Current recorded amount: "
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "计划金额："
+            "value": "当前记录金额："
           }
         }
       }
@@ -65270,6 +65270,176 @@
           "stringUnit": {
             "state": "translated",
             "value": "待核对"
+          }
+        }
+      }
+    },
+    "receipt.review.action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review / correct received amount"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "核对／修正到账金额"
+          }
+        }
+      }
+    },
+    "receipt.review.invalid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The receipt period, linked deposit, or saved amount snapshot cannot be verified. Check the deposit details first. No records were changed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法验证收据期次、关联存款或金额快照。请先在存款详情核查，未修改任何记录。"
+          }
+        }
+      }
+    },
+    "receipt.review.storedFX": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved exchange rate (preserved):"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原记账汇率（保留）："
+          }
+        }
+      }
+    },
+    "receipt.review.includedCash": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This receipt is already included in confirmed liquid cash"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这笔到账已包含在已确认的活期余额中"
+          }
+        }
+      }
+    },
+    "receipt.review.cashHelp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The receipt date is on or before the latest cash confirmation or calibration. Cash is preserved by default. Uncheck if that balance excluded this receipt. Later corrections apply only the difference."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到账日不晚于最近一次活期余额确认或校准。默认保留该余额；若当时尚未包含这笔到账，请取消勾选。后续再次修正只计金额差额。"
+          }
+        }
+      }
+    },
+    "deposit.filter.current": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current deposits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前存款"
+          }
+        }
+      }
+    },
+    "deposit.filter.history": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matured / ended"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已到期／已结束"
+          }
+        }
+      }
+    },
+    "deposit.filter.pendingHistory": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld historical deposits need review"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 笔历史存款待核查"
+          }
+        }
+      }
+    },
+    "records.customDate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom dates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义日期"
+          }
+        }
+      }
+    },
+    "records.applyDate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply date range"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用日期范围"
           }
         }
       }

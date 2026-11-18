@@ -15,7 +15,7 @@ struct MacDepositsView: View {
     @Query private var deposits: [DepositRecord]
     @Query private var transactions: [Transaction]
     @State private var search = ""
-    @State private var status: MacDepositsData.Status?
+    @State private var status: MacDepositsData.Status? = .current
     @State private var bank: String?
     @State private var maturityYear: Int?
     @State private var currency: String?
@@ -58,6 +58,14 @@ struct MacDepositsView: View {
         MacDepositsData.filtered(active, search: search, status: status, bank: bank, currency: currency, year: maturityYear, sort: sort, now: now)
     }
     private var selected: DepositRecord? { visible.first { $0.id == selectedID } }
+    private var historicalReviewCount: Int {
+        active.filter { deposit in
+            guard MacDepositsData.matches(MacDepositsData.status(deposit, now: now), filter: .matured) else { return false }
+            let audit = MacDepositsData.audit(deposit, transactions: transactions)
+            let position = profiles.compactMap { MacLiquidity.state($0) }.flatMap(\.positions).first { $0.id == deposit.id }
+            return audit.pendingCount > 0 || audit.partialCount > 0 || audit.unverifiedCount > 0 || !deposit.hasCreditedInterest || (position.map { !$0.returned && !$0.cancelled } ?? false)
+        }.count
+    }
     private var maturityYears: [Int] { Array(Set(active.map { Calendar.current.component(.year, from: $0.maturityDate) })).sorted(by: >) }
     private var banks: [String] { Array(Set(active.map(\.bankName))).sorted { $0.localizedStandardCompare($1) == .orderedAscending } }
     private var currencies: [String] { Array(Set(active.map(\.originalCurrency))).sorted() }
@@ -124,7 +132,7 @@ struct MacDepositsView: View {
         }
         .sheet(item: $schedule) { MacDepositScheduleView(deposit: $0) }
         .sheet(item: $copying) { source in if let bookCurrency { MacFinanceEditor(panel: .deposits, currency: bookCurrency, copyFrom: source) { saved() } } }
-        .sheet(item: $reconciling) { receipt in MacDepositReceiptReviewView(deposit: deposit, receipt: receipt) }
+        .sheet(item: $reconciling) { receipt in MacDepositReceiptReviewView(deposit: deposit, receipt: receipt, onSaved: saved) }
         .sheet(item: $editing) { record in
             if let bookCurrency { MacFinanceEditor(panel: .deposits, currency: bookCurrency, existing: record) { saved() } }
         }
@@ -175,10 +183,16 @@ struct MacDepositsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(7)) {
                     filterButton(L10n.text("mac.depositsView.filterButton.6b5a8e8b5b"), count: active.count, selected: status == nil, icon: "tray", id: "depositAll") { status = nil }
-                    ForEach([MacDepositsData.Status.active, .soon, .matured]) { item in
-                        filterButton(L10n.builtIn(item.rawValue),
+                    ForEach([MacDepositsData.Status.current, .soon, .matured]) { item in
+                        filterButton(item == .current ? L10n.text("deposit.filter.current") : item == .matured ? L10n.text("deposit.filter.history") : L10n.builtIn(item.rawValue),
                             count: active.filter { MacDepositsData.matches(MacDepositsData.status($0, now: now), filter: item) }.count,
                             selected: status == item, icon: item == .matured ? "calendar.badge.exclamationmark" : "clock", id: "depositStatus-\(item.rawValue)") { status = item }
+                    }
+                    if historicalReviewCount > 0 {
+                        Button { status = .matured; bank = nil; currency = nil; maturityYear = nil; search = "" } label: {
+                            Label(L10n.format("deposit.filter.pendingHistory", Int64(historicalReviewCount)), systemImage: "exclamationmark.circle")
+                                .appFont(.caption).foregroundStyle(.orange)
+                        }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier("depositHistoryReview")
                     }
                     Divider().appPadding(.vertical, 8)
                     Text(L10n.text("deposit.filter.maturityYear")).appFont(.caption, weight: .semibold).foregroundStyle(.secondary).appPadding(.leading, 8)
@@ -200,7 +214,7 @@ struct MacDepositsView: View {
                     }
                 }
             }
-            Button(L10n.text("mac.depositsView.filters.13a431e59b")) { search = ""; status = nil; bank = nil; currency = nil; maturityYear = nil }.buttonStyle(MacInteractiveButtonStyle())
+            Button(L10n.text("mac.depositsView.filters.13a431e59b")) { search = ""; status = .current; bank = nil; currency = nil; maturityYear = nil }.buttonStyle(MacInteractiveButtonStyle())
                 .foregroundStyle(.secondary).accessibilityIdentifier("depositReset")
         }.appPadding(18).background(MacOverviewStyle.filters)
     }
@@ -380,7 +394,7 @@ struct MacDepositsView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(MacDateDisplay.string(receipt.date)).appFont(.caption).foregroundStyle(.secondary)
                             Text("+\(MacOverviewStyle.money(receipt.originalAmount)) \(receipt.originalCurrency)").appFont(.body, weight: .semibold).foregroundStyle(MacOverviewStyle.income)
-                            Button(!TransactionRecognition.isRealized(receipt) ? L10n.text("mac.depositsView.ForEach.9e7050cbb4") : L10n.text("mac.depositsView.ForEach.29565a9dcf")) { reconciling = receipt }.appFont(.caption).disabled(bookCurrency == nil || posting)
+                            Button(L10n.text("receipt.review.action")) { reconciling = receipt }.appFont(.caption).disabled(bookCurrency == nil || posting)
                         }
                         Divider()
                     }

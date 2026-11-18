@@ -106,7 +106,7 @@ import Foundation
                 let pending: Decimal
                 if stoppedWithoutSettlement { pending = 0 }
                 else if !confirmed { pending = expected }
-                else if note.contains("[FTPartial]") { pending = max(0, expected - received) }
+                else if TransactionRecognition.depositStateContains("[FTPartial]", in: note) { pending = max(0, expected - received) }
                 else { pending = 0 } // A final bank adjustment closes the period.
                 guard received > 0 || pending > 0 else { continue }
                 let plannedYear = calendar.component(.year, from: period.date)

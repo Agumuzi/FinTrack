@@ -3,6 +3,7 @@ import Foundation
 /// Read-only presentation rules. Maturity is a date, never proof of payment.
 enum MacDepositsData {
     enum Status: String, CaseIterable, Identifiable {
+        case current = "当前存款"
         case active = "进行中", soon = "即将到期", matured = "已到期", ended = "已结束"
         var id: String { rawValue }
     }
@@ -19,6 +20,7 @@ enum MacDepositsData {
     }
     static func matches(_ actual: Status, filter: Status?) -> Bool {
         guard let filter else { return true }
+        if filter == .current { return actual == .active || actual == .soon }
         return filter == .matured ? actual == .matured || actual == .ended : actual == filter
     }
     static func filtered(_ deposits: [DepositRecord], search: String, status selected: Status?, bank: String?, currency: String?, year: Int? = nil, sort: Sort, now: Date = Date()) -> [DepositRecord] {
@@ -67,7 +69,7 @@ enum MacDepositsData {
         let receipts: [Transaction]
         let unverifiedCount: Int
         var pendingCount: Int { receipts.filter { !TransactionRecognition.isRealized($0) }.count }
-        var partialCount: Int { receipts.filter { ($0.note ?? "").contains("[FTPartial]") && TransactionRecognition.isRealized($0) }.count }
+        var partialCount: Int { receipts.filter { TransactionRecognition.depositStateContains("[FTPartial]", in: $0.note) && TransactionRecognition.isRealized($0) }.count }
         var postedTotal: Double { FinancialPrecision.roundAmountForStorage(receipts.reduce(0) { $0 + $1.originalAmount }) }
         var total: Double { FinancialPrecision.roundAmountForStorage(receipts.filter { TransactionRecognition.isRealized($0) }.reduce(0) { $0 + $1.originalAmount }) }
     }
@@ -99,7 +101,7 @@ enum MacDepositsData {
                   let identity = receiptIdentity(entry.note),
                   let period = periodsByMarker[identity.marker],
                   (allowsActualReceiptDate || entry.date == period.date),
-                  (abs(entry.originalAmount - period.interest) < 0.005 || (entry.note ?? "").contains("[FTVerified]")),
+                  (abs(entry.originalAmount - period.interest) < 0.005 || TransactionRecognition.depositStateContains("[FTVerified]", in: entry.note)),
                   grouped[identity.marker]?.count == 1
             else { continue }
             verified.append(entry)

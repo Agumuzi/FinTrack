@@ -9,7 +9,9 @@ struct MacRecordSection: View {
     private let scope: MacOverviewScope?
 
     init(scope: MacOverviewScope? = nil, navigationState: MacRecordsNavigationState = MacRecordsNavigationState()) {
+        let navigationState = navigationState.refreshedDefault()
         self.scope = scope
+        _followsCurrentMonth = State(initialValue: scope == nil && navigationState.followsCurrentMonth)
         _searchText = State(initialValue: scope == nil ? navigationState.searchText : "")
         _currencyFilter = State(initialValue: scope == nil ? navigationState.currencyFilter : "All")
         _recordSort = State(initialValue: navigationState.recordSort)
@@ -56,6 +58,11 @@ struct MacRecordSection: View {
     @State private var saveError: String?
     @State private var showsNewTransaction = false
     @State private var editingTransaction: Transaction?
+    @State private var reviewingReceipt: Transaction?
+    @State private var followsCurrentMonth = true
+    @State private var showsCustomDates = false
+    @State private var customFrom = Date()
+    @State private var customThrough = Date()
     @AppStorage("v2_confirm_records") private var extraDeletionConfirmation = true
     @State private var deletionAcknowledged = false
     @State private var showsDeleteConfirmation = false
@@ -179,7 +186,7 @@ struct MacRecordSection: View {
         }
     }
 
-    var body: some View {
+    private var recordsContent: some View {
         GeometryReader { geometry in
             let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(950))
             let wide = geometry.size.width - filterWidth >= MacUI.space(860)
@@ -193,7 +200,7 @@ struct MacRecordSection: View {
                         Label(L10n.text("mac.recordsView.GeometryReader.833b01ff62"), systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange).accessibilityIdentifier("mixedCurrencyBlocked")
                     }
-                    summaryCards(compact: geometry.size.width - filterWidth < MacUI.space(760))
+                    summaryCards(compact: geometry.size.width - filterWidth - 41 < summaryMinimumWidth)
                     filterBar
                     if let saveError {
                         Text(L10n.format("mac.recordsView.GeometryReader.fcc6eb49b9", "\(saveError)")).foregroundStyle(.red).accessibilityIdentifier("saveError")
@@ -237,14 +244,21 @@ struct MacRecordSection: View {
                 if let row = selectedTransaction { detailPanel(row).appPanel(width: 360, height: 560).appPadding(20) }
             }
         }
-        .onAppear { refreshLedgerState() }
+    }
+
+    private var observedLedger: some View {
+        recordsContent
+        .onAppear { refreshDefaultMonth(); refreshLedgerState() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in refreshDefaultMonth() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in refreshDefaultMonth() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in refreshDefaultMonth() }
         .onDisappear {
             guard scope == nil else { return }
             workspace.recordsNavigationState = MacRecordsNavigationState(
                 searchText: searchText, typeFilter: typeFilter, dateFilterEnabled: dateFilterEnabled,
                 dateFrom: dateFrom, dateThrough: dateThrough, currencyFilter: currencyFilter,
                 categoryFilter: categoryFilter, recordSort: recordSort, displayLimit: displayLimit,
-                rangeTitle: rangeTitle, expandedYears: expandedYears, expandedMonths: expandedMonths
+                rangeTitle: rangeTitle, followsCurrentMonth: followsCurrentMonth, expandedYears: expandedYears, expandedMonths: expandedMonths
             )
         }
         .onChange(of: transactions.count) { _, _ in refreshLedgerState() }
@@ -252,6 +266,10 @@ struct MacRecordSection: View {
         .onChange(of: financeLoans.count) { _, _ in refreshLedgerState() }
         .onChange(of: financeRules.count) { _, _ in refreshLedgerState() }
         .onChange(of: preferredBookCurrency) { _, _ in refreshLedgerState() }
+    }
+
+    private var observedRecords: some View {
+        observedLedger
         .onChange(of: searchText) { _, _ in refreshVisibleRows() }
         .onChange(of: typeFilter) { _, type in
             if type != "All", categoryFilter != "All", !(filterCategoryNames[type] ?? []).contains(categoryFilter) { categoryFilter = "All" }
@@ -268,6 +286,10 @@ struct MacRecordSection: View {
                 selectedTransactionID = id
             } else { selectedTransactionID = nil; showsDetails = false }
         }
+    }
+
+    var body: some View {
+        observedRecords
         .sheet(item: $editingTransaction) { transaction in
             MacTransactionEditor(
                 bookCurrency: activeBookCurrency ?? preferredBookCurrency,
@@ -369,19 +391,32 @@ struct MacRecordSection: View {
                 .appFont(.body, weight: .medium).contentShape(Rectangle())
         }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id).accessibilityLabel(title + "：" + MacOverviewStyle.money(amount))
     }
+    private func metricAmount(_ amount: Double) -> String {
+        activeBookCurrency.map { MacOverviewStyle.money(amount) + " " + MacSettingsVisual.symbol($0) } ?? "—"
+    }
+    private var summaryMinimumWidth: CGFloat {
+        let _ = measuredFontTier; let _ = measuredFontName; let _ = measuredCustomBody
+        let titleFont = MacInterfaceFonts.font(size: MacUI.fontSize(.caption, tier: MacUI.fontTier))
+        let amountFont = MacInterfaceFonts.font(size: MacUI.fontSize(.section, tier: MacUI.fontTier), weight: .semibold, monospacedDigits: true)
+        let titles = ["e679096865", "117d8f914d", "d26ca9aea9"].map { L10n.text("mac.recordsView.metric." + $0) }
+        let widths = zip(titles, [totals.expense, totals.income, totals.net]).map { title, amount in
+            (title as NSString).size(withAttributes: [.font: titleFont]).width + (metricAmount(amount) as NSString).size(withAttributes: [.font: amountFont]).width + MacUI.space(42)
+        }
+        return max(MacUI.space(760), ceil(widths.max() ?? 0) * 3 + MacUI.space(24))
+    }
     private func metric(_ title: String, amount: Double, color: Color, id: String, filter: String) -> some View {
         Button { typeFilter = filter } label: {
-            VStack(alignment: .leading, spacing: MacUI.space(9)) {
-                Text(title).appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
-                Text(activeBookCurrency == nil ? "—" : MacOverviewStyle.money(amount))
-                    .appFont(.amount, weight: .semibold, design: .default).monospacedDigit().foregroundStyle(color)
-                    .lineLimit(1).minimumScaleFactor(0.5).allowsTightening(true).accessibilityIdentifier(id)
-            }.appPadding(15).frame(maxWidth: .infinity, alignment: .leading).appMinHeight(108)
+            HStack(alignment: .center, spacing: MacUI.space(12)) {
+                Text(title).appFont(.caption).foregroundStyle(.secondary).fixedSize()
+                    .accessibilityIdentifier(id + "Title")
+                Spacer(minLength: 0)
+                Text(metricAmount(amount)).appFont(.section, weight: .semibold).monospacedDigit().foregroundStyle(color)
+                    .lineLimit(1).fixedSize(horizontal: true, vertical: false).accessibilityIdentifier(id + "Value")
+            }.appPadding(.horizontal, 15).appPadding(.vertical, 12).frame(maxWidth: .infinity)
                 .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
                 .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.04)))
         }.buttonStyle(MacInteractiveButtonStyle()).appHelp(L10n.format("mac.recordsView.metric.efe409d08d", "\(id == "bookNet" ? L10n.text("mac.recordsView.metric.9ca02895b2") : title + L10n.text("mac.recordsView.metric.e3cb9c00b5"))"))
-            .accessibilityLabel("\(title)：\(activeBookCurrency == nil ? "—" : MacOverviewStyle.money(amount)) \(activeBookCurrency ?? "")")
-            .accessibilityIdentifier(id)
+            .accessibilityLabel("\(title)：\(metricAmount(amount))").accessibilityIdentifier(id)
     }
     private var filterBar: some View {
         ViewThatFits(in: .horizontal) {
@@ -436,7 +471,7 @@ struct MacRecordSection: View {
     private var clearFilters: some View {
         Button(L10n.text("mac.recordsView.clearFilters.cb5d682bac")) {
             searchText = ""; typeFilter = "All"; categoryFilter = "All"; currencyFilter = "All"
-            dateFilterEnabled = false; rangeTitle = MacRecordRangeIdentity.all
+            followsCurrentMonth = true; refreshDefaultMonth(); showsCustomDates = false
         }.buttonStyle(MacInteractiveButtonStyle()).foregroundStyle(MacOverviewStyle.accent).accessibilityIdentifier("recordReset")
     }
     private var tableToolbar: some View {
@@ -652,6 +687,13 @@ struct MacRecordSection: View {
                     detailField(L10n.text("mac.recordsView.detailField.38bc61ab91"), value: "\(MacOverviewStyle.money(row.baseAmount)) \(row.baseCurrencyCode)", id: "recordBookAmount")
                     detailField(L10n.text("mac.recordsView.detailField.ff80360122"), value: row.exchangeRateToBase.formatted(.number.precision(.fractionLength(0...8))), id: "recordStoredFX")
                     detailField(L10n.text("mac.recordsView.detailField.daede98817"), value: MacFinanceNotes.visible(row.note).isEmpty ? L10n.text("mac.recordsView.detailField.8445d1bad0") : MacFinanceNotes.visible(row.note), id: "recordDetailNote")
+                    if (row.note ?? "").contains("[FTDep:") {
+                        Button(L10n.text("receipt.review.action")) {
+                            do { _ = try MacDepositReconciliation.deposit(for: row, in: modelContext); reviewingReceipt = row }
+                            catch { saveError = MacLocalization.error(error) }
+                        }.accessibilityIdentifier("recordReviewDepositReceipt")
+                        if let saveError { Text(saveError).appFont(.caption).foregroundStyle(.red) }
+                    }
                     if MacTransactionCRUD.isProtectedGeneratedPosting(row) {
                         Label(L10n.text("mac.recordsView.ScrollView.bca1f9d7ea"), systemImage: "lock").appFont(.caption, weight: .regular).foregroundStyle(.secondary)
                     }
@@ -668,6 +710,13 @@ struct MacRecordSection: View {
         }.appPadding(18).frame(maxHeight: .infinity)
             .background(MacOverviewStyle.card, in: RoundedRectangle(cornerRadius: 13))
             .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(.primary.opacity(0.045)))
+        .sheet(item: $reviewingReceipt) { receipt in
+            if let deposit = try? MacDepositReconciliation.deposit(for: receipt, in: modelContext) {
+                MacDepositReceiptReviewView(deposit: deposit, receipt: receipt, onSaved: { refreshLedgerState(); saveError = nil })
+            } else {
+                Text(L10n.text("receipt.review.invalid")).padding(24)
+            }
+        }
         .sheet(isPresented: $showsDeleteConfirmation) {
             VStack(alignment: .leading, spacing: MacUI.space(18)) {
                 Text(L10n.text("mac.recordsView.detailPanel.4608daaa48"))
@@ -713,11 +762,11 @@ struct MacRecordSection: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(5)) {
                     rangeButton(L10n.text("mac.recordsView.rangeButton.e425792084"), icon: "tray.full", id: "recordAll", selected: !dateFilterEnabled) {
-                        dateFilterEnabled = false; rangeTitle = MacRecordRangeIdentity.all
+                        dateFilterEnabled = false; rangeTitle = MacRecordRangeIdentity.all; followsCurrentMonth = false; showsCustomDates = false
                     }
                     rangeButton(L10n.text("mac.recordsView.rangeButton.178393de56"), icon: "clock", id: "recordRecent", selected: rangeTitle == MacRecordRangeIdentity.recent) {
                         dateFrom = Calendar.current.date(byAdding: .day, value: -29, to: Calendar.current.startOfDay(for: Date()))!
-                        dateThrough = Date(); dateFilterEnabled = true; rangeTitle = MacRecordRangeIdentity.recent
+                        dateThrough = Date(); dateFilterEnabled = true; rangeTitle = MacRecordRangeIdentity.recent; followsCurrentMonth = false; showsCustomDates = false
                     }
                     Divider().appPadding(.vertical, 10)
                     Text(L10n.text("mac.recordsView.ScrollView.0136fb1836")).appFont(.caption, weight: .semibold, design: .default).foregroundStyle(.secondary)
@@ -740,20 +789,28 @@ struct MacRecordSection: View {
                 }
             }.accessibilityIdentifier("recordTimeline")
             Divider()
-            Toggle(L10n.text("mac.recordsView.timelinePanel.8a43007a89"), isOn: $dateFilterEnabled).toggleStyle(.checkbox).appFont(.caption, weight: .regular)
+            Toggle(L10n.text("records.customDate"), isOn: $showsCustomDates).toggleStyle(.checkbox).appFont(.caption)
                 .accessibilityIdentifier("recordDateEnabled")
-            if dateFilterEnabled {
-                MacDateTimeField(title: L10n.text("mac.recordsView.MacDateTimeField.2719a8ea30"), date: $dateFrom).accessibilityIdentifier("recordFrom")
-                MacDateTimeField(title: L10n.text("mac.recordsView.MacDateTimeField.65edbf9f1c"), date: $dateThrough).accessibilityIdentifier("recordThrough")
+            if showsCustomDates {
+                MacDateTimeField(title: L10n.text("mac.recordsView.MacDateTimeField.2719a8ea30"), date: $customFrom).accessibilityIdentifier("recordFrom")
+                MacDateTimeField(title: L10n.text("mac.recordsView.MacDateTimeField.65edbf9f1c"), date: $customThrough).accessibilityIdentifier("recordThrough")
+                Button(L10n.text("records.applyDate")) {
+                    dateFrom = min(customFrom, customThrough); dateThrough = max(customFrom, customThrough)
+                    dateFilterEnabled = true; followsCurrentMonth = false
+                    rangeTitle = "custom"
+                }.accessibilityIdentifier("recordApplyDate")
             }
         }.appPadding(18).frame(maxHeight: .infinity).background(MacOverviewStyle.filters)
-        .onChange(of: dateFrom) { _, _ in updateRangeTitle() }
-        .onChange(of: dateThrough) { _, _ in updateRangeTitle() }
-        .onChange(of: dateFilterEnabled) { _, enabled in if !enabled { rangeTitle = MacRecordRangeIdentity.all } }
+        .onChange(of: showsCustomDates) { _, expanded in
+            if expanded { customFrom = dateFrom; customThrough = dateThrough }
+        }
     }
-    private var years: [Int] { timelineIndex.years }
+    private var years: [Int] { Array(Set(timelineIndex.years + [Calendar.current.component(.year, from: dateFrom)])).sorted(by: >) }
     private func rows(year: Int, month: Int? = nil) -> [Transaction] { timelineIndex.rows(in: year, month: month) }
-    private func months(in year: Int) -> [Int] { timelineIndex.months(in: year) }
+    private func months(in year: Int) -> [Int] {
+        let selected = dateFilterEnabled && Calendar.current.component(.year, from: dateFrom) == year ? [Calendar.current.component(.month, from: dateFrom)] : []
+        return Array(Set(timelineIndex.months(in: year) + selected)).sorted(by: >)
+    }
     private func monthNode(year: Int, month: Int) -> some View {
         let key = "\(year)-\(month)"
         let days = timelineIndex.days(in: year, month: month)
@@ -801,6 +858,9 @@ struct MacRecordSection: View {
         }.buttonStyle(MacInteractiveButtonStyle()).accessibilityIdentifier(id)
     }
     private func selectPeriod(year: Int, month: Int? = nil) {
+        followsCurrentMonth = false; showsCustomDates = false
+        expandedYears.insert(year)
+        if let month { expandedMonths.insert("\(year)-\(month)") }
         let calendar = Calendar.current
         let start = calendar.date(from: DateComponents(year: year, month: month ?? 1, day: 1))!
         let range = calendar.dateInterval(of: month == nil ? .year : .month, for: start)!
@@ -808,11 +868,16 @@ struct MacRecordSection: View {
         rangeTitle = month.map { MacRecordRangeIdentity.month(year, $0) } ?? MacRecordRangeIdentity.year(year)
     }
     private func selectDay(_ date: Date) {
+        followsCurrentMonth = false; showsCustomDates = false
         dateFrom = date; dateThrough = date; dateFilterEnabled = true
         rangeTitle = "day"
     }
-    private func updateRangeTitle() {
-        rangeTitle = MacRecordRangeIdentity.resolve(from: dateFrom, through: dateThrough, enabled: dateFilterEnabled)
+    private func refreshDefaultMonth() {
+        guard followsCurrentMonth, let range = Calendar.current.dateInterval(of: .month, for: Date()) else { return }
+        dateFrom = range.start; dateThrough = range.end.addingTimeInterval(-1); dateFilterEnabled = true
+        let year = Calendar.current.component(.year, from: range.start), month = Calendar.current.component(.month, from: range.start)
+        rangeTitle = MacRecordRangeIdentity.month(year, month)
+        expandedYears.insert(year); expandedMonths.insert(Self.monthKey(range.start))
     }
 
     private func exportVisibleTransactions() {

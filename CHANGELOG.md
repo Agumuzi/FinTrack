@@ -2,6 +2,19 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.8 — 2026-11-18
+
+- Default deposits to current holdings, with separate upcoming, historical and all-deposit filters. Keep historical review reminders reachable without changing deposit data.
+- Review or correct deposit interest directly from transaction details using the same dedicated window as deposit details. Preserve receipt identity and historical FX, support cumulative partial receipts, and explicitly handle interest already included in confirmed cash.
+- Default Transactions to the current calendar month, retain deliberate date navigation, and keep overview drill-down scopes. Reset returns to the current month.
+- Keep three separate summary cards with compact single-line contents when the available space fits; retain the existing narrow layout. Currency symbols and monospaced amounts follow the ledger and user typography.
+- Expand custom date inputs only on request; draft dates apply explicitly and collapsing the editor preserves the applied filter.
+- Fix entry activation policy after main-window opening/closing (FT-FA-014). Menu-only mode uses accessory, with a temporary Dock application tile while minimized; restoring or closing hides it again. Dock-only and dual-entry modes keep their Dock entry. Native minimization follows the macOS “Minimize windows into application icon” setting.
+
+## v1.5.7 — 2026-11-15
+
+- Unify realized deposit-receipt accounting across cash, summaries and comparisons. Ordinary note markers no longer affect cash eligibility; preserve existing cash references with a neutral compatibility adjustment.
+
 ## v1.5.6 — 2026-11-07
 
 - With automatic deposit settlement enabled, maturity transfers principal and scheduled interest to liquid funds. The principal leaves the deposit balance in the same operation. Edit the original receipt to correct any difference in bank interest.

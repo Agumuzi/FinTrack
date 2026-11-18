@@ -13,15 +13,16 @@ struct MacRecordsNavigationState {
     var recordSort: String
     var displayLimit: Int
     var rangeTitle: String
+    var followsCurrentMonth: Bool
     var expandedYears: Set<Int>
     var expandedMonths: Set<String>
 
-    init(searchText: String = "", typeFilter: String = "All", dateFilterEnabled: Bool = false,
-         dateFrom: Date = DateFilterRangeState.currentMonth().startDate, dateThrough: Date = Date(),
+    init(searchText: String = "", typeFilter: String = "All", dateFilterEnabled: Bool = true,
+         dateFrom: Date = DateFilterRangeState.currentMonth().startDate, dateThrough: Date = Calendar.current.dateInterval(of: .month, for: Date())!.end.addingTimeInterval(-1),
          currencyFilter: String = "All", categoryFilter: String = "All",
          recordSort: String = MacPreferences.defaults.string(forKey: "v2_sort") ?? "最新优先",
          displayLimit: Int = MacPreferences.defaults.object(forKey: "v2_page_size") as? Int ?? 50,
-         rangeTitle: String = MacRecordRangeIdentity.all, expandedYears: Set<Int>? = nil, expandedMonths: Set<String>? = nil) {
+         rangeTitle: String? = nil, followsCurrentMonth: Bool = true, expandedYears: Set<Int>? = nil, expandedMonths: Set<String>? = nil) {
         let now = Date()
         let year = Calendar.current.component(.year, from: now)
         let month = Calendar.current.component(.month, from: now)
@@ -34,9 +35,19 @@ struct MacRecordsNavigationState {
         self.categoryFilter = categoryFilter
         self.recordSort = MacRecordSort.stored(recordSort).legacyValue
         self.displayLimit = displayLimit
-        self.rangeTitle = rangeTitle
+        self.rangeTitle = rangeTitle ?? MacRecordRangeIdentity.resolve(from: dateFrom, through: dateThrough, enabled: dateFilterEnabled)
+        self.followsCurrentMonth = followsCurrentMonth
         self.expandedYears = expandedYears ?? [year]
         self.expandedMonths = expandedMonths ?? ["\(year)-\(month)"]
+    }
+    func refreshedDefault(now: Date = Date(), calendar: Calendar = .current) -> Self {
+        guard followsCurrentMonth, let interval = calendar.dateInterval(of: .month, for: now) else { return self }
+        var value = self
+        value.dateFilterEnabled = true; value.dateFrom = interval.start; value.dateThrough = interval.end.addingTimeInterval(-1)
+        let year = calendar.component(.year, from: now), month = calendar.component(.month, from: now)
+        value.rangeTitle = MacRecordRangeIdentity.month(year, month)
+        value.expandedYears.insert(year); value.expandedMonths.insert("\(year)-\(month)")
+        return value
     }
 }
 

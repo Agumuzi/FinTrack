@@ -15,6 +15,14 @@ final class MacAppEntryController: ObservableObject {
         return NSApp.setActivationPolicy(expected) && NSApp.activationPolicy() == expected
     }
     private let defaults: UserDefaults
+    // A minimized main window needs a Dock application tile even in menu-only
+    // mode. This is transient presentation, never a persisted entry preference.
+    private(set) var mainWindowIsMiniaturized = false
+
+    func mainWindowMiniaturizationChanged(_ value: Bool) {
+        mainWindowIsMiniaturized = value
+        reconcileActivationPolicy()
+    }
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
@@ -22,6 +30,20 @@ final class MacAppEntryController: ObservableObject {
     }
 
     func start() async { await apply(configuration) }
+
+    /// SwiftUI/Launch Services may promote a windowed accessory app. Reassert
+    /// the saved policy at lifecycle boundaries without changing the preference.
+    /// Accessory windows can be key and activated; opening one needs no Dock.
+    func reconcileActivationPolicy() {
+        guard !isTransitioning else { return }
+        guard configuration.showDock || menuIsRegistered() else { return }
+        let visible = configuration.showDock || mainWindowIsMiniaturized
+        if setDockVisible(visible) {
+            policyDescription = visible ? "regular" : "accessory"
+        } else {
+            fail(configuration, inserted: isMenuInserted)
+        }
+    }
 
     /// Enable and verify the replacement before removing a working entry.
     /// Persistence follows the OS operation, never precedes it.
@@ -34,7 +56,8 @@ final class MacAppEntryController: ObservableObject {
         isTransitioning = true; message = nil
         defer { isTransitioning = false }
         if next.showMenuBar { isMenuInserted = true }
-        if next.showDock {
+        let effectiveDock = next.showDock || mainWindowIsMiniaturized
+        if effectiveDock {
             guard setDockVisible(true) else { fail(old, inserted: oldInserted); return }
         } else {
             // Wait only for our own SwiftUI label installation acknowledgement.
@@ -47,7 +70,7 @@ final class MacAppEntryController: ObservableObject {
             guard registered, setDockVisible(false) else { fail(old, inserted: oldInserted); return }
         }
         isMenuInserted = next.showMenuBar
-        policyDescription = next.showDock ? "regular" : "accessory"
+        policyDescription = effectiveDock ? "regular" : "accessory"
         configuration = next
         persist()
     }
@@ -56,8 +79,8 @@ final class MacAppEntryController: ObservableObject {
         isMenuInserted = inserted || old.showMenuBar
         var restored = old
         // Failure is observable. Never persist an unverified hidden state.
-        if setDockVisible(old.showDock) {
-            policyDescription = old.showDock ? "regular" : "accessory"
+        if setDockVisible(old.showDock || mainWindowIsMiniaturized) {
+            policyDescription = old.showDock || mainWindowIsMiniaturized ? "regular" : "accessory"
         } else if setDockVisible(true) {
             restored.showDock = true; policyDescription = "regular"
         } else {
@@ -119,6 +142,7 @@ final class MacApplicationRuntime: ObservableObject {
     weak var mainWindow: NSWindow?
     private var host: MacMenuBarHost?
     private var restoreObserver: NSObjectProtocol?
+    private var mainWindowObservers: [NSObjectProtocol] = []
     var openMain: (() -> Void)?
     @Published var showsSettings = false
     @Published private(set) var settingsRequest = UUID()
@@ -139,7 +163,36 @@ final class MacApplicationRuntime: ObservableObject {
     }
     func installHost() { if host == nil { host = MacMenuBarHost(runtime: self) } }
     func closePanel() { host?.close() }
+    func attachMainWindow(_ window: NSWindow?) {
+        guard let window, !window.isSheet, mainWindow !== window else { return }
+        for observer in mainWindowObservers { NotificationCenter.default.removeObserver(observer) }
+        mainWindowObservers.removeAll()
+        mainWindow = window
+        entries.mainWindowMiniaturizationChanged(window.isMiniaturized)
+        mainWindowObservers.append(NotificationCenter.default.addObserver(forName: NSWindow.willMiniaturizeNotification, object: window, queue: .main) { [weak self, weak window] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.mainWindow === window else { return }
+                // Set regular before AppKit creates the minimized Dock tile.
+                self.entries.mainWindowMiniaturizationChanged(true)
+            }
+        })
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.willCloseNotification, NSWindow.didDeminiaturizeNotification] {
+            mainWindowObservers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self, weak window] _ in
+                if name == NSWindow.willCloseNotification {
+                    MainActor.assumeIsolated { self?.entries.mainWindowMiniaturizationChanged(false) }
+                }
+                // Run after SwiftUI handles the event. Rapid reopen and configuration
+                // changes use the latest preference, never a captured old policy.
+                DispatchQueue.main.async {
+                    guard let self, self.mainWindow === window else { return }
+                    self.entries.mainWindowMiniaturizationChanged(window?.isMiniaturized == true)
+                }
+            })
+        }
+        entries.reconcileActivationPolicy()
+    }
     func showMain(settings: Bool = false) {
+        entries.reconcileActivationPolicy()
         showsSettings = settings
         if settings { settingsRequest = UUID() }
         closePanel()
@@ -149,12 +202,16 @@ final class MacApplicationRuntime: ObservableObject {
             mainWindow.makeKeyAndOrderFront(nil)
         } else { openMain?() }
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { self.entries.reconcileActivationPolicy() }
     }
 }
 
 final class MacApplicationDelegate: NSObject, NSApplicationDelegate {
     private var typographyMonitor: Any?
     func applicationWillFinishLaunching(_ notification: Notification) { MacNotificationDelegate.shared.install() }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        MacApplicationRuntime.shared.entries.reconcileActivationPolicy()
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         MacNativeMenuLocalization.shared.install()
         typographyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
