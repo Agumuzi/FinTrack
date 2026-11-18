@@ -3,6 +3,9 @@
 (() => {
   'use strict';
   const dictionary = {
+  "November 18, 2026": "2026 年 11 月 18 日",
+  "Receipt review and smoother daily navigation": "统一到账核对与更顺畅的日常浏览",
+  "Review deposit interest directly from transaction details, including partial receipts and later corrections. Deposits start with current holdings, transactions start with the current month, and custom dates open only on request. Three independent summary cards use a compact single line when space permits. Menu-only windows restore the saved Dock policy after closing or restoring from minimization.": "在账目详情直接核对存款利息，支持部分到账与再次修正。存款默认显示当前持有，账目默认当月，自定义日期仅主动展开。宽度足够时，三张独立统计卡片采用紧凑单行。仅菜单栏模式在关闭或从最小化恢复后还原原有 Dock 设置。",
   "November 15, 2026": "2026 年 11 月 15 日",
   "Consistent realized income and cash": "统一已实现收入与流动资金口径",
   "Ordinary note markers no longer change cash eligibility. Pending deposit interest is excluded from realized summaries and comparisons. Receipt identities, historical FX and confirmed cash references are preserved.": "普通备注标记不再影响资金归属。待核对存款利息不计入已实现收支汇总和期间比较；保留收据身份、历史汇率和已确认的现金参考余额。",
@@ -47,7 +50,7 @@
   "Releases": "版本",
   "Download": "下载",
   "for Mac": "Mac 版",
-  "FinTrack v1.5.7 is available": "FinTrack v1.5.7 现已发布",
+  "FinTrack v1.5.8 is available": "FinTrack v1.5.8 现已发布",
   "Personal finance,": "让个人财务，",
   "made clear.": "清楚有序。",
   "From everyday spending to your assets and future plans.": "从日常的一笔收支，到资产与未来的计划。",
@@ -179,6 +182,9 @@
   "Language switch": "语言切换"
 };
   const russian = {
+  "November 18, 2026": "18 ноября 2026 г.",
+  "Receipt review and smoother daily navigation": "Проверка процентов и удобная навигация",
+  "Review deposit interest directly from transaction details, including partial receipts and later corrections. Deposits start with current holdings, transactions start with the current month, and custom dates open only on request. Three independent summary cards use a compact single line when space permits. Menu-only windows restore the saved Dock policy after closing or restoring from minimization.": "Проверяйте проценты по вкладам в деталях операции, включая частичные поступления и исправления. По умолчанию показываются текущие вклады и операции текущего месяца. Произвольные даты открываются по запросу. Три отдельные карточки используют компактную строку при достаточной ширине. Режим строки меню восстанавливает настройку Dock после закрытия или восстановления окна.",
   "November 15, 2026": "15 ноября 2026 г.",
   "Consistent realized income and cash": "Согласованный учёт доходов и денежных средств",
   "Ordinary note markers no longer change cash eligibility. Pending deposit interest is excluded from realized summaries and comparisons. Receipt identities, historical FX and confirmed cash references are preserved.": "Метки в обычных заметках больше не влияют на денежные средства. Неподтверждённые проценты по вкладам исключены из итогов полученных доходов и сравнения периодов. Идентификаторы записей, исторические курсы и подтверждённый денежный остаток сохранены.",
@@ -223,7 +229,7 @@
   "Releases": "Версии",
   "Download": "Скачать",
   "for Mac": "для Mac",
-  "FinTrack v1.5.7 is available": "Вышла версия FinTrack v1.5.7",
+  "FinTrack v1.5.8 is available": "Вышла версия FinTrack v1.5.8",
   "Personal finance,": "Личные финансы —",
   "made clear.": "всё по полочкам.",
   "From everyday spending to your assets and future plans.": "От повседневных расходов до активов и планов на будущее.",

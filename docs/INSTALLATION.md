@@ -2,12 +2,12 @@
 
 ## Download and verify
 
-Download `FinTrack-v1.5.6-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
+Download `FinTrack-v1.5.8-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
 
 Run this command in the download directory:
 
 ```sh
-shasum -a 256 FinTrack-v1.5.6-macOS.dmg
+shasum -a 256 FinTrack-v1.5.8-macOS.dmg
 ```
 
 Compare the resulting digest against the DMG entry in `SHA256.txt`. When it matches, open the DMG and drag `FinTrack` to the `Applications` folder shown in the same window. The disk image contains only the app and the Applications shortcut.
@@ -76,3 +76,10 @@ Create and retain an offline native full backup in the old version before updati
 New deposits transfer principal internally. Estimated interest does not count as liquid funds; principal stays in held/pending assets until actual settlement is confirmed. The deposit menu offers **Confirm principal returned**, including zero-interest maturities. Confirm full return only when the full principal has actually arrived. Partial principal returns and ended records whose settlement cannot be established require manual review; the app does not invent payments. Verify source principal and estimated interest before renewing.
 
 Use **Calibrate liquid funds and debt** in the asset details to set the actual current balance later, including negative balances. Calibration does not create income or expenses. Native full backups retain the confirmation and movement history; CSV keeps its existing format and does not contain internal movements. Review and calibrate after importing historical deposits.
+
+
+## Main window, Dock and receipt review in v1.5.8
+
+In menu-only mode, the main window normally runs without a Dock entry. Minimizing temporarily exposes the Dock application icon so the window can be restored there; restoring or closing returns to the saved menu-only preference. Dock-only and dual-entry modes keep their Dock icon. Use macOS **System Settings → Desktop & Dock → Minimize windows into application icon** to collect minimized windows under the application icon; FinTrack does not change this system-wide preference or manually pinned Dock items.
+
+Use **Review / correct received amount** in deposit-interest transaction details or deposit details. Ordinary generated-posting editing remains protected. The saved historical exchange rate is preserved. When an older pending receipt might already be included in confirmed liquid cash, review the explicit already-included choice before saving; see [Receipt accounting](RECEIPT_ACCOUNTING.md).
