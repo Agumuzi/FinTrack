@@ -57,6 +57,7 @@ struct MacOverviewView: View {
     @State private var detailTransaction: Transaction?
     @State private var detailMetric: MacOverviewMetric?
     @State private var showsMonthPicker = false
+    @State private var showsFilters = false
     @FocusState private var monthPickerAnchorFocused: Bool
 
     private var currency: String { bookCurrency ?? "—" }
@@ -82,10 +83,9 @@ struct MacOverviewView: View {
     private var expenses: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .expense) }
     private var incomes: [MacOverviewData.Bucket] { MacOverviewData.categories(categoryScopeRows, type: .income) }
     private var trend: [MacOverviewData.Month] { MacOverviewData.months(transactions, scope: scope, currency: currency, count: trendMonths) }
-    private var profile: FinancialProfile? { profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil } }
+    private var profile: FinancialProfile? { MacLiquidity.preferredProfile(in: profiles) }
     private var snapshot: FinancialProfileSnapshot {
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))!
-        return MacFinancialSettings.snapshot(profile: profile, transactions: transactions.filter { $0.date < tomorrow },
+        MacFinancialSettings.snapshot(profile: profile, transactions: transactions,
             loans: loans, deposits: deposits, currency: currency, asOf: Date())
     }
     private var activeGoals: [Goal] { goals.filter { $0.deletedAt == nil } }
@@ -101,24 +101,34 @@ struct MacOverviewView: View {
             let expenses = MacOverviewData.categories(categoryScopeRows, type: .expense)
             let incomeCategoryTotal = incomes.reduce(0) { $0 + $1.amount }
             let expenseCategoryTotal = expenses.reduce(0) { $0 + $1.amount }
-            let filterWidth = MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(950))
+            let compactFilters = geometry.size.width < MacUI.space(800)
+            let filterWidth = compactFilters ? 0 : MacUI.filterColumnWidth(available: geometry.size.width, wide: geometry.size.width >= MacUI.space(950))
+            let empty = bookCurrency != nil && transactions.allSatisfy { $0.deletedAt != nil }
             HStack(spacing: MacUI.space(0)) {
-                filterPanel.frame(width: filterWidth); Divider()
+                if !compactFilters { filterPanel.frame(width: filterWidth); Divider() }
                 let contentWidth = max(1, geometry.size.width - filterWidth - 1)
                 let innerContentWidth = max(1, contentWidth - MacUI.space(40))
                 let keepsCardsInPairs = innerContentWidth >= MacUI.space(720)
                 let categoryChartSize: CGFloat = keepsCardsInPairs && innerContentWidth < MacUI.space(900) ? MacUI.space(130) : MacUI.space(158)
                 ScrollView {
                     VStack(alignment: .leading, spacing: MacUI.space(15)) {
-                        header
+                        header(compactFilters: compactFilters)
                         MacInAppReminders(workspace: workspace)
                         if bookCurrency == nil {
                             Label(L10n.text("mac.overviewView.ScrollView.bde784bff3"), systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange).accessibilityIdentifier("overviewMixedCurrency")
                         }
                         if !scope.isValid { Text(L10n.text("mac.overviewView.ScrollView.90de26a62a")).foregroundStyle(.red) }
+                        if empty {
+                            ContentUnavailableView {
+                                Label(L10n.text("overview.empty.title"), systemImage: "list.bullet.rectangle")
+                            } actions: {
+                                Button(L10n.text("mac.overviewView.GeometryReader.e81051e879")) { workspace.showsQuickRecord = true }
+                                    .accessibilityIdentifier("overviewEmptyQuickRecord")
+                            }.frame(maxWidth: .infinity).appPadding(.vertical, 10)
+                        }
                         metrics(contentWidth: innerContentWidth)
-                        trendCard
+                        if !empty { trendCard }
                         if keepsCardsInPairs {
                             MacOverviewGoalScheduleRow(spacing: MacUI.space(15)) {
                                 goalCard.frame(maxWidth: .infinity)
@@ -168,7 +178,7 @@ struct MacOverviewView: View {
                 LabeledContent(L10n.text("mac.overviewView.LabeledContent.70d0c1b336"), value: MacDateDisplay.string(row.date))
                 LabeledContent(L10n.text("mac.overviewView.LabeledContent.fee8c0943c"), value: "\(MacOverviewStyle.money(row.originalAmount)) \(row.originalCurrency)")
                 LabeledContent(L10n.text("mac.overviewView.LabeledContent.38bc61ab91"), value: "\(MacOverviewStyle.money(row.baseAmount)) \(row.baseCurrencyCode)")
-                if let note = row.note { Text(note).foregroundStyle(.secondary) }
+                if let note = row.note { Text(MacFinanceNotes.visible(note)).foregroundStyle(.secondary) }
                 HStack {
                     Button(L10n.text("mac.overviewView.body.d78ecdf7e8")) { workspace.showRecords(scope); detailTransaction = nil }
                     Spacer(); Button(L10n.text("mac.overviewView.body.3fd47edce4")) { detailTransaction = nil }.keyboardShortcut(.cancelAction)
@@ -187,12 +197,19 @@ struct MacOverviewView: View {
         }
     }
 
-    private var header: some View {
+    private func header(compactFilters: Bool) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(scope.title + ((MacPreferences.isTesting && ProcessInfo.processInfo.environment["FINTRACK_V2_DEMO"] == "1") ? L10n.text("mac.overviewView.header.83debda181") : "") + (scope.category.map { " · " + MacOverviewStyle.category($0) } ?? ""))
                 .appFont(.body, weight: .medium, design: .default).foregroundStyle(.secondary)
                 .accessibilityIdentifier("overviewTitle")
             Spacer()
+            if compactFilters {
+                Button(L10n.text("mac.overviewView.filterPanel.b5f15473fd"), systemImage: "line.3.horizontal.decrease") { showsFilters.toggle() }
+                    .accessibilityIdentifier("overviewToggleFilters")
+                    .popover(isPresented: $showsFilters) {
+                        filterPanel.frame(width: MacUI.space(260), height: MacUI.space(440))
+                    }
+            }
             Text(L10n.format("mac.overviewView.header.08cd60a4dc", "\(currency)")).appFont(.caption, weight: .medium, design: .default).foregroundStyle(.secondary)
                 .appHelp(L10n.text("mac.overviewView.header.ff7625b55a"))
         }.appPadding(.bottom, 3)
@@ -351,10 +368,10 @@ struct MacOverviewView: View {
                             Text(goal.title).appFont(.body, weight: .regular, design: .default).lineLimit(1)
                         }
                         Text("\(MacOverviewStyle.money(goal.targetAmount)) \(currency)").appFont(.amount, weight: .semibold, design: .default).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
-                        let progress = goal.clampedProgressValue(currentNetWorth: snapshot.netWorth, baselineNetWorth: Goal.baselineNetWorth(from: profile))
-                        HStack { ProgressView(value: bookCurrency == nil ? 0 : progress).tint(MacOverviewStyle.accent); Text(bookCurrency == nil ? "—" : "\(goal.displayPercent(currentNetWorth: snapshot.netWorth, baselineNetWorth: Goal.baselineNetWorth(from: profile)))%").appFont(.caption, weight: .regular).monospacedDigit() }
+                        let progress = goal.progress(netWorth: snapshot.netWorth).fraction
+                        HStack { ProgressView(value: bookCurrency == nil ? 0 : progress).tint(MacOverviewStyle.accent); Text(bookCurrency == nil ? "—" : "\(goal.progress(netWorth: snapshot.netWorth).percent)%").appFont(.caption, weight: .regular).monospacedDigit() }
                         HStack {
-                            VStack(alignment: .leading, spacing: MacUI.space(6)) { Text(L10n.text("mac.overviewView.OverviewCard.8d1288c011")).foregroundStyle(.secondary); Text(bookCurrency == nil ? L10n.text("mac.overviewView.OverviewCard.7710d6e903") : "\(MacOverviewStyle.money(snapshot.netWorth)) \(currency)").monospacedDigit() }
+                            VStack(alignment: .leading, spacing: MacUI.space(6)) { Text(L10n.text(goal.includesCurrentAssets ? "mac.overviewView.OverviewCard.8d1288c011" : "goal.currentGrowth")).foregroundStyle(.secondary); Text(bookCurrency == nil ? L10n.text("mac.overviewView.OverviewCard.7710d6e903") : "\(MacOverviewStyle.money(goal.progress(netWorth: snapshot.netWorth).current)) \(currency)").monospacedDigit() }
                             Spacer()
                             VStack(alignment: .leading, spacing: MacUI.space(6)) { Text(L10n.text("mac.overviewView.OverviewCard.bf2cb28701")).foregroundStyle(.secondary); Text(MacGoalTargetDate.label(goal)) }
                         }.appFont(.caption, weight: .regular, design: .default)

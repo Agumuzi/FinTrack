@@ -52,8 +52,12 @@ nonisolated struct LiquidityState: Codable, Sendable {
 
 @MainActor enum MacLiquidity {
     static func profile(in context: ModelContext) throws -> FinancialProfile? {
-        let profiles = try context.fetch(FetchDescriptor<FinancialProfile>(sortBy: [SortDescriptor(\.createdAt)])).filter { $0.deletedAt == nil }
-        return profiles.first { $0.liquidityData != nil } ?? profiles.first
+        preferredProfile(in: try context.fetch(FetchDescriptor<FinancialProfile>(sortBy: [SortDescriptor(\.createdAt)])))
+    }
+    static func preferredProfile(in profiles: [FinancialProfile]) -> FinancialProfile? {
+        let active = profiles.filter { $0.deletedAt == nil }
+        return active.filter { $0.liquidityData != nil }.min { $0.createdAt < $1.createdAt }
+            ?? active.min { $0.createdAt < $1.createdAt }
     }
     static func state(_ profile: FinancialProfile?) -> LiquidityState? {
         profile?.liquidityData.flatMap { try? LiquidityState.decode($0) }

@@ -2,6 +2,15 @@
 
 This document records published FinTrack versions. Installers and checksum files are available on [GitHub Releases](https://github.com/Agumuzi/FinTrack/releases).
 
+## v1.5.9 — 2026-11-27
+
+- Open the main window directly from any menu bar tab. In menu-only mode the Dock icon stays available while the main window is open or minimized. Closing the window restores menu-only operation.
+- Show deposit filters in this order: Current, Upcoming, Matured, and All. Interest confirmation lists the due periods, currency, amounts, and cash impact. Historical review stays available.
+- Use one calendar-day net worth snapshot for the overview, goals, and reminders. Absolute goals track current net worth. Growth goals track the change since creation.
+- Process overdue recurring entries and authorized loan installments in bounded batches with saved progress. New monthly and yearly rules retain their scheduled day when the calendar permits.
+- Show budget overruns in currency, keep status notices outside the work area, and offer session undo for ordinary transaction deletions. System receipts remain protected.
+- Label cached and dated FX quotes, protect unsupported amount precision from silent rounding, and verify the core goal and schedule rules in CI.
+
 ## v1.5.8 — 2026-11-18
 
 - Default deposits to current holdings, with separate upcoming, historical and all-deposit filters. Keep historical review reminders reachable without changing deposit data.

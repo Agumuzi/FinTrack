@@ -29,6 +29,7 @@ struct MacBudgetSettingsView: View {
         let spending = MacBudgetSpendingSnapshot(rows: transactions, categories: categories)
         let allExpense = spending.spent(MacBudget(month: MacBudgetData.month(month), currency: currency ?? preferredCurrency, amount: 1))
         let selected = self.selected
+        let overage = total > 0 ? overBudgetText(allExpense - total, currency: currency ?? preferredCurrency) : nil
         VStack(alignment: .leading, spacing: MacUI.space(14)) {
             HStack {
                 Spacer()
@@ -40,7 +41,11 @@ struct MacBudgetSettingsView: View {
                     VStack(spacing: MacUI.space(13)) {
                         MacSettingsSegments(selection: $mode, options: ["分类预算", "总预算"]).accessibilityIdentifier("settingsBudgetMode")
                         budgetSummary(allExpense: allExpense)
-                        HStack { MacSettingsProgress(value: total > 0 ? allExpense / total : 0, color: .green); Text(total > 0 ? String(format: "%.1f%%", allExpense / total * 100) : "—").appFont(.body, weight: .semibold, design: .default).lineLimit(1).fixedSize(horizontal: true, vertical: false) }
+                        HStack { MacSettingsProgress(value: total > 0 ? allExpense / total : 0, color: overage != nil ? .red : .green); Text(total > 0 ? String(format: "%.1f%%", allExpense / total * 100) : "—").appFont(.body, weight: .semibold, design: .default).lineLimit(1).fixedSize(horizontal: true, vertical: false) }
+                        if let overage {
+                            Label(overage, systemImage: "exclamationmark.circle").appFont(.caption).foregroundStyle(.red)
+                                .accessibilityIdentifier("budgetOverage")
+                        }
                         HStack { Spacer(); Button(L10n.text("mac.budgetSettingsView.MacSettingsColumns.c04c51ae30"), systemImage: "plus") { addBudget() } }
                         categoryBudgetRows(spending: spending, selectedID: selected?.id)
                     }
@@ -129,8 +134,9 @@ struct MacBudgetSettingsView: View {
         let amountText = MacSettingsVisual.money(row.amount) + " " + MacSettingsVisual.symbol(row.currency)
         let spentText = MacSettingsVisual.money(used) + " " + MacSettingsVisual.symbol(row.currency)
         let percentText = String(format: "%.1f%%", fraction * 100)
+        let overage = overBudgetText(used - row.amount, currency: row.currency)
         Button { selectedID = row.id } label: {
-            Group {
+            VStack(alignment: .leading, spacing: 2) {
                 if compact {
                     VStack(alignment: .leading, spacing: MacUI.space(7)) {
                         HStack(spacing: MacUI.space(8)) {
@@ -159,13 +165,23 @@ struct MacBudgetSettingsView: View {
                         Image(systemName: "chevron.right").appFont(.caption, weight: .regular, design: .default).foregroundStyle(.secondary)
                     }.appPadding(.horizontal, 5).appMinHeight(44)
                 }
+                if let overage {
+                    Label(overage, systemImage: "exclamationmark.circle").appFont(.caption).foregroundStyle(.red)
+                        .appPadding(.leading, 8)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(effectiveSelection == row.id ? MacSettingsVisual.accent.opacity(0.025) : .clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(MacInteractiveButtonStyle())
-        .accessibilityRepresentation { Button(name + L10n.text("mac.budgetSettingsView.budgetRow.bd8dbd5724")) { selectedID = row.id }.accessibilityIdentifier("budgetRow-" + name) }
+        .accessibilityRepresentation { Button([name, spentText, percentText, overage].compactMap { $0 }.joined(separator: " · ")) { selectedID = row.id }.accessibilityIdentifier("budgetRow-" + name) }
+    }
+
+    private func overBudgetText(_ difference: Double, currency: String) -> String? {
+        let amount = FinancialPrecision.roundAmountForDisplay(difference)
+        guard amount > 0 else { return nil }
+        return L10n.format("budget.overage", MacSettingsVisual.money(amount) + " " + currency)
     }
 
     private func metric(_ title: String, _ value: Double, id: String) -> some View {

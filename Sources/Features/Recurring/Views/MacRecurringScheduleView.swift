@@ -11,7 +11,7 @@ struct MacRecurringScheduleView: View {
         for index in 1...24 {
             if let end = rule.endDate, date > end { break }
             rows.append(Row(id: index, date: date))
-            guard let next = try? MacFinanceRecords.nextDate(date, value: rule.intervalValue, unit: rule.intervalUnit), next > date else { break }
+            guard let next = try? MacFinanceRecords.nextDate(date, value: rule.intervalValue, unit: rule.intervalUnit, anchorDay: MacFinanceRecords.recurringAnchorDay(rule)), next > date else { break }
             date = next
         }
         return rows
@@ -21,6 +21,9 @@ struct MacRecurringScheduleView: View {
             Text(rule.title).appFont(.dialogTitle, weight: .semibold)
             Text(L10n.text("mac.recurringScheduleView.body.09737664cc")).appFont(.section, weight: .semibold)
             Text(L10n.text("mac.recurringScheduleView.body.0a4a9bc342")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
+            if let anchor = MacFinanceRecords.recurringAnchorDay(rule) {
+                Text(L10n.format("recurring.anchor.fixed", Int64(anchor))).appFont(.caption).foregroundStyle(.secondary)
+            }
             if RecurringIntervalUnit(rawValue: rule.intervalUnit) == nil || !(1...365).contains(rule.intervalValue) {
                 Text(L10n.text("mac.recurringScheduleView.body.c9a48c0867")).foregroundStyle(.orange)
             } else {

@@ -251,8 +251,11 @@ struct MacBackupSettingsView: View {
     }
     private func saveBackup(_ data:Data,at url:URL) async throws {
         _=try await MacNativeBackup.previewAsync(data)
-        try await Task.detached(priority:.userInitiated){try MacDataIO.write(data,to:url)}.value
-        try MacSettingsStore.save(MacBackupHistory.recording(data,at:url,history:history),key:"v2_backup_history")
+        let sha256 = try await Task.detached(priority: .userInitiated) {
+            try MacDataIO.write(data, to: url)
+            return MacNativeBackup.digest(data)
+        }.value
+        try MacSettingsStore.save(MacBackupHistory.recording(size: data.count, sha256: sha256, at: url, history: history), key: "v2_backup_history")
         selectedBackups.removeAll()
     }
     private func createBackup() {

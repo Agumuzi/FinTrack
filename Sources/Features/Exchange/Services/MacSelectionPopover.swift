@@ -33,6 +33,8 @@ final class MacSelectionSession: ObservableObject {
         var evidence: String
         var copied: Bool
         var cached: Bool
+        var quoteStatus: String
+        var quoteDates: String
         var sourceLabel: String
     }
     enum Phase { case choose, loading, result(Output), failure(String) }
@@ -77,10 +79,12 @@ final class MacSelectionSession: ObservableObject {
             let route = await monitor.loadSelectionRoute(from: source, to: target)
             guard !Task.isCancelled, !ended, generation == expected else { return }
             if let route { finish(route, source: source, index: index, generation: expected, cached: false) }
-            else { set(.failure(L10n.text("mac.selectionPopover.set.8a4b12eedd"))) }
+            else if let fallback = monitor.selectionRoute(from: source, to: target, maximumAge: MacFXMonitor.selectionOfflineAge) {
+                finish(fallback, source: source, index: index, generation: expected, cached: true, offline: true)
+            } else { set(.failure(L10n.text("mac.selectionPopover.set.8a4b12eedd"))) }
         }
     }
-    private func finish(_ route: MacFXMath.Conversion, source: String, index: Int, generation expected: Int, cached: Bool) {
+    private func finish(_ route: MacFXMath.Conversion, source: String, index: Int, generation expected: Int, cached: Bool, offline: Bool = false) {
         guard !ended, generation == expected else { return }
         let value = NSDecimalNumber(decimal: parsed.amounts[index]).multiplying(by: NSDecimalNumber(value: route.unitRate))
         guard value != .notANumber, value.doubleValue.isFinite else { set(.failure(L10n.text("mac.selectionPopover.set.38e12a5eb3"))); return }
@@ -88,8 +92,18 @@ final class MacSelectionSession: ObservableObject {
         let detail = route.legs.isEmpty ? L10n.text("mac.selectionPopover.detail.2b2ee43d6e") : route.legs.map { leg in (monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? leg.sourceID) + " · " + MacFXDates.label(leg.quoteTime) }.joined(separator: " · ")
         let fallback = !["free", "auto"].contains(monitor.configuration.sourcePolicy) && route.legs.contains { MacFXSourceScope.isSystem($0.sourceID) }
         let label = fallback ? L10n.text("mac.selectionPopover.label.c9f7c9f38d") : route.legs.first.map { leg in monitor.providerList().first(where: { $0.id == leg.sourceID })?.name ?? L10n.text("mac.selectionPopover.label.f6e259d4f0") } ?? L10n.text("mac.selectionPopover.label.7659fc6ccf")
-        let copied = copy(text)
-        set(.result(Output(result: text, original: amountText + " " + source, evidence: detail, copied: copied, cached: cached, sourceLabel: label)))
+        let hasQuote = !route.legs.isEmpty
+        let historical = hasQuote && route.legs.contains { !monitor.isRecentQuote($0.quoteTime) }
+        let status = offline ? L10n.text("fx.offlineQuote") : historical ? L10n.text("fx.datedQuote") : cached ? L10n.text("fx.cachedQuote") : L10n.text("fx.latestQuote")
+        var dates: [String] = []
+        for leg in route.legs {
+            let date = MacFXDates.compactQuoteLabel(leg.quoteTime)
+            if !dates.contains(date) { dates.append(date) }
+        }
+        let dateLabel = dates.joined(separator: " · ")
+        let copied = copy((offline || historical) ? text + " · " + status + " · " + dateLabel : text)
+        set(.result(Output(result: text, original: amountText + " " + source, evidence: detail, copied: copied,
+                           cached: cached, quoteStatus: hasQuote ? status : "", quoteDates: dateLabel, sourceLabel: label)))
     }
 }
 
@@ -110,9 +124,13 @@ struct MacSelectionPopoverView: View {
                 HStack(spacing: 16) {
                     Image(systemName: "arrow.left.arrow.right").font(.system(size: 23, weight: .semibold)).foregroundStyle(MacUI.accent).frame(width: 48, height: 48).background(MacUI.accent.opacity(0.14), in: Circle())
                     VStack(alignment: .leading, spacing: 6) {
-                        Text((output.copied ? L10n.text("mac.selectionPopover.body.4c3b68baac") : L10n.text("mac.selectionPopover.body.71128038f7")) + (output.cached ? L10n.text("mac.selectionPopover.body.a6c349f419") : "")).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
+                        Text((output.copied ? L10n.text("mac.selectionPopover.body.4c3b68baac") : L10n.text("mac.selectionPopover.body.71128038f7")) + (output.quoteStatus.isEmpty ? "" : " · " + output.quoteStatus)).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
                         Text(output.result).font(.system(size: 27, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5).accessibilityIdentifier("selectionConversionResult")
                         Text(output.original + " · " + output.sourceLabel).font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+                        if !output.quoteDates.isEmpty {
+                            Text(output.quoteDates).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                                .accessibilityIdentifier("selectionQuoteDates")
+                        }
                     }
                     Spacer(minLength: 0)
                 }.padding(20).appHelp(output.evidence)

@@ -17,11 +17,14 @@ enum MacBackupHistory {
     }
 
     static func recording(_ data: Data, at url: URL, history: [MacBackupRecord], now: Date = Date()) -> [MacBackupRecord] {
+        recording(size: data.count, sha256: MacNativeBackup.digest(data), at: url, history: history, now: now)
+    }
+
+    static func recording(size: Int, sha256: String, at url: URL, history: [MacBackupRecord], now: Date = Date()) -> [MacBackupRecord] {
         let identity = fileIdentity(url.path)
         let previous = normalized(history).first { fileIdentity($0.path) == identity }
         let record = MacBackupRecord(id: previous?.id ?? UUID(), name: url.lastPathComponent,
-                                     path: url.standardizedFileURL.path, date: now, size: data.count,
-                                     sha256: MacNativeBackup.digest(data))
+                                     path: url.standardizedFileURL.path, date: now, size: size, sha256: sha256)
         return Array(normalized([record] + history.filter { fileIdentity($0.path) != identity }).prefix(100))
     }
 

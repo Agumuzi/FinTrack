@@ -21,22 +21,38 @@ enum MacFinanceNotes {
     static func visible(_ note: String?) -> String {
         guard let note else { return "" }
         var value = note
-        value = value.replacingOccurrences(of: #"\[FTLoanSchedule:[^\]]*\]"#, with: "", options: .regularExpression)
-        for prefix in prefixes where value.hasPrefix(prefix) { value = String(value.dropFirst(prefix.count)); break }
-        if value.hasPrefix("[Auto] ") { value = "周期：" + value.dropFirst(7) }
-        if value.hasPrefix("Loan installment ") {
-            value = value.replacingOccurrences(of: "Loan installment ", with: "还款期次 ").replacingOccurrences(of: "Principal:", with: "本金：").replacingOccurrences(of: "Interest:", with: "利息：")
+        if value.hasPrefix(MacFinanceRecords.managedLoanTag) {
+            value = value.replacingOccurrences(of: #"\[(?:FTLoanSchedule:|FTLoan:Schedule:)[^\]]*\]"#, with: "", options: .regularExpression)
         }
-        // Format old generated audit annotations for display only. The original
-        // receipt note, marker, value and backup/CSV contents remain untouched.
-        if note.contains("[FTDep:") && note.contains("[FTVerified]"),
-           let regex = try? NSRegularExpression(pattern: #"核对前金额:([-+]?[0-9]+(?:\.[0-9]+)?)"#) {
-            for match in regex.matches(in: value, range: NSRange(value.startIndex..., in: value)).reversed() {
-                guard let range = Range(match.range(at: 1), in: value) else { continue }
-                value.replaceSubrange(range, with: MacNumberInput.presentation(String(value[range])))
+        for prefix in prefixes where value.hasPrefix(prefix) { value = String(value.dropFirst(prefix.count)); break }
+        if let identity = TransactionRecognition.depositIdentity(note), let marker = value.range(of: identity.marker) {
+            var description = String(value[..<marker.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if description.hasPrefix("银行利息：") {
+                description = L10n.format("receipt.description.deposit", String(description.dropFirst("银行利息：".count)))
+            }
+            let state = value[marker.upperBound...]
+            if state.contains("[FTEstimated]") { description += " · " + L10n.text("receipt.pendingReview") }
+            if let regex = try? NSRegularExpression(pattern: #"核对前金额:([-+]?[0-9]+(?:\.[0-9]+)?)"#) {
+                let suffix = String(state)
+                if let match = regex.matches(in: suffix, range: NSRange(suffix.startIndex..., in: suffix)).last,
+                   let amount = Range(match.range(at: 1), in: suffix) {
+                    description += " · " + L10n.format("receipt.description.prior", MacNumberInput.presentation(String(suffix[amount])))
+                }
+            }
+            return description
+        }
+        if value.hasPrefix("[Auto] "), let marker = value.range(of: #"\[FTRec:[A-Fa-f0-9-]{36}:-?[0-9]+\]$"#, options: .regularExpression) {
+            return L10n.format("receipt.description.recurring", String(value[value.index(value.startIndex, offsetBy: 7)..<marker.lowerBound]).trimmingCharacters(in: .whitespaces))
+        }
+        if let marker = value.range(of: " [FTLoan:"), value.hasPrefix("Loan installment ") {
+            let line = String(value[..<marker.lowerBound])
+            let fields = line.dropFirst("Loan installment ".count).components(separatedBy: " — Principal: ")
+            if fields.count == 2 {
+                let amounts = fields[1].components(separatedBy: "; Interest: ")
+                if amounts.count == 2 { return L10n.format("receipt.description.loan", fields[0], amounts[0], amounts[1]) }
             }
         }
-        return value.replacingOccurrences(of: #"\[FT(?:Dep|Rec|Loan):[^\]]+\]|\[FT(?:Estimated|Verified|Partial)\]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     static func replacing(_ old: String?, with userNote: String) -> String? {
         let clean = userNote.trimmingCharacters(in: .whitespacesAndNewlines)

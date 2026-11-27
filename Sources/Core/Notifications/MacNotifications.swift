@@ -101,14 +101,14 @@ enum MacNotifications {
         }
         let rows = try context.fetch(FetchDescriptor<Transaction>())
         let loans = try context.fetch(FetchDescriptor<LoanRule>())
-        let currency = d.string(forKey: "base_currency") ?? "USD"
-        let codes = Set(rows.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + deposits.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + loans.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + rules.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode))
-        guard codes.isEmpty || codes == [currency] else { return result }
+        let preferred = d.string(forKey: "base_currency") ?? "USD"
+        guard let currency = MacCurrency.resolveLedgerCurrency(transactions: rows, deposits: deposits, loans: loans,
+                                                              recurring: rules, preferred: preferred).displayCurrency else { return result }
         if enabled("v2_remind_goals") {
-            let profile = try context.fetch(FetchDescriptor<FinancialProfile>()).first { $0.deletedAt == nil }
+            let profile = try MacLiquidity.profile(in: context)
             let net = MacFinancialSettings.snapshot(profile: profile, transactions: rows, loans: loans, deposits: deposits, currency: currency, asOf: now).netWorth
             let goals = try context.fetch(FetchDescriptor<Goal>())
-            for goal in goals where goal.deletedAt == nil && !goal.isPaused && !goal.isAccomplished && !goal.isCompleted(currentNetWorth: net, baselineNetWorth: Goal.baselineNetWorth(from: profile)) {
+            for goal in goals where goal.deletedAt == nil && !goal.isPaused && !goal.isAccomplished && !goal.progress(netWorth: net).completed {
                 if let target = goal.targetTime.planningBoundary() {
                     result.append(Plan(id: "goal-\(goal.id)-\(Int64(target.timeIntervalSince1970))", title: goal.title, body: L10n.text("mac.notifications.Plan.1c3cc27a3d"), date: reminder(target, days: 30, hour: 9, minute: 0), route: "goals"))
                 }

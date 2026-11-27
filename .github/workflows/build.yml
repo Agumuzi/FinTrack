@@ -22,6 +22,8 @@ jobs:
           swiftc -parse-as-library \
             Sources/Shared/Finance/FinancialPrecision.swift \
             Sources/Shared/Finance/DepositSettlementRule.swift \
+            Sources/Shared/Finance/GoalProgressRule.swift \
+            Sources/Shared/Finance/RecurringScheduleRule.swift \
             tests/FinanceSmoke.swift \
             -o "$RUNNER_TEMP/fintrack-finance-smoke"
           "$RUNNER_TEMP/fintrack-finance-smoke"

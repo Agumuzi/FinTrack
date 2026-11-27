@@ -21,9 +21,7 @@ enum MacRecurringData {
     }
     static func frequency(_ rule: RecurringTransaction) -> String {
         guard let unit = RecurringIntervalUnit(rawValue: rule.intervalUnit), (1...365).contains(rule.intervalValue) else { return L10n.text("mac.recurringData.frequency.6f13f1e3ca") }
-        let label: String
-        switch unit { case .day: label = L10n.text("mac.recurringData.frequency.49da61ceee"); case .week: label = L10n.text("mac.recurringData.frequency.5c553ec3f6"); case .month: label = L10n.text("mac.recurringData.frequency.e5afd16c6a"); case .year: label = "年" }
-        return L10n.format("mac.recurringData.frequency.26272e530d", "\(rule.intervalValue)", "\(label)")
+        return L10n.format("recurring.frequency." + unit.rawValue, Int64(rule.intervalValue))
     }
     static func filtered(_ rules: [RecurringTransaction], search: String, type: RecurringTransactionType?, status selected: Status?, category: String?, currency: String?, sort: Sort) -> [RecurringTransaction] {
         let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)

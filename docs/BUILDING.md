@@ -3,7 +3,7 @@
 ## Requirements
 
 - macOS. Minimum application runtime target: macOS 15.0.
-- Xcode 27 series and command-line tools. The locally verified environment is Xcode 27.1; CI uses GitHub's Xcode 27 image.
+- Xcode 27 series and command-line tools. The locally verified environment is Xcode 27.2; CI uses GitHub's Xcode 27 image.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen), installable with Homebrew: `brew install xcodegen`.
 
 The app uses Apple's system SDKs and has no third-party runtime packages to download. The Xcode project is generated from `Project/project.yml`; the generated `.xcodeproj` is not committed.
@@ -32,6 +32,10 @@ open Project/FinTrack.xcodeproj
 Select the `FinTrack` scheme. A normal Debug Run uses an independent in-memory development ledger and simulated exchange rates; it does not access the production ledger, and this data does not survive process exit. A normally launched Release app uses the actual local store, so back up your ledger and never experiment against real everyday data.
 
 The Bundle Identifier remains `dev.agumuzi.fintrack.macos`. Do not casually change the data models or storage paths: doing so may affect compatibility with existing ledgers.
+
+## Financial checks
+
+The public macOS CI workflow compiles `tests/FinanceSmoke.swift` with the production goal, recurring schedule, deposit settlement, and precision rules. It then builds and verifies the Universal app. The project’s private SwiftData and GUI fixtures are used in the isolated development workspace.
 
 ## Product website
 

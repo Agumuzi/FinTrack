@@ -65,6 +65,7 @@ struct FinTrackMacRootView: View {
     @Query(sort: \FinancialProfile.createdAt) private var profiles: [FinancialProfile]
     @State private var deferredLiquidity = false
     @State private var showsLiquidity = false
+    @State private var showsPostingIssues = false
     @Query private var transactions: [Transaction]
     @Query private var deposits: [DepositRecord]
     @Query private var loans: [LoanRule]
@@ -75,11 +76,14 @@ struct FinTrackMacRootView: View {
             loans: loans, recurring: recurring, preferred: preferredCurrency).displayCurrency
     }
 
+    private var profile: FinancialProfile? { MacLiquidity.preferredProfile(in: profiles) }
+
     var body: some View {
         GeometryReader { geometry in
             let compact = navigationCollapsed || geometry.size.width < MacUI.space(1080)
             VStack(spacing: MacUI.space(0)) {
                 chromeHeader(compact: compact)
+                workspaceNotices
                 HStack(spacing: MacUI.space(0)) {
                 navigation(compact: compact)
                 Group {
@@ -97,7 +101,8 @@ struct FinTrackMacRootView: View {
                     }
                 }
                 .id(workspace.section)
-                .frame(width: max(1, geometry.size.width - MacUI.space(compact ? 68 : 184 + max(0, MacUI.fontTier.bodySize - 16) * 4) - MacUI.space(24)), height: max(1, geometry.size.height - MacUI.space(46)))
+                .frame(width: max(1, geometry.size.width - MacUI.space(compact ? 68 : 184 + max(0, MacUI.fontTier.bodySize - 16) * 4) - MacUI.space(24)))
+                .frame(maxHeight: .infinity)
                 .background(MacOverviewStyle.canvas)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .appPadding(.trailing, 8).appPadding(.bottom, 8)
@@ -121,17 +126,11 @@ struct FinTrackMacRootView: View {
         .modifier(MacOperationFeedbackPresenter(center:operationFeedback))
         .modifier(MacUpdateSheetPresenter())
         .modifier(MacPermissionSheetPresenter())
-        .sheet(isPresented: Binding(get: { currency != nil && !deferredLiquidity && (profiles.first(where: { $0.deletedAt == nil && $0.liquidityData != nil }) ?? profiles.first(where: { $0.deletedAt == nil }))?.liquidityData == nil }, set: { if !$0 { deferredLiquidity = true } })) {
-            if let currency { MacFinancialProfileEditor(currency: currency, profile: (profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil })) }
+        .sheet(isPresented: Binding(get: { currency != nil && !deferredLiquidity && profile?.liquidityData == nil }, set: { if !$0 { deferredLiquidity = true } })) {
+            if let currency { MacFinancialProfileEditor(currency: currency, profile: profile) }
         }
         .sheet(isPresented: $showsLiquidity) {
-            if let currency { MacFinancialProfileEditor(currency: currency, profile: (profiles.first { $0.deletedAt == nil && $0.liquidityData != nil } ?? profiles.first { $0.deletedAt == nil })) }
-        }
-        .overlay(alignment: .top) {
-            if deferredLiquidity && (profiles.first(where: { $0.deletedAt == nil && $0.liquidityData != nil }) ?? profiles.first(where: { $0.deletedAt == nil }))?.liquidityData == nil {
-                Button(L10n.text("liquidity.pending")) { showsLiquidity = true }
-                    .padding(8).background(.regularMaterial)
-            }
+            if let currency { MacFinancialProfileEditor(currency: currency, profile: profile) }
         }
         .overlay {
             if showsAccount {
@@ -155,9 +154,7 @@ struct FinTrackMacRootView: View {
         .environment(\.calendar, MacDisplayPreferences.calendar)
         .onChange(of: workspace.section) { _, section in MacPreferences.defaults.set(section.rawValue, forKey: "v2_last_page") }
         .preferredColorScheme(theme == "dark" ? .dark : (theme == "light" ? .light : nil))
-        .overlay(alignment: .bottom) {
-            if let error = appServices.postingError { Text(error).appFont(.caption).foregroundStyle(.red).padding(10).background(.regularMaterial) }
-        }
+        .sheet(isPresented: $showsPostingIssues) { postingIssueSheet }
         .onExitCommand { showsAccount = false }
         .onAppear {
             DispatchQueue.main.async { MacNativeMenuLocalization.shared.refresh() }
@@ -170,6 +167,56 @@ struct FinTrackMacRootView: View {
                     Text(L10n.text("mac.finTrackMacRootView.body.171b2e5d90"))
                     Button(L10n.text("mac.finTrackMacRootView.body.3fd47edce4")) { workspace.showsQuickRecord = false }
                 }.appPadding(28)
+            }
+        }
+    }
+
+    @ViewBuilder private var workspaceNotices: some View {
+        if (deferredLiquidity && profile?.liquidityData == nil && currency != nil) || !appServices.postingIssues.isEmpty {
+            HStack(spacing: MacUI.space(12)) {
+                if deferredLiquidity && profile?.liquidityData == nil && currency != nil {
+                    Button(L10n.text("liquidity.pending"), systemImage: "exclamationmark.circle") { showsLiquidity = true }
+                        .accessibilityIdentifier("workspaceConfirmLiquidity")
+                }
+                Spacer(minLength: 0)
+                if !appServices.postingIssues.isEmpty {
+                    Button(L10n.format("posting.issueCount", Int64(appServices.postingIssues.count)), systemImage: "list.bullet") {
+                        showsPostingIssues = true
+                    }.accessibilityIdentifier("postingIssues")
+                }
+            }.appPadding(.horizontal, 16).appPadding(.vertical, 6)
+        }
+    }
+
+    private var postingIssueSheet: some View {
+        MacFormShell(width: 560) {
+            Text(L10n.text("posting.title")).appFont(.dialogTitle, weight: .semibold)
+        } fields: {
+            if appServices.postingIssues.isEmpty {
+                Text(L10n.text("posting.noIssues"))
+            }
+            ForEach(appServices.postingIssues) { issue in
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(issue.name).appFont(.body, weight: .semibold)
+                    Text(issue.reason).foregroundStyle(.secondary)
+                    if issue.advancedPeriods > 0 {
+                        Text(L10n.format("posting.advanced", Int64(issue.advancedPeriods))).foregroundStyle(.secondary)
+                    }
+                    if let section = issue.section {
+                        Button(section.title, systemImage: "arrow.up.right") {
+                            workspace.section = section
+                            showsPostingIssues = false
+                        }
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Divider()
+            }
+        } footer: {
+            HStack {
+                Button(L10n.text("posting.close")) { showsPostingIssues = false }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(L10n.text("posting.retry")) { Task { await appServices.retryDue() } }
+                    .disabled(appServices.isRetryingPosting || appServices.postingIssues.isEmpty)
             }
         }
     }
@@ -215,6 +262,11 @@ struct FinTrackMacRootView: View {
                         Divider()
                         Button(L10n.text("mac.finTrackMacRootView.accountPanel.df3d58c7d8"), systemImage: "gearshape") { workspace.section = .settings; showsAccount = false }
                             .accessibilityIdentifier("navSettings")
+                        Button(MacSettingsPage.budgets.title, systemImage: "chart.pie") {
+                            MacPreferences.defaults.set(MacSettingsPage.budgets.id, forKey: "v2_settings_page")
+                            workspace.section = .settings
+                            showsAccount = false
+                        }.accessibilityIdentifier("navAccountBudgets")
                         Button(L10n.text("mac.finTrackMacRootView.accountPanel.291885fb63"), systemImage: "chart.bar.xaxis") { workspace.section = .insights; showsAccount = false }
                             .accessibilityIdentifier("navInsights")
                         Text(L10n.text("mac.finTrackMacRootView.accountPanel.cd7bcbdad4")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
@@ -248,6 +300,7 @@ struct FinTrackMacRootView: View {
             nav(.deposits, id: "navFinance", compact: compact)
             nav(.recurring, id: "navRecurring", compact: compact)
             nav(.loans, id: "navLoans", compact: compact)
+            nav(.insights, id: "navSidebarInsights", compact: compact)
                 }
             }.scrollIndicators(.hidden).frame(maxHeight:.infinity)
             HStack { Button { showsAccount.toggle() } label: {

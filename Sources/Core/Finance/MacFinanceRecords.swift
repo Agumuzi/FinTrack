@@ -8,7 +8,7 @@ enum MacFinanceRecords {
     enum Failure: LocalizedError {
         case invalidName, invalidDateRange, invalidRate, invalidTerm
         case invalidRecurrence, currencyMismatch, legacyPostingDisabled
-        case futureOccurrence, noProgress, tooManyOccurrences, existingOccurrence
+        case futureOccurrence, noProgress, existingOccurrence
         var errorDescription: String? {
             switch self {
             case .invalidName: L10n.text("mac.financeRecords.errorDescription.23c77de9b8")
@@ -20,7 +20,6 @@ enum MacFinanceRecords {
             case .legacyPostingDisabled: L10n.text("mac.financeRecords.errorDescription.6855c3c181")
             case .futureOccurrence: L10n.text("mac.financeRecords.errorDescription.80571efe65")
             case .noProgress: L10n.text("mac.financeRecords.errorDescription.347ef1fae4")
-            case .tooManyOccurrences: L10n.text("mac.financeRecords.errorDescription.5261ffd1d4")
             case .existingOccurrence: L10n.text("mac.financeRecords.errorDescription.c0b718c03d")
             }
         }
@@ -30,8 +29,27 @@ enum MacFinanceRecords {
     static let reviewedRecurringTag = "[FTReviewedRecurring]"
     static let managedDepositTag = "[FTManagedDeposit:V1.6.2]"
     static let managedLoanTag = "[FTManagedLoan:V1.6.3]"
+    private static let anchoredRecurringPrefix = "FinTrackMac-anchored-v1:"
+
+    static func recurringAnchorDay(_ rule: RecurringTransaction) -> Int? {
+        guard let identifier = rule.projectIdentifier, identifier.hasPrefix(anchoredRecurringPrefix),
+              let day = Int(identifier.dropFirst(anchoredRecurringPrefix.count)),
+              (1...31).contains(day), identifier == anchoredRecurringPrefix + String(day) else { return nil }
+        return day
+    }
+
     static func isManagedRecurring(_ rule: RecurringTransaction) -> Bool {
-        rule.projectIdentifier == managedRecurringTag || (rule.note ?? "").hasPrefix(reviewedRecurringTag)
+        rule.projectIdentifier == managedRecurringTag || recurringAnchorDay(rule) != nil || (rule.note ?? "").hasPrefix(reviewedRecurringTag)
+    }
+
+    static func recurringIdentifier(for unit: RecurringIntervalUnit, date: Date, calendar: Calendar = .current) -> String {
+        guard unit == .month || unit == .year else { return managedRecurringTag }
+        return anchoredRecurringPrefix + String(calendar.component(.day, from: date))
+    }
+
+    static func isRecurringDue(_ rule: RecurringTransaction, through now: Date) -> Bool {
+        rule.isActive && rule.deletedAt == nil && rule.nextExecutionDate <= now &&
+            (rule.endDate.map { rule.nextExecutionDate <= $0 } ?? true)
     }
 
     private static func checkedTitle(_ raw: String) throws -> String {
@@ -197,7 +215,7 @@ enum MacFinanceRecords {
         let rule = RecurringTransaction(
             title: title, amount: amount, currency: source,
             type: type, category: category,
-            projectIdentifier: managedRecurringTag,
+            projectIdentifier: recurringIdentifier(for: unit, date: next),
             intervalValue: interval, intervalUnit: unit,
             nextExecutionDate: next, notificationsEnabled: notificationsEnabled,
             originalAmount: amount, originalCurrency: source,
@@ -212,7 +230,7 @@ enum MacFinanceRecords {
         return rule
     }
 
-    static func nextDate(_ date: Date, value: Int, unit: String,
+    static func nextDate(_ date: Date, value: Int, unit: String, anchorDay: Int? = nil,
                          calendar: Calendar = .current) throws -> Date {
         guard value > 0 && value <= 365,
               let unit = RecurringIntervalUnit(rawValue: unit)
@@ -224,9 +242,17 @@ enum MacFinanceRecords {
         case .month: component = .month
         case .year: component = .year
         }
-        guard let result = calendar.date(byAdding: component, value: value, to: date),
-              result > date else { throw Failure.noProgress }
+        guard let result = RecurringScheduleRule.nextDate(after: date, interval: value, component: component,
+                                                           anchorDay: anchorDay, calendar: calendar) else { throw Failure.noProgress }
         return result
+    }
+
+    static func recurringBatch(_ rule: RecurringTransaction, through now: Date) throws -> RecurringScheduleRule.Batch {
+        let anchor = recurringAnchorDay(rule)
+        let calendar = Calendar.current
+        return try RecurringScheduleRule.batch(start: rule.nextExecutionDate, through: now, end: rule.endDate) { cursor in
+            try nextDate(cursor, value: rule.intervalValue, unit: rule.intervalUnit, anchorDay: anchor, calendar: calendar)
+        }
     }
 
     /// Explicit (never silent) posting, only for NEW V1.6 rules. Atomic cursor
@@ -247,32 +273,26 @@ enum MacFinanceRecords {
             throw Failure.currencyMismatch
         }
         try requireLedgerCurrency(bookCurrency, in: context)
-        guard rule.isActive, rule.deletedAt == nil,
-              rule.nextExecutionDate <= now else { throw Failure.futureOccurrence }
+        guard !context.hasChanges else { throw MacFinanceReview.Failure.schedule }
+        guard rule.modelContext === context, isRecurringDue(rule, through: now) else { throw Failure.futureOccurrence }
         guard (1...365).contains(rule.intervalValue),
               RecurringIntervalUnit(rawValue: rule.intervalUnit) != nil else {
             throw Failure.invalidRecurrence
         }
 
-        let amount = rule.originalAmount == 0 ? 0 : try MacTransactionCRUD.amount(String(rule.originalAmount))
-        // Query the actual ModelContext immediately before posting: caller
-        // @Query arrays may be stale across windows or refresh boundaries.
+        let amount = rule.originalAmount == 0 ? 0 : try MacTransactionCRUD.editedAmount(MacTransactionCRUD.amountEditingText(rule.originalAmount), original: rule.originalAmount)
+        // Read persisted receipt identities immediately before saving the batch.
+        let prefix = "[FTRec:\(rule.id.uuidString):"
         let persisted = try context.fetch(FetchDescriptor<Transaction>())
-        let existingTransactions = persisted + transactions
-        var items: [(date: Date, marker: String)] = []
-        var cursor = rule.nextExecutionDate
-        var checked = Set<String>()
-        while cursor <= now {
-            if let end = rule.endDate, cursor > end { break }
-            guard items.count < 24 else { throw Failure.tooManyOccurrences }
-            let marker = occurrenceMarker(ruleID: rule.id, date: cursor)
-            guard checked.insert(marker).inserted,
-                  !existingTransactions.contains(where: { ($0.note ?? "").contains(marker) })
-            else { throw Failure.existingOccurrence }
-            items.append((cursor, marker))
-            cursor = try nextDate(cursor, value: rule.intervalValue, unit: rule.intervalUnit)
-        }
+        let notes = (persisted + transactions).compactMap(\.note).filter { $0.contains(prefix) }
+        let batch = try recurringBatch(rule, through: now)
+        let items = batch.dates.map { (date: $0, marker: occurrenceMarker(ruleID: rule.id, date: $0)) }
         guard !items.isEmpty else { throw Failure.futureOccurrence }
+        var checked = Set<String>()
+        for item in items {
+            guard checked.insert(item.marker).inserted, !notes.contains(where: { $0.contains(item.marker) })
+            else { throw Failure.existingOccurrence }
+        }
         let snapshots = try items.map { item in
             try MacCurrency.snapshot(amount: amount, original: rule.originalCurrency,
                 base: bookCurrency, rate: rule.originalCurrency == bookCurrency ? 1 : exchangeRates[Int64(item.date.timeIntervalSince1970)])
@@ -294,8 +314,8 @@ enum MacFinanceRecords {
             rule.lastExecutionDate = items.last?.date
             rule.baseAmount = snapshots.last!.baseAmount
             rule.exchangeRateToBase = snapshots.last!.rate
-            rule.nextExecutionDate = cursor
-            if let end = rule.endDate, cursor > end { rule.isActive = false }
+            rule.nextExecutionDate = batch.next
+            if let end = rule.endDate, batch.next > end { rule.isActive = false }
             rule.updatedAt = now
             if rule.syncVersion < Int.max { rule.syncVersion += 1 }
             try context.save()

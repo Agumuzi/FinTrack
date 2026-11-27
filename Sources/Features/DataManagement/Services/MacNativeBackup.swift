@@ -581,7 +581,10 @@ enum MacNativeBackup {
     }
     nonisolated static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     static func create(in context: ModelContext) throws -> Data {
-        try encode(capture(in: context, logos: readLogos(MacBankLogos.directory())))
+        try encode(captureWithLogos(in: context))
+    }
+    static func captureWithLogos(in context: ModelContext) throws -> Payload {
+        try capture(in: context, logos: readLogos(MacBankLogos.directory()))
     }
     nonisolated private static func readLogos(_ directory: URL) throws -> [String: Data] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [:] }
@@ -690,7 +693,7 @@ enum MacNativeBackup {
     static func preview(_ data: Data, validateFinancial: Bool = true) throws -> Payload {
         try validate(decode(data), validateFinancial: validateFinancial)
     }
-    private static func validate(_ p: Payload, validateFinancial: Bool) throws -> Payload {
+    static func validate(_ p: Payload, validateFinancial: Bool) throws -> Payload {
         _ = try MacSettingsStore.validateSettings(p.settings)
         if validateFinancial { try validateFinancialPayload(p) }
         guard p.recordCount <= 1_000_000 else { throw MacSettingsFailure.invalid(L10n.text("mac.nativeBackup.validate.ba9c476955")) }

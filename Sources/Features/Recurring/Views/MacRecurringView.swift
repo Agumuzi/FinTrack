@@ -287,6 +287,9 @@ struct MacRecurringView: View {
         return VStack(alignment: .leading, spacing: MacUI.space(18)) {
             Text(title).appFont(.dialogTitle, weight: .semibold); Text(item.rule.title).appFont(.section, weight: .semibold); Text(explanation)
             if item.action == .post {
+                if item.dates.count == RecurringScheduleRule.batchLimit {
+                    Text(L10n.text("recurring.batch.explain")).appFont(.caption).foregroundStyle(.secondary)
+                }
                 ScrollView { VStack(alignment: .leading, spacing: MacUI.space(6)) {
                     ForEach(item.dates, id: \.self) { date in Text("\(MacDateDisplay.string(date)) · \(amount(item.rule))").appFont(.caption, weight: .regular).monospacedDigit() }
                 } }.frame(maxHeight: MacUI.space(200))
@@ -304,8 +307,12 @@ struct MacRecurringView: View {
                 defer { posting = false }
                 do {
                     guard item.dates == (try MacAutomaticPosting.recurringDates(item.rule, now: Date())) else { throw MacFinanceReview.Failure.schedule }
-                    let count = try await MacAutomaticPosting.post(item.rule, now: Date(), book: bookCurrency, in: context)
-                    saved(); message = L10n.format("mac.recurringView.Task.07c2f0d496", "\(count)")
+                    let count = try await MacAutomaticPosting.post(item.rule, now: Date(), book: bookCurrency, expectedDates: item.dates, in: context)
+                    saved()
+                    message = L10n.format("mac.recurringView.Task.07c2f0d496", "\(count)")
+                    if MacFinanceRecords.isRecurringDue(item.rule, through: now) {
+                        message = (message ?? "") + " " + L10n.text("recurring.batch.continue")
+                    }
                 } catch { self.error = MacLocalization.error(error) }
             }
         } else {

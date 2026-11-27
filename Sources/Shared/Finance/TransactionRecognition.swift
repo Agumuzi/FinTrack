@@ -15,13 +15,12 @@ enum TransactionRecognition {
     static func status(_ row: Transaction) -> Status {
         let note = row.note ?? ""
         guard note.contains("[FTDep:") else { return .ordinary }
-        guard depositIdentity(note) != nil, row.typedType == .income,
+        guard let identity = depositIdentity(note), row.typedType == .income,
               row.originalAmount.isFinite, row.originalAmount >= 0,
               row.baseAmount.isFinite, row.baseAmount >= 0,
               row.exchangeRateToBase.isFinite, row.exchangeRateToBase > 0,
               row.originalCurrency.count == 3, row.baseCurrencyCode.count == 3,
               row.originalCurrency != row.baseCurrencyCode || row.exchangeRateToBase == 1 else { return .needsReview }
-        let identity = depositIdentity(note)!
         let suffix = note.range(of: identity.marker).map { String(note[$0.upperBound...]) } ?? ""
         return suffix.contains("[FTEstimated]") ? .estimated : .posted
     }

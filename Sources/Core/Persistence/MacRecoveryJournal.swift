@@ -77,8 +77,10 @@ enum MacRecoveryJournal {
         if let file, FileManager.default.fileExists(atPath: file.path) {
             throw MacSettingsFailure.invalid(L10n.text("mac.recoveryJournal.begin.c372ecc6b2"))
         }
-        let snapshot = try MacNativeBackup.create(in: context)
-        let payload = try MacNativeBackup.preview(snapshot, validateFinancial: false), settings = try preferences()
+        let payload = try MacNativeBackup.validate(MacNativeBackup.captureWithLogos(in: context), validateFinancial: false)
+        let snapshot = try MacNativeBackup.encode(payload)
+        let settings = try preferences()
+        let databaseDigest = try database(payload)
         if let file {
             let record = Record(version: 1, store: file.deletingPathExtension().standardizedFileURL.path,
                                 snapshot: snapshot, preferences: settings, sha256: MacNativeBackup.digest(snapshot + settings))
@@ -92,7 +94,7 @@ enum MacRecoveryJournal {
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
             try synchronize(file)
         }
-        return Ticket(file: file, snapshot: snapshot, preferences: settings, database: try database(payload))
+        return Ticket(file: file, snapshot: snapshot, preferences: settings, database: databaseDigest)
     }
     private static func finish(_ ticket: Ticket) throws {
         guard MacPreferences.defaults.synchronize() else {
@@ -105,7 +107,7 @@ enum MacRecoveryJournal {
         var needsRestore = alwaysRestore
         if !alwaysRestore {
             let fresh = ModelContext(context.container)
-            let current = try MacNativeBackup.preview(MacNativeBackup.create(in: fresh), validateFinancial: false)
+            let current = try MacNativeBackup.validate(MacNativeBackup.captureWithLogos(in: fresh), validateFinancial: false)
             let old = try MacNativeBackup.preview(ticket.snapshot, validateFinancial: false)
             needsRestore = (try database(current)) != ticket.database || current.bankLogos != old.bankLogos
         }

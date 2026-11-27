@@ -14,7 +14,8 @@ final class MacOperationFeedbackCenter: ObservableObject {
         }
     }
     enum Location: Equatable { case workspace, csvPreview, nativePreview }
-    struct Notice {
+    struct Notice: Identifiable {
+        let id = UUID()
         var kind: Kind
         var title: String
         var message: String
@@ -31,8 +32,26 @@ struct MacOperationFeedbackPresenter: ViewModifier {
     var location: MacOperationFeedbackCenter.Location = .workspace
     @FocusState private var focused: Bool
     func body(content: Content) -> some View {
-        content.overlay {
-            if let notice = center.notice, notice.location == location {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if let notice = center.notice, notice.location == location, notice.kind == .success {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: notice.kind.symbol).foregroundStyle(notice.kind.color).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(notice.title).appFont(.body, weight: .semibold).accessibilityIdentifier("operationFeedbackTitle")
+                        Text(notice.message).appFont(.caption).foregroundStyle(.secondary).accessibilityIdentifier("operationFeedbackMessage")
+                    }
+                    Spacer()
+                    Button(L10n.text("mac.operationFeedback.GeometryReader.c0b3fbff51"), systemImage: "xmark") { center.notice = nil }
+                        .labelStyle(.iconOnly).buttonStyle(.plain).accessibilityIdentifier("dismissOperationFeedback")
+                }.padding(10).background(.regularMaterial)
+                    .accessibilityIdentifier("operationFeedback")
+                    .task(id: notice.id) {
+                        do { try await Task.sleep(for: .seconds(8)) } catch { return }
+                        if center.notice?.id == notice.id { center.notice = nil }
+                    }
+            }
+        }.overlay {
+            if let notice = center.notice, notice.location == location, notice.kind != .success {
                 GeometryReader { geometry in
                     ZStack {
                         Color.black.opacity(0.12).contentShape(Rectangle())

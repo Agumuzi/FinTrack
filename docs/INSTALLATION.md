@@ -2,12 +2,12 @@
 
 ## Download and verify
 
-Download `FinTrack-v1.5.8-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
+Download `FinTrack-v1.5.9-macOS.dmg` and `SHA256.txt` from the [latest official release](https://github.com/Agumuzi/FinTrack/releases/latest). FinTrack requires macOS 15.0 or later; the distribution supports both Apple Silicon and Intel architectures.
 
 Run this command in the download directory:
 
 ```sh
-shasum -a 256 FinTrack-v1.5.8-macOS.dmg
+shasum -a 256 FinTrack-v1.5.9-macOS.dmg
 ```
 
 Compare the resulting digest against the DMG entry in `SHA256.txt`. When it matches, open the DMG and drag `FinTrack` to the `Applications` folder shown in the same window. The disk image contains only the app and the Applications shortcut.
@@ -78,8 +78,8 @@ New deposits transfer principal internally. Estimated interest does not count as
 Use **Calibrate liquid funds and debt** in the asset details to set the actual current balance later, including negative balances. Calibration does not create income or expenses. Native full backups retain the confirmation and movement history; CSV keeps its existing format and does not contain internal movements. Review and calibrate after importing historical deposits.
 
 
-## Main window, Dock and receipt review in v1.5.8
+## Main window, Dock and receipt review
 
-In menu-only mode, the main window normally runs without a Dock entry. Minimizing temporarily exposes the Dock application icon so the window can be restored there; restoring or closing returns to the saved menu-only preference. Dock-only and dual-entry modes keep their Dock icon. Use macOS **System Settings → Desktop & Dock → Minimize windows into application icon** to collect minimized windows under the application icon; FinTrack does not change this system-wide preference or manually pinned Dock items.
+Use **Open Main Window** in the top row of any menu bar tab. In menu-only mode, the main window has a Dock icon while open or minimized. Switching to another app keeps the icon available, and closing the main window hides it. Dock-only and dual-entry modes show their Dock icon throughout. macOS **System Settings → Desktop & Dock → Minimize windows into application icon** controls where the minimized window appears.
 
 Use **Review / correct received amount** in deposit-interest transaction details or deposit details. Ordinary generated-posting editing remains protected. The saved historical exchange rate is preserved. When an older pending receipt might already be included in confirmed liquid cash, review the explicit already-included choice before saving; see [Receipt accounting](RECEIPT_ACCOUNTING.md).

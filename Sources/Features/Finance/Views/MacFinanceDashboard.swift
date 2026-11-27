@@ -368,12 +368,11 @@ struct MacFinanceDashboard: View {
                     Text("Target: \(goal.targetAmount.formatted())")
                         .accessibilityIdentifier("goalTargetValue")
                     if let currency {
-                        let profile = profiles.first { $0.deletedAt == nil }
+                        let profile = MacLiquidity.preferredProfile(in: profiles)
                         let value = MacFinancialSettings.snapshot(profile: profile, transactions: transactions, loans: loans,
                             deposits: deposits, currency: currency, asOf: Date())
-                        let baseline = Goal.baselineNetWorth(from: profile)
-                        ProgressView(value: goal.clampedProgressValue(currentNetWorth: value.netWorth, baselineNetWorth: baseline))
-                        Text("\(goal.displayPercent(currentNetWorth: value.netWorth, baselineNetWorth: baseline))%")
+                        ProgressView(value: goal.progress(netWorth: value.netWorth).fraction)
+                        Text("\(goal.progress(netWorth: value.netWorth).percent)%")
                     }
                 }.appPadding(.vertical, 3)
             }

@@ -42,6 +42,9 @@ struct MacMenuBarPanel: View {
                         tool("arrow.clockwise",title:L10n.text("mac.menuBarPanel.tool.657cb849f3"),identifier:session.page == .rates ? "fxUpdateRates" : "fxConverterUpdate") { Task { await service.refresh(reason:.manual) } }
                             .disabled(service.busy).appHelp(service.busy ? L10n.text("mac.menuBarPanel.body.e6442ce18f") : service.status)
                     }
+                    let openTitle = L10n.text("mac.menuQuickSettings.GridRow.f6b64b637b")
+                    tool("macwindow", title: openTitle, identifier: "menuHeaderOpenMain") { runtime.showMain() }
+                        .appHelp(openTitle)
                     tool("gearshape",title:L10n.text("mac.menuBarPanel.tool.df3d58c7d8"),identifier:"menuSettings") { session.quickSettings.toggle() }
                 }
             }.padding(.horizontal, 18).padding(.top, 8)

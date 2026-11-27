@@ -53,7 +53,17 @@ struct MacFXConverterView: View {
     }
     private func annotation(_ code: String) -> String? {
         guard code != query.inputCurrency, let conversion = MacFXMath.resolve(from: query.inputCurrency, to: code, quotes: service.quotes) else { return nil }
-        return conversion.isEstimate ? L10n.text("mac.fXConverterView.annotation.2cc7b4e9d5") : nil
+        var labels: [String] = []
+        if conversion.isEstimate { labels.append(L10n.text("mac.fXConverterView.annotation.2cc7b4e9d5")) }
+        if conversion.legs.contains(where: { !service.isRecentQuote($0.quoteTime) }) { labels.append(L10n.text("fx.datedQuote")) }
+        if conversion.legs.contains(where: { service.isCached($0.pair) || ((try? MacFXPair(base: $0.pair.quote, quote: $0.pair.base)).map(service.isCached) ?? false) }) {
+            labels.append(L10n.text("fx.cachedQuote"))
+        }
+        for leg in conversion.legs {
+            let date = MacFXDates.compactQuoteLabel(leg.quoteTime)
+            if !labels.contains(date) { labels.append(date) }
+        }
+        return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
     private func evidence(_ code: String) -> String {
         guard let route = MacFXMath.resolve(from: query.inputCurrency, to: code, quotes: service.quotes) else { return code + L10n.text("mac.fXConverterView.evidence.f6d2b7ab19") }

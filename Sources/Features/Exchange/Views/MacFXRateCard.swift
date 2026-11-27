@@ -145,7 +145,7 @@ struct MacFXRateCard: View {
     private func toggle() { query.expandedPair = expanded ? nil : pair.key }
     private var footer: some View {
         HStack(alignment: .center, spacing: 4) {
-            Text(quote.map { MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? L10n.text("mac.fXRateCard.footer.a6c349f419") : "") } ?? L10n.text("mac.fXRateCard.footer.87fdce8be2"))
+            Text(quote.map { MacFXDates.compactQuoteLabel($0.quoteTime) + " · " + service.sourceName($0).replacingOccurrences(of: "自定义 · ", with: "") + (service.isCached(pair) ? " · " + L10n.text("fx.cachedQuote") : !service.isRecentQuote($0.quoteTime) ? " · " + L10n.text("fx.datedQuote") : "") } ?? L10n.text("mac.fXRateCard.footer.87fdce8be2"))
                 .appFont(.caption, weight: .regular).foregroundStyle(.secondary).lineLimit(2).appHelp(quote.map { L10n.text("mac.fXRateCard.footer.dfa4eed218") + MacFXDates.label($0.quoteTime) + L10n.text("mac.fXRateCard.footer.dfdd6c7340") + MacDateDisplay.string($0.retrievedAt) + " " + MacDisplayPreferences.time($0.retrievedAt) } ?? L10n.text("mac.fXRateCard.footer.87fdce8be2"))
             Spacer(minLength: 0)
             Menu {

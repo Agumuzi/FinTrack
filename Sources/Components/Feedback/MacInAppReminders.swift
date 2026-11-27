@@ -29,22 +29,21 @@ struct MacInAppReminders: View {
             }
             if !due.isEmpty { items.append((L10n.format("mac.inAppReminders.items.59483269a7", Int64(due.count)), .recurring, nil)) }
         }
-        let allCodes = Set(transactions.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + deposits.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + loans.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode) + recurring.filter { $0.deletedAt == nil }.map(\.baseCurrencyCode))
-        guard allCodes.count <= 1, allCodes.isEmpty || allCodes.contains(preferredCurrency) else { return items }
+        guard let currency = MacCurrency.resolveLedgerCurrency(transactions: transactions, deposits: deposits, loans: loans,
+                                                              recurring: recurring, preferred: preferredCurrency).displayCurrency else { return items }
         if goalsEnabled {
             let horizon = calendar.date(byAdding: .day, value: 30, to: now)!
             let candidates = goals.filter { $0.deletedAt == nil && !$0.isPaused && !$0.isAccomplished && ($0.targetTime.planningBoundary().map { $0 <= horizon } ?? false) }
             if !candidates.isEmpty {
-                let net = MacFinancialSettings.snapshot(profile: profiles.first { $0.deletedAt == nil }, transactions: transactions.filter { $0.date < (calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now) }, loans: loans, deposits: deposits, currency: preferredCurrency, asOf: now).netWorth
-                let baseline = Goal.baselineNetWorth(from: profiles.first { $0.deletedAt == nil })
-                let due = candidates.filter { !$0.isCompleted(currentNetWorth: net, baselineNetWorth: baseline) }
+                let net = MacFinancialSettings.snapshot(profile: MacLiquidity.preferredProfile(in: profiles), transactions: transactions, loans: loans, deposits: deposits, currency: currency, asOf: now).netWorth
+                let due = candidates.filter { !$0.progress(netWorth: net).completed }
                 if !due.isEmpty { items.append((L10n.format("mac.inAppReminders.items.39346a4113", Int64(due.count)), .settings, .goals)) }
             }
         }
         if budgetsEnabled {
             let budgets = (try? JSONDecoder().decode([MacBudget].self, from: budgetBytes)) ?? []
             let month = MacBudgetData.month(now)
-            let candidates = budgets.filter { $0.enabled && $0.currency == preferredCurrency && $0.month == month && $0.amount > 0 }
+            let candidates = budgets.filter { $0.enabled && $0.currency == currency && $0.month == month && $0.amount > 0 }
             if !candidates.isEmpty {
                 let spending = MacBudgetSpendingSnapshot(rows: transactions, categories: categories)
                 let warning = candidates.filter { spending.spent($0) / $0.amount >= 0.8 }

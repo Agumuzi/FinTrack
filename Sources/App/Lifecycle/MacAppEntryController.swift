@@ -15,13 +15,27 @@ final class MacAppEntryController: ObservableObject {
         return NSApp.setActivationPolicy(expected) && NSApp.activationPolicy() == expected
     }
     private let defaults: UserDefaults
-    // A minimized main window needs a Dock application tile even in menu-only
-    // mode. This is transient presentation, never a persisted entry preference.
-    private(set) var mainWindowIsMiniaturized = false
+    enum MainWindowState: Equatable { case closed, opening, open, minimized }
+    private(set) var mainWindowState: MainWindowState = .closed
 
-    func mainWindowMiniaturizationChanged(_ value: Bool) {
-        mainWindowIsMiniaturized = value
-        reconcileActivationPolicy()
+    func mainWindowChanged(_ state: MainWindowState) {
+        mainWindowState = state
+        if state == .closed {
+            // Let AppKit complete the close before changing its activation policy.
+            DispatchQueue.main.async { self.reconcileActivationPolicy() }
+        } else {
+            reconcileActivationPolicy()
+        }
+    }
+
+    private func needsDock(_ preference: MacAppEntryConfiguration) -> Bool {
+        preference.showDock || mainWindowState != .closed
+    }
+
+    private func applyDock(_ visible: Bool) -> Bool {
+        guard setDockVisible(visible) else { return false }
+        policyDescription = visible ? "regular" : "accessory"
+        return true
     }
 
     init(defaults: UserDefaults) {
@@ -31,16 +45,9 @@ final class MacAppEntryController: ObservableObject {
 
     func start() async { await apply(configuration) }
 
-    /// SwiftUI/Launch Services may promote a windowed accessory app. Reassert
-    /// the saved policy at lifecycle boundaries without changing the preference.
-    /// Accessory windows can be key and activated; opening one needs no Dock.
     func reconcileActivationPolicy() {
         guard !isTransitioning else { return }
-        guard configuration.showDock || menuIsRegistered() else { return }
-        let visible = configuration.showDock || mainWindowIsMiniaturized
-        if setDockVisible(visible) {
-            policyDescription = visible ? "regular" : "accessory"
-        } else {
+        if !applyDock(needsDock(configuration) || !menuIsRegistered()) {
             fail(configuration, inserted: isMenuInserted)
         }
     }
@@ -56,40 +63,25 @@ final class MacAppEntryController: ObservableObject {
         isTransitioning = true; message = nil
         defer { isTransitioning = false }
         if next.showMenuBar { isMenuInserted = true }
-        let effectiveDock = next.showDock || mainWindowIsMiniaturized
-        if effectiveDock {
-            guard setDockVisible(true) else { fail(old, inserted: oldInserted); return }
-        } else {
-            // Wait only for our own SwiftUI label installation acknowledgement.
-            // Actual operability is verified in B UI tests, never screen-monitored.
-            var registered = menuIsRegistered()
-            for _ in 0..<20 where !registered {
+        if !next.showDock {
+            // Verify the persistent menu entry even while a window supplies a temporary Dock entry.
+            for _ in 0..<20 where !menuIsRegistered() {
                 try? await Task.sleep(for: .milliseconds(50))
-                registered = menuIsRegistered()
             }
-            guard registered, setDockVisible(false) else { fail(old, inserted: oldInserted); return }
+            guard menuIsRegistered() else { fail(old, inserted: oldInserted); return }
         }
+        guard applyDock(needsDock(next)) else { fail(old, inserted: oldInserted); return }
         isMenuInserted = next.showMenuBar
-        policyDescription = effectiveDock ? "regular" : "accessory"
         configuration = next
         persist()
     }
 
     private func fail(_ old: MacAppEntryConfiguration, inserted: Bool) {
         isMenuInserted = inserted || old.showMenuBar
-        var restored = old
-        // Failure is observable. Never persist an unverified hidden state.
-        if setDockVisible(old.showDock || mainWindowIsMiniaturized) {
-            policyDescription = old.showDock || mainWindowIsMiniaturized ? "regular" : "accessory"
-        } else if setDockVisible(true) {
-            restored.showDock = true; policyDescription = "regular"
-        } else {
-            // Keep the state item as the remaining entry and report the failure.
-            isMenuInserted = true; restored.showMenuBar = true
+        if !applyDock(needsDock(old) || !menuIsRegistered()), !applyDock(true) {
+            isMenuInserted = true
         }
-        configuration = restored.normalized()
         message = L10n.text("mac.appEntryController.fail.3ba1e06e94")
-        persist()
     }
 
     /// Reflect SwiftUI's binding without monitoring OS visibility or changing
@@ -143,6 +135,7 @@ final class MacApplicationRuntime: ObservableObject {
     private var host: MacMenuBarHost?
     private var restoreObserver: NSObjectProtocol?
     private var mainWindowObservers: [NSObjectProtocol] = []
+    private var openAttempt: Task<Void, Never>?
     var openMain: (() -> Void)?
     @Published var showsSettings = false
     @Published private(set) var settingsRequest = UUID()
@@ -168,42 +161,57 @@ final class MacApplicationRuntime: ObservableObject {
         for observer in mainWindowObservers { NotificationCenter.default.removeObserver(observer) }
         mainWindowObservers.removeAll()
         mainWindow = window
-        entries.mainWindowMiniaturizationChanged(window.isMiniaturized)
-        mainWindowObservers.append(NotificationCenter.default.addObserver(forName: NSWindow.willMiniaturizeNotification, object: window, queue: .main) { [weak self, weak window] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.mainWindow === window else { return }
-                // Set regular before AppKit creates the minimized Dock tile.
-                self.entries.mainWindowMiniaturizationChanged(true)
-            }
-        })
-        for name in [NSWindow.didBecomeKeyNotification, NSWindow.willCloseNotification, NSWindow.didDeminiaturizeNotification] {
+        let transitions: [(Notification.Name, MacAppEntryController.MainWindowState)] = [
+            (NSWindow.didBecomeKeyNotification, .open),
+            (NSWindow.didMiniaturizeNotification, .minimized),
+            (NSWindow.didDeminiaturizeNotification, .open),
+            (NSWindow.willCloseNotification, .closed)
+        ]
+        for (name, state) in transitions {
             mainWindowObservers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self, weak window] _ in
-                if name == NSWindow.willCloseNotification {
-                    MainActor.assumeIsolated { self?.entries.mainWindowMiniaturizationChanged(false) }
-                }
-                // Run after SwiftUI handles the event. Rapid reopen and configuration
-                // changes use the latest preference, never a captured old policy.
-                DispatchQueue.main.async {
+                MainActor.assumeIsolated {
                     guard let self, self.mainWindow === window else { return }
-                    self.entries.mainWindowMiniaturizationChanged(window?.isMiniaturized == true)
+                    self.observedMainWindow(state)
                 }
             })
         }
-        entries.reconcileActivationPolicy()
+        if window.isMiniaturized {
+            observedMainWindow(.minimized)
+        } else if window.isVisible {
+            observedMainWindow(.open)
+        }
     }
+
+    private func observedMainWindow(_ state: MacAppEntryController.MainWindowState) {
+        openAttempt?.cancel()
+        openAttempt = nil
+        entries.mainWindowChanged(state)
+    }
+
     func showMain(settings: Bool = false) {
-        entries.reconcileActivationPolicy()
         showsSettings = settings
         if settings { settingsRequest = UUID() }
         closePanel()
         if settings && !Self.isPrototype { FinTrackMacApp.workspace.section = .settings }
-        if let mainWindow, mainWindow.isVisible || mainWindow.isMiniaturized {
+        if let mainWindow, entries.mainWindowState == .open || entries.mainWindowState == .minimized {
+            entries.reconcileActivationPolicy()
             if mainWindow.isMiniaturized { mainWindow.deminiaturize(nil) }
             mainWindow.makeKeyAndOrderFront(nil)
-        } else { openMain?() }
+        } else if entries.mainWindowState != .opening, let openMain {
+            entries.mainWindowChanged(.opening)
+            openAttempt = Task { @MainActor [weak self] in
+                // AppKit normally acknowledges the request via the window probe or key notification.
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled, let self else { return }
+                if self.mainWindow?.isMiniaturized == true { self.observedMainWindow(.minimized) }
+                else if self.mainWindow?.isVisible == true { self.observedMainWindow(.open) }
+                else { self.observedMainWindow(.closed) }
+            }
+            openMain()
+        }
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async { self.entries.reconcileActivationPolicy() }
     }
+
 }
 
 final class MacApplicationDelegate: NSObject, NSApplicationDelegate {

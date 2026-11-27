@@ -169,6 +169,9 @@ enum MacFinanceEditing {
             r.title = name; r.amount = amount; r.originalAmount = amount; r.originalCurrency = snapshot.originalCurrency
             r.currency = snapshot.originalCurrency; r.baseAmount = snapshot.baseAmount; r.baseCurrencyCode = book
             r.exchangeRateToBase = snapshot.rate; r.typedType = type; r.category = category
+            if MacFinanceRecords.recurringAnchorDay(r) != nil, start != r.nextExecutionDate || unit != r.typedIntervalUnit {
+                r.projectIdentifier = MacFinanceRecords.recurringIdentifier(for: unit, date: start)
+            }
             r.intervalValue = interval; r.typedIntervalUnit = unit; r.nextExecutionDate = start
             if let notificationsEnabled { r.notificationsEnabled = notificationsEnabled }
             if let reminder { r.reminderDaysBefore = reminder.daysBefore; r.reminderHour = reminder.hour; r.reminderMinute = reminder.minute }

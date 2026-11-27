@@ -32,7 +32,16 @@ struct MacDepositsView: View {
     @State private var schedule: DepositRecord?
     @State private var reviewing: MacFinanceRecord?
     @State private var removing: DepositRecord?
-    @State private var confirming: DepositRecord?
+    private struct InterestConfirmation: Identifiable {
+        let deposit: DepositRecord
+        let revision: Int
+        let through: Date
+        let periods: [MacDepositTerms.Period]
+        var id: UUID { deposit.id }
+        var matures: Bool { periods.last?.date == deposit.maturityDate }
+        var monthly: Bool { deposit.typedInterestSettlementMode == .monthly }
+    }
+    @State private var confirming: InterestConfirmation?
     @State private var posting = false
     @State private var error: String?
     @State private var message: String?
@@ -159,16 +168,35 @@ struct MacDepositsView: View {
         } message: {
             Text(L10n.text("liquidity.return.help") + "\n" + MacOverviewStyle.money(deposit.originalPrincipal) + " " + deposit.originalCurrency)
         }
-        .sheet(item: $confirming) { deposit in
-            VStack(alignment: .leading, spacing: MacUI.space(18)) {
-                Text(L10n.text("mac.depositsView.presentedDetail.43ba5d1078")).appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("confirmDepositInterestTitle")
+        .sheet(item: $confirming) { item in
+            let deposit = item.deposit
+            MacFormShell(width: 540) {
+                Text(L10n.text(item.monthly ? "deposit.confirm.monthly" : "mac.depositsView.presentedDetail.43ba5d1078"))
+                    .appFont(.dialogTitle, weight: .semibold).accessibilityIdentifier("confirmDepositInterestTitle")
+            } fields: {
                 Text(deposit.bankName).appFont(.section, weight: .semibold)
-                Text(L10n.text("mac.depositsView.presentedDetail.87d31882f5"))
-                if deposit.originalCurrency != bookCurrency { Text(L10n.text("mac.depositsView.presentedDetail.60b713baaa")).appFont(.caption, weight: .regular).foregroundStyle(.secondary) }
-                HStack { Spacer(); Button(L10n.text("mac.depositsView.presentedDetail.2cd0f3be87")) { confirming = nil }.accessibilityIdentifier("cancelDepositInterest")
-                    Button(L10n.text("mac.depositsView.presentedDetail.2b20833e6e")) { confirming = nil; post(deposit) }.accessibilityIdentifier("confirmDepositInterest")
+                ForEach(item.periods, id: \.date) { period in
+                    LabeledContent(MacDateDisplay.string(period.date),
+                                   value: MacOverviewStyle.money(period.interest) + " " + deposit.originalCurrency)
                 }
-            }.appPadding(24).appDialog(width: 500)
+                Text(L10n.text("deposit.confirm.cash")).appFont(.caption).foregroundStyle(.secondary)
+                if item.matures {
+                    Text(L10n.format("deposit.confirm.principal",
+                                     MacOverviewStyle.money(deposit.originalPrincipal) + " " + deposit.originalCurrency))
+                        .appFont(.caption).foregroundStyle(.secondary)
+                }
+                if deposit.originalCurrency != bookCurrency {
+                    Text(L10n.text("mac.depositsView.presentedDetail.60b713baaa")).appFont(.caption).foregroundStyle(.secondary)
+                }
+            } footer: {
+                HStack {
+                    Button(L10n.text("mac.depositsView.presentedDetail.2cd0f3be87")) { confirming = nil }
+                        .keyboardShortcut(.cancelAction).accessibilityIdentifier("cancelDepositInterest")
+                    Spacer()
+                    Button(L10n.text("mac.depositsView.presentedDetail.2b20833e6e")) { confirming = nil; post(item) }
+                        .accessibilityIdentifier("confirmDepositInterest")
+                }
+            }
         }
     }
 
@@ -182,12 +210,12 @@ struct MacDepositsView: View {
             TextField(L10n.text("mac.depositsView.filters.873f743d47"), text: $search).textFieldStyle(.roundedBorder).accessibilityIdentifier("depositSearch")
             ScrollView {
                 VStack(alignment: .leading, spacing: MacUI.space(7)) {
-                    filterButton(L10n.text("mac.depositsView.filterButton.6b5a8e8b5b"), count: active.count, selected: status == nil, icon: "tray", id: "depositAll") { status = nil }
                     ForEach([MacDepositsData.Status.current, .soon, .matured]) { item in
                         filterButton(item == .current ? L10n.text("deposit.filter.current") : item == .matured ? L10n.text("deposit.filter.history") : L10n.builtIn(item.rawValue),
                             count: active.filter { MacDepositsData.matches(MacDepositsData.status($0, now: now), filter: item) }.count,
                             selected: status == item, icon: item == .matured ? "calendar.badge.exclamationmark" : "clock", id: "depositStatus-\(item.rawValue)") { status = item }
                     }
+                    filterButton(L10n.text("mac.depositsView.filterButton.6b5a8e8b5b"), count: active.count, selected: status == nil, icon: "tray", id: "depositAll") { status = nil }
                     if historicalReviewCount > 0 {
                         Button { status = .matured; bank = nil; currency = nil; maturityYear = nil; search = "" } label: {
                             Label(L10n.format("deposit.filter.pendingHistory", Int64(historicalReviewCount)), systemImage: "exclamationmark.circle")
@@ -380,7 +408,7 @@ struct MacDepositsView: View {
                 Button(L10n.text("mac.depositsView.card.33bd6f76cb")) { reviewing = .deposit(deposit) }.accessibilityIdentifier("reviewFinance-" + deposit.id.uuidString).disabled(bookCurrency == nil || posting)
             } else if !deposit.hasCreditedInterest {
                 Text(L10n.text("mac.depositsView.card.ad87906358")).appFont(.caption).foregroundStyle(.secondary)
-                Button(posting ? L10n.text("mac.depositsView.card.c31167bc2b") : L10n.text("mac.depositsView.card.9c5e17428b"), systemImage: "checkmark.circle") { confirming = deposit }.accessibilityIdentifier("postDepositInterest-" + deposit.id.uuidString).disabled(posting || bookCurrency == nil || !MacDepositSettlement.isEligible(deposit, now: now))
+                Button(posting ? L10n.text("mac.depositsView.card.c31167bc2b") : L10n.text(deposit.typedInterestSettlementMode == .monthly ? "deposit.confirm.monthly" : "mac.depositsView.card.9c5e17428b"), systemImage: "checkmark.circle") { requestInterestConfirmation(deposit) }.accessibilityIdentifier("postDepositInterest-" + deposit.id.uuidString).disabled(posting || bookCurrency == nil || !MacDepositSettlement.isEligible(deposit, now: now))
             }
         }
     }
@@ -426,13 +454,29 @@ struct MacDepositsView: View {
         error = nil; message = L10n.text("mac.depositsView.saved.1bd91a7d0c"); now = Date()
         Task { try? await MacNotifications.schedule(in: context) }
     }
-    private func post(_ deposit: DepositRecord) {
+    private func requestInterestConfirmation(_ deposit: DepositRecord) {
+        do {
+            let through = Date()
+            let dates = try MacAutomaticPosting.depositDates(deposit, now: through)
+            let schedule = Dictionary(grouping: MacDepositTerms.schedule(deposit), by: \.date)
+            let periods = dates.compactMap { schedule[$0]?.first }
+            guard !periods.isEmpty, periods.count == dates.count else { throw MacDepositSettlement.PostingError.corruptedSchedule }
+            confirming = InterestConfirmation(deposit: deposit, revision: deposit.syncVersion, through: through, periods: periods)
+        } catch { self.error = MacLocalization.error(error) }
+    }
+
+    private func post(_ item: InterestConfirmation) {
+        let deposit = item.deposit
         guard let bookCurrency, !posting else { return }
         posting = true; error = nil; message = nil
         Task { @MainActor in
             defer { posting = false }
             do {
-                let result = try await MacAutomaticPosting.post(deposit, now: Date(), book: bookCurrency, in: context)
+                guard deposit.syncVersion == item.revision,
+                      try MacAutomaticPosting.depositDates(deposit, now: item.through) == item.periods.map(\.date) else {
+                    throw MacFinanceReview.Failure.schedule
+                }
+                let result = try await MacAutomaticPosting.post(deposit, now: item.through, book: bookCurrency, in: context)
                 message = L10n.format("mac.depositsView.Task.feda291839", "\(result.receipts)", "\(MacOverviewStyle.money(result.totalInterest))", "\(deposit.originalCurrency)")
                 now = Date(); try? await MacNotifications.schedule(in: context)
             } catch { self.error = MacLocalization.error(error) }

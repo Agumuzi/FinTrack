@@ -396,7 +396,7 @@ struct MacLoansView: View {
             Text(L10n.format("mac.loansView.receiptDetail.2ab0b4e818", "\(MacOverviewStyle.money(entry.baseAmount))", "\(entry.baseCurrencyCode)")).accessibilityIdentifier("loansReceiptBookAmount")
             Text(L10n.format("mac.loansView.receiptDetail.39ee388707", "\(entry.exchangeRateToBase.formatted())", "\(MacOverviewStyle.category(entry.category))"))
             Text(L10n.text("mac.loansView.receiptDetail.7836f2ce50")).appFont(.caption, weight: .regular).foregroundStyle(.secondary)
-            Text((entry.note ?? "").components(separatedBy: " [FTLoan:").first!.replacingOccurrences(of: "Loan installment ", with: "还款期次 ").replacingOccurrences(of: "Principal:", with: "本金：").replacingOccurrences(of: "Interest:", with: "利息：")).appFont(.caption, weight: .regular).textSelection(.enabled)
+            Text(MacFinanceNotes.visible(entry.note)).appFont(.caption, weight: .regular).textSelection(.enabled)
             HStack { Spacer(); Button(L10n.text("mac.loansView.receiptDetail.3fd47edce4")) { receipt = nil }.accessibilityIdentifier("loansCloseReceipt") }
         }.appPadding(24).appDialog(width: 560)
     }

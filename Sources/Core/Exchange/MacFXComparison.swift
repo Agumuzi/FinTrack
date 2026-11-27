@@ -43,6 +43,14 @@ nonisolated enum MacFXDates {
         }
         return localDay(time, calendar: calendar)
     }
+    @MainActor static func compactQuoteLabel(_ time: MacFXQuoteTime) -> String {
+        switch time {
+        case .instant(let date, _):
+            return MacDateDisplay.string(date) + " " + MacDisplayPreferences.time(date) + " " + (TimeZone.current.abbreviation(for: date) ?? TimeZone.current.identifier)
+        case .day(let day, let zone): return day + " " + zone
+        case .unknown: return L10n.text("mac.fXComparison.label.e30159f472")
+        }
+    }
     static func label(_ time: MacFXQuoteTime) -> String {
         switch time {
         case .instant(let date, let zone):

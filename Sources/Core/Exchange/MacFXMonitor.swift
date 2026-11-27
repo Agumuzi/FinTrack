@@ -169,10 +169,19 @@ final class MacFXMonitor: ObservableObject {
     var quotes: [MacFXEvidenceQuote] { cache.snapshots.compactMap { quote($0.pair) } }
     /// Selection conversion is a quote consumer, never an accounting write or a forced
     /// refresh of the entire directory. Keep its source/revision checks identical to monitoring.
-    func selectionRoute(from: String, to: String, maximumAge: TimeInterval = .greatestFiniteMagnitude) -> MacFXMath.Conversion? {
+    nonisolated static let selectionRefreshAge: TimeInterval = 15 * 60
+    nonisolated static let selectionOfflineAge: TimeInterval = 7 * 24 * 60 * 60
+
+    func isRecentQuote(_ time: MacFXQuoteTime) -> Bool {
+        guard let instant = MacFXDates.instant(time) else { return false }
+        return (-300...1800).contains(now().timeIntervalSince(instant))
+    }
+
+    func selectionRoute(from: String, to: String, maximumAge: TimeInterval = selectionRefreshAge) -> MacFXMath.Conversion? {
         let active = providers(for: configuration)
+        let clock = now()
         let values = cache.snapshots.map(\.current).filter { value in
-            now().timeIntervalSince(value.retrievedAt) <= maximumAge &&
+            (-300...maximumAge).contains(clock.timeIntervalSince(value.retrievedAt)) &&
             active.contains { $0.id == value.identity.sourceID && $0.revision == value.identity.sourceRevision }
         }
         return MacFXMath.resolve(from: from, to: to, quotes: values)
@@ -193,7 +202,7 @@ final class MacFXMonitor: ObservableObject {
                 guard value.identity == MacFXRequestIdentity(purpose: .monitorCurrent, pair: pair, sourceID: source.id, sourceRevision: source.revision, requested: .latest), MacFXQuoteCache.valid(value, now: now()) else { continue }
                 var next = cache
                 guard next.accept(value, now: now()) else { continue }
-                cache = next; revision += 1; persist(cache)
+                cache = next; cachedPairs.remove(pair); errors[pair] = nil; revision += 1; persist(cache)
                 return selectionRoute(from: from, to: to)
             } catch { continue }
         }

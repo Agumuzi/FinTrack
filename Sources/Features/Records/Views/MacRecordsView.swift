@@ -66,6 +66,7 @@ struct MacRecordSection: View {
     @AppStorage("v2_confirm_records") private var extraDeletionConfirmation = true
     @State private var deletionAcknowledged = false
     @State private var showsDeleteConfirmation = false
+    @State private var lastDeletion: MacTransactionCRUD.Deletion?
     @State private var typeFilter = "All"
     @State private var dateFilterEnabled = false
     @State private var dateFrom = DateFilterRangeState.currentMonth().startDate
@@ -202,6 +203,21 @@ struct MacRecordSection: View {
                     }
                     summaryCards(compact: geometry.size.width - filterWidth - 41 < summaryMinimumWidth)
                     filterBar
+                    if let lastDeletion {
+                        HStack {
+                            Text(L10n.text("records.deleted")).appFont(.caption)
+                            Spacer()
+                            Button(L10n.text("records.undoDelete")) {
+                                guard let activeBookCurrency else { return }
+                                do {
+                                    try MacTransactionCRUD.restore(lastDeletion, bookCurrency: activeBookCurrency, in: modelContext)
+                                    self.lastDeletion = nil
+                                    saveError = nil
+                                    refreshLedgerState()
+                                } catch { saveError = MacLocalization.error(error) }
+                            }.disabled(activeBookCurrency == nil).accessibilityIdentifier("recordsUndoDelete")
+                        }
+                    }
                     if let saveError {
                         Text(L10n.format("mac.recordsView.GeometryReader.fcc6eb49b9", "\(saveError)")).foregroundStyle(.red).accessibilityIdentifier("saveError")
                     }
@@ -324,7 +340,7 @@ struct MacRecordSection: View {
                     Button(L10n.text("mac.recordsView.body.2cd0f3be87")) { confirmsBatchDelete = false }.accessibilityIdentifier("cancelBatchDeletion")
                     Button(L10n.text("mac.recordsView.body.a3ea3c17b4"), role: .destructive) {
                         do {
-                            try MacDataManagement.deleteTransactions(deletableSelection, in: modelContext)
+                            lastDeletion = try MacDataManagement.deleteTransactions(deletableSelection, in: modelContext)
                             refreshLedgerState()
                             batchSelection.removeAll(); selectedTransactionID = nil; saveError = nil
                             confirmsBatchDelete = false
@@ -584,7 +600,7 @@ struct MacRecordSection: View {
             }.width(min: 35, ideal: notes, max: 10000)
             TableColumn(L10n.text("mac.recordsView.TableColumn.1e878068f9")) { row in Text(row.originalCurrency).appFont(.body, weight: .regular, design: .default).foregroundStyle(.secondary) }
                 .width(min: 42, ideal: 50, max: 200)
-            TableColumn(L10n.format("mac.recordsView.TableColumn.474f15922f", "\(activeBookCurrency ?? L10n.text("mac.recordsView.TableColumn.8865cec527"))")) { row in signedTableAmount(row) }
+            TableColumn(L10n.format("mac.recordsView.TableColumn.474f15922f", "\(activeBookCurrency ?? L10n.text("mac.recordsView.TableColumn.8865cec527"))")) { row in signedTableAmount(row, selected: batchSelection.contains(row.id)) }
                 .width(min: 65, ideal: amountColumnWidth, max: 2000).alignment(.trailing)
         }.tableStyle(.inset(alternatesRowBackgrounds: true))
             .contextMenu(forSelectionType: UUID.self, menu: { ids in recordContextMenu(ids) }, primaryAction: { ids in
@@ -631,7 +647,7 @@ struct MacRecordSection: View {
             TableColumn(L10n.text("mac.recordsView.TableColumn.0d12cbd656")) { row in categoryCell(row) }.width(min: 35, ideal: category, max: 2000)
             TableColumn(L10n.format("mac.recordsView.TableColumn.474f15922f", "\(activeBookCurrency ?? L10n.text("mac.recordsView.TableColumn.8865cec527"))")) { row in
                 VStack(alignment:.trailing,spacing:1) {
-                    signedTableAmount(row)
+                    signedTableAmount(row, selected: batchSelection.contains(row.id))
                     if row.originalCurrency != row.baseCurrencyCode {
                         Text(L10n.text("mac.recordsView.TableColumn.494804e991") + row.originalCurrency).appFont(.caption).foregroundStyle(.secondary)
                     }
@@ -656,13 +672,13 @@ struct MacRecordSection: View {
             .accessibilityElement(children: .ignore).accessibilityLabel(MacOverviewStyle.category(row.category))
             .accessibilityIdentifier("recordRow-" + row.id.uuidString)
     }
-    private func signedTableAmount(_ row: Transaction) -> some View {
+    private func signedTableAmount(_ row: Transaction, selected: Bool = false) -> some View {
         let income = row.typedType == .income
         let stateLabel = TransactionRecognition.isRealized(row) ? "" : " · " + L10n.text("receipt.pendingShort")
         return Text((income ? "+" : "−") + MacOverviewStyle.money(row.baseAmount) + stateLabel
                     + (activeBookCurrency == nil ? " " + row.baseCurrencyCode : ""))
             .appFont(.body, weight: .medium).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
-            .foregroundStyle(income ? MacOverviewStyle.income : MacOverviewStyle.expense)
+            .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(income ? MacOverviewStyle.income : MacOverviewStyle.expense))
             .frame(maxWidth: .infinity, alignment: .trailing)
             .appPadding(.trailing, 10)
             .accessibilityIdentifier("recordAmount-" + row.id.uuidString)
@@ -732,7 +748,7 @@ struct MacRecordSection: View {
                     Button(L10n.text("mac.recordsView.detailPanel.2f9daa8289"), role: .destructive) {
                         guard let selectedTransaction else { return }
                         do {
-                            try MacTransactionCRUD.delete(selectedTransaction, in: modelContext)
+                            lastDeletion = try MacTransactionCRUD.delete(selectedTransaction, in: modelContext)
                             refreshLedgerState()
                             selectedTransactionID = nil
                             saveError = nil

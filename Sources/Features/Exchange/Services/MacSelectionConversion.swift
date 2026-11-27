@@ -195,7 +195,7 @@ final class MacSelectionConversion: ObservableObject {
         let size: CGSize
         switch value.phase {
         case .choose: size = CGSize(width: 460, height: CGFloat(value.parsed.amounts.count > 1 ? 270 : 230) + min(86, CGFloat(max(0, (value.suggested.count + 5) / 6 - 1)) * 34)); panel.acceptsKeyboard = true
-        case .result: size = CGSize(width: 390, height: 132); panel.acceptsKeyboard = false
+        case .result: size = CGSize(width: 420, height: 160); panel.acceptsKeyboard = false
         case .loading, .failure: size = CGSize(width: 360, height: 112); panel.acceptsKeyboard = false
         }
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(anchor) }) ?? NSScreen.main else { return }

@@ -8,6 +8,7 @@ enum MacTransactionCRUD {
     enum PostingError: LocalizedError {
         case amountRequired
         case amountOutsideSafeRange
+        case amountPrecision
         case categoryRequired
         case mixedBaseCurrencies
         case foreignCurrencyEdit
@@ -16,6 +17,7 @@ enum MacTransactionCRUD {
 
         var errorDescription: String? {
             switch self {
+            case .amountPrecision: L10n.text("money.unsupportedPrecision")
             case .amountRequired: L10n.text("mac.transactionCRUD.errorDescription.0e0294af48")
             case .amountOutsideSafeRange: L10n.text("mac.transactionCRUD.errorDescription.f435c45d44")
             case .categoryRequired: L10n.text("mac.transactionCRUD.errorDescription.accc46b924")
@@ -79,6 +81,10 @@ enum MacTransactionCRUD {
               input.filter({ $0 == "." }).count <= 1,
               let decimal = Decimal(string: input, locale: Locale(identifier: "en_US_POSIX")),
               decimal > 0 else { throw PostingError.amountRequired }
+        if let fraction = input.split(separator: ".", omittingEmptySubsequences: false).dropFirst().first,
+           fraction.dropFirst(FinancialPrecision.amountStorageScale).contains(where: { $0 != "0" }) {
+            throw PostingError.amountPrecision
+        }
         let number = NSDecimalNumber(decimal: decimal).doubleValue
         guard number.isFinite, number <= 1_000_000_000_000 else {
             throw PostingError.amountOutsideSafeRange
@@ -211,17 +217,60 @@ enum MacTransactionCRUD {
         }
     }
 
-    static func delete(_ transaction: Transaction, in context: ModelContext) throws {
-        try MacRecoveryJournal.assertWritable(in:context)
-        guard !isProtectedGeneratedPosting(transaction) else {
+    struct Deletion {
+        fileprivate let ids: Set<PersistentIdentifier>
+        fileprivate let container: ObjectIdentifier
+        fileprivate let generation: Int
+        fileprivate let time: Date
+    }
+
+    @discardableResult
+    static func delete(_ transaction: Transaction, in context: ModelContext) throws -> Deletion {
+        try delete([transaction], in: context)
+    }
+
+    static func delete(_ transactions: [Transaction], in context: ModelContext) throws -> Deletion {
+        try MacRecoveryJournal.assertWritable(in: context)
+        guard !transactions.contains(where: isProtectedGeneratedPosting) else {
             throw PostingError.generatedPostingProtected
         }
-        context.delete(transaction) // Original TransactionManager.delete also hard deletes.
-        do { try context.save() }
-        catch {
-            context.rollback()
-            throw error
+        guard !context.hasChanges, !transactions.isEmpty,
+              transactions.allSatisfy({ $0.modelContext === context && $0.deletedAt == nil }) else {
+            throw MacSettingsFailure.invalid(L10n.text("records.undoUnavailable"))
         }
+        let time = Date()
+        for transaction in transactions {
+            transaction.deletedAt = time
+            transaction.updatedAt = time
+            if transaction.syncVersion < Int.max { transaction.syncVersion += 1 }
+        }
+        do { try context.save() } catch { context.rollback(); throw error }
+        return Deletion(ids: Set(transactions.map(\.persistentModelID)), container: ObjectIdentifier(context.container),
+                        generation: MacEditorDraftStore.shared.generation, time: time)
+    }
+
+    static func restore(_ deletion: Deletion, bookCurrency: String, in context: ModelContext) throws {
+        try MacRecoveryJournal.assertWritable(in: context)
+        guard !context.hasChanges, deletion.container == ObjectIdentifier(context.container),
+              deletion.generation == MacEditorDraftStore.shared.generation else {
+            throw MacSettingsFailure.invalid(L10n.text("records.undoUnavailable"))
+        }
+        _ = try MacCurrency.ledgerCurrency(in: context, preferred: bookCurrency)
+        let time = deletion.time
+        let removed = try context.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.deletedAt == time }))
+            .filter { deletion.ids.contains($0.persistentModelID) }
+        guard removed.count == deletion.ids.count, removed.allSatisfy({
+            $0.updatedAt == time && $0.baseCurrencyCode == bookCurrency && !isProtectedGeneratedPosting($0)
+        }) else {
+            throw MacSettingsFailure.invalid(L10n.text("records.undoUnavailable"))
+        }
+        let restoredAt = Date()
+        for row in removed {
+            row.deletedAt = nil
+            row.updatedAt = restoredAt
+            if row.syncVersion < Int.max { row.syncVersion += 1 }
+        }
+        do { try context.save() } catch { context.rollback(); throw error }
     }
 
     static func totals(

@@ -69,47 +69,20 @@ final class Goal {
 }
 
 extension Goal {
-    static func baselineNetWorth(from profile: FinancialProfile?) -> Double {
-        guard let profile else { return 0 }
-        return profile.initialAssets + normalizedDebt(profile.initialDebt)
-    }
-
     static func normalizedDebt(_ debt: Double) -> Double {
         debt <= 0 ? debt : -debt
     }
 
-    private func effectiveBaselineNetWorth(profileBaselineNetWorth: Double) -> Double {
-        includesCurrentAssets ? profileBaselineNetWorth : creationNetWorth
+    func progress(netWorth: Double) -> GoalProgressRule {
+        GoalProgressRule(target: targetAmount, netWorth: netWorth, creationNetWorth: creationNetWorth,
+                         includesCurrentAssets: includesCurrentAssets)
     }
 
-    private func effectiveTargetAmount(profileBaselineNetWorth: Double) -> Double {
-        includesCurrentAssets ? targetAmount : creationNetWorth + targetAmount
+    func progressStatus(netWorth: Double?) -> String {
+        if isPaused { return "已暂停" }
+        return isAccomplished || netWorth.map { progress(netWorth: $0).completed } == true ? "已完成" : "进行中"
     }
 
-    func progressValue(currentNetWorth: Double, baselineNetWorth: Double) -> Double {
-        let effectiveBaseline = effectiveBaselineNetWorth(profileBaselineNetWorth: baselineNetWorth)
-        let effectiveTarget = effectiveTargetAmount(profileBaselineNetWorth: baselineNetWorth)
-        let distance = effectiveTarget - effectiveBaseline
-
-        if distance == 0 {
-            return currentNetWorth == effectiveTarget ? 1 : 0
-        }
-
-        return (currentNetWorth - effectiveBaseline) / distance
-    }
-
-    func clampedProgressValue(currentNetWorth: Double, baselineNetWorth: Double) -> Double {
-        min(max(progressValue(currentNetWorth: currentNetWorth, baselineNetWorth: baselineNetWorth), 0), 1)
-    }
-
-    func displayPercent(currentNetWorth: Double, baselineNetWorth: Double) -> Int {
-        let raw = Int(round(clampedProgressValue(currentNetWorth: currentNetWorth, baselineNetWorth: baselineNetWorth) * 100))
-        return min(max(raw, 0), 100)
-    }
-
-    func isCompleted(currentNetWorth: Double, baselineNetWorth: Double) -> Bool {
-        clampedProgressValue(currentNetWorth: currentNetWorth, baselineNetWorth: baselineNetWorth) >= 1
-    }
 }
 
 

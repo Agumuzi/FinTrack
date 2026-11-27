@@ -8,9 +8,11 @@ import Combine
 @MainActor
 final class MacAppServices: ObservableObject {
     static let shared = MacAppServices()
-    @Published private(set) var postingError: String?
+    @Published private(set) var postingIssues: [MacAutomaticPosting.Issue] = []
+    @Published private(set) var isRetryingPosting = false
     @Published private(set) var loginEnabled = false
     @Published private(set) var loginMessage: String?
+    private var postingRetry: Task<Void, Never>?
     private var dailyTask: Task<Void, Never>?
     private var updateTask: Task<Void, Never>?
     private var observers: [AnyCancellable] = []
@@ -77,8 +79,12 @@ final class MacAppServices: ObservableObject {
     }
     func restartDaily() {
         guard !MacPreferences.isTesting else { return }
-        dailyTask?.cancel()
+        let previous = dailyTask, retry = postingRetry
+        previous?.cancel()
+        retry?.cancel()
         dailyTask = Task { [weak self] in
+            await previous?.value
+            await retry?.value
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.runDue()
@@ -87,12 +93,26 @@ final class MacAppServices: ObservableObject {
             }
         }
     }
+    func retryDue() async {
+        guard !isRetryingPosting, !MacAutomaticPosting.isRunning, !MacPreferences.isTesting else { return }
+        isRetryingPosting = true
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.runDue()
+        }
+        postingRetry = task
+        defer { isRetryingPosting = false; postingRetry = nil }
+        await task.value
+    }
+
     private func runDue() async {
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, !MacAutomaticPosting.isRunning else { return }
         let access = MacLedgerAccess.shared; access.load()
         guard let context = access.container?.mainContext else { return }
         let d = MacPreferences.defaults
-        postingError = await MacAutomaticPosting.run(in: context, now: Self.eligibleThrough(Date()), includeRules: d.bool(forKey: "fintrack_auto_posting"), includeDeposits: d.object(forKey: "v13_auto_deposit_posting") as? Bool ?? true)
-        do { try await MacNotifications.schedule(in: context) } catch { postingError = L10n.text("mac.appServices.runDue.aff23af827") + error.localizedDescription }
+        let issues = await MacAutomaticPosting.run(in: context, now: Self.eligibleThrough(Date()),
+            includeRules: d.bool(forKey: "fintrack_auto_posting"), includeDeposits: d.object(forKey: "v13_auto_deposit_posting") as? Bool ?? true)
+        guard !Task.isCancelled else { return }
+        postingIssues = issues ?? []
     }
 }

@@ -66,15 +66,12 @@ enum MacDataManagement {
         } catch { context.rollback(); throw error }
     }
 
-    static func deleteTransactions(_ rows: [Transaction], in context: ModelContext) throws {
-        try MacRecoveryJournal.assertWritable(in:context)
+    @discardableResult
+    static func deleteTransactions(_ rows: [Transaction], in context: ModelContext) throws -> MacTransactionCRUD.Deletion {
         guard !rows.contains(where: MacTransactionCRUD.isProtectedGeneratedPosting) else {
             throw Failure.generatedReceipts
         }
-        do {
-            for row in rows { context.delete(row) }
-            try context.save()
-        } catch { context.rollback(); throw error }
+        return try MacTransactionCRUD.delete(rows, in: context)
     }
 
     /// Original category rename/merge updates transaction, recurring and loan names.

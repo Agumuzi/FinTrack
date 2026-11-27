@@ -64,7 +64,9 @@ enum MacCSVStandard {
                           String(interval) == values["IntervalValue"], RecurringIntervalUnit(rawValue: values["IntervalUnit"] ?? "") != nil else { throw fail(L10n.text("mac.cSVStandard.fail.728b7f1b72")) }
                     let next = try date("NextExecutionDate")
                     if !values["EndDate", default: ""].isEmpty, try date("EndDate") < next { throw fail(L10n.text("mac.cSVStandard.fail.c21c43f4db")) }
-                    row["ProjectIdentifier"] = MacFinanceRecords.managedRecurringTag
+                    if let unit = RecurringIntervalUnit(rawValue: values["IntervalUnit"] ?? "") {
+                        row["ProjectIdentifier"] = MacFinanceRecords.recurringIdentifier(for: unit, date: next)
+                    }
                     row["IsActive"] = "false"; row["NotificationsEnabled"] = "false"
                 }
             case .deposits:

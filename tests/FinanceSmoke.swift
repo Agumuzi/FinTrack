@@ -91,6 +91,44 @@ struct FinanceSmoke {
             maturityDate: maturity, settlementMode: .maturity
         ) == nil, "invalid inverse principal")
 
-        print("PASS: FinancialPrecision + DepositSettlementRule smoke checks")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        for target in [500.0, 1000, 1500] {
+            for balance in [target - 1, target, target + 1] {
+                let goal = GoalProgressRule(target: target, netWorth: balance, creationNetWorth: 1000, includesCurrentAssets: true)
+                check(goal.completed == (balance >= target), "absolute goal threshold")
+                near(goal.current, balance, "absolute goal amount")
+            }
+        }
+        let growth = GoalProgressRule(target: 500, netWorth: -700, creationNetWorth: -1000, includesCurrentAssets: false)
+        near(growth.current, 300, "net worth growth from negative baseline")
+        near(growth.remaining, 200, "growth remaining")
+        near(growth.fraction, 0.6, "growth progress")
+        let decline = GoalProgressRule(target: 500, netWorth: -200, creationNetWorth: 100, includesCurrentAssets: false)
+        near(decline.current, -300, "asset decline")
+        near(decline.fraction, 0, "declining progress")
+        near(decline.remaining, 800, "loss increases the gap")
+
+        let jan = parser.date(from: "2028-01-31T12:00:00Z")!
+        let feb = RecurringScheduleRule.nextDate(after: jan, interval: 1, component: .month, anchorDay: 31, calendar: calendar)!
+        let mar = RecurringScheduleRule.nextDate(after: feb, interval: 1, component: .month, anchorDay: 31, calendar: calendar)!
+        check(calendar.component(.day, from: feb) == 29 && calendar.component(.day, from: mar) == 31, "leap year anchor")
+        let legacy = RecurringScheduleRule.nextDate(after: feb, interval: 1, component: .month, anchorDay: nil, calendar: calendar)!
+        check(calendar.component(.day, from: legacy) == 29, "legacy progression")
+        for (count, expected) in [(24, [24]), (25, [24, 1]), (60, [24, 24, 12])] {
+            let end = calendar.date(byAdding: .day, value: count - 1, to: start)!
+            var cursor = start, sizes: [Int] = [], occurrences = Set<Date>()
+            while cursor <= end {
+                let batch = RecurringScheduleRule.batch(start: cursor, through: end, end: nil) {
+                    calendar.date(byAdding: .day, value: 1, to: $0)!
+                }
+                sizes.append(batch.dates.count)
+                occurrences.formUnion(batch.dates)
+                cursor = batch.next
+            }
+            check(sizes == expected && occurrences.count == count, "bounded recurring batches of \(count)")
+        }
+
+        print("PASS: amount precision, deposit settlement, goal progress and recurring schedule")
     }
 }

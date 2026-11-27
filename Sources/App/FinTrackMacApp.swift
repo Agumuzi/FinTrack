@@ -24,6 +24,7 @@ struct FinTrackMacApp: App {
         #if FINTRACK_MENU_PROTOTYPE
         Window(L10n.text("mac.finTrackMacApp.Window.2fb461fbdb"), id: "menu-prototype-main") {
             MacMenuPrototypeMainView(runtime: MacApplicationRuntime.shared, entries: entries)
+                .background(MacMenuBarWindowProbe { MacApplicationRuntime.shared.attachMainWindow($0) })
         }.defaultSize(width: 760, height: 800)
             .defaultLaunchBehavior(entries.configuration.showMainOnLaunch ? .presented : .suppressed)
         #else

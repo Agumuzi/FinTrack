@@ -1,6 +1,6 @@
 # Localization module
 
-The v1.5 candidate has integrated the reviewed KeyFreeze2 English and Simplified Chinese resources. It remains a local acceptance candidate, pending final review and release authorization. English is the String Catalog source language. `Resources/Localizable.xcstrings` is the sole compiled translation authority; JSON packs are interchange artifacts.
+FinTrack ships the reviewed KeyFreeze2 English and Simplified Chinese resources, with subsequent feature strings maintained in the same catalog. English is the String Catalog source language. `Resources/Localizable.xcstrings` is the sole compiled translation authority; JSON packs are interchange artifacts.
 
 `LocalizationController` owns selection, effective language, system preference matching, and refresh notifications. `app_language=system` remains a selection rather than a detected language. First-run policy runs before the old initialization marker is created. Existing installations with no language key retain Chinese; explicit old values remain intact. Unsupported selections fall back to English without erasing the saved value. Traditional Chinese is not silently mapped to Simplified Chinese.
 
@@ -38,3 +38,5 @@ KeyFreeze2’s 3,321 keys are retained without renaming or deletion. Additional 
 Settings rows use shared constrained label/control columns with vertical fallbacks. Native table headers resolve the same localization resources as SwiftUI columns and measure localized header widths. Leading icons are centered against the full wrapped text block.
 
 Writing and terminology follow [LOCALIZATION_STYLE.md](LOCALIZATION_STYLE.md). Target-language idioms and established terms take precedence over literal Chinese phrasing. The v1.5 deposit interest overview adds scoped `deposit.earnings.*` keys without renaming any KeyFreeze2 entry.
+
+Recurring intervals use native plural variants. Generated receipt descriptions localize at display time. Saved text, occurrence markers, amounts, and historical user notes retain their accounting and backup meaning.
